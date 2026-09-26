@@ -435,8 +435,9 @@ function updateCandidates() {
   if (origin) {
     for (const [place, legs] of passing) {
       const gv = gindex.get(place);
-      if (!gv) continue;
-      add(place, Math.min(...legs.map((l) => l.dur)), Math.log1p(gv.art.appeal) + 0.35 * Math.log1p(legs.length) + (place.isCity ? 0.4 : 0));
+      const mins = Math.min(...legs.map((l) => l.dur));
+      if (!gv || mins < 30) continue; // a neighbourhood of your own city isn't a trip
+      add(place, mins, Math.log1p(gv.art.appeal) + 0.35 * Math.log1p(legs.length) + (place.isCity ? 0.4 : 0));
     }
   } else {
     for (const [place, gv] of gindex) {
