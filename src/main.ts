@@ -144,7 +144,7 @@ function layout() {
   map.setSafeRects(rects.filter((r) => r.width && r.height));
   const panelOpen = !panel.hidden;
   if (narrow()) {
-    const top = !origin ? hero.getBoundingClientRect().bottom + 4 : chip.getBoundingClientRect().bottom + 8;
+    const top = panelOpen ? 56 : !origin ? hero.getBoundingClientRect().bottom + 4 : chip.getBoundingClientRect().bottom + 8;
     const bottom = panelOpen ? window.innerHeight * 0.74 : origin ? dock.getBoundingClientRect().height + 24 : 16;
     map.setInsets({ top, right: 8, bottom, left: 8 });
   } else {

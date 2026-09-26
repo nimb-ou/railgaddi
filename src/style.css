@@ -703,7 +703,7 @@ input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius
   .dock { bottom: calc(10px + env(safe-area-inset-bottom, 0px)); padding: 12px 14px 10px; gap: 10px; }
   .seg { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
   .seg button { flex: none; }
-  body.panel-open .clock { display: none; }
+  body.panel-open .clock, body.panel-open .origin-box { display: none; }
   .clock { display: none; }
   .panel {
     top: auto;
