@@ -120,6 +120,14 @@ async function boot() {
     renderPopular();
     updateCandidates();
     if (open) renderPanel();
+    // dev only: ?open=<place id> opens a place, ?train=<n> then its nth train (for screenshots)
+    const q = new URLSearchParams(location.search);
+    const dev = import.meta.env.DEV && net.places.get(q.get("open") ?? "");
+    if (dev) {
+      openPlace(dev);
+      const n = Number(q.get("train"));
+      if (q.has("train")) panel.querySelectorAll<HTMLElement>(".row")[n]?.click();
+    }
   });
 
   const fromHash = () => net.places.get(decodeURIComponent(location.hash.slice(1)));
@@ -157,8 +165,12 @@ function layout() {
 // ---------------------------------------------------------------- top bar
 function setupTopbar() {
   const themes = $("themes");
+  const ICONS: Record<string, string> = {
+    day: `<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.6M8 12.9v1.6M1.5 8h1.6M12.9 8h1.6M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M3.4 12.6l1.1-1.1M11.5 4.5l1.1-1.1"/></svg>`,
+    night: `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13 9.8A5.5 5.5 0 0 1 6.2 3a5.5 5.5 0 1 0 6.8 6.8z"/></svg>`,
+  };
   themes.innerHTML = THEMES.map(
-    (t) => `<button type="button" role="radio" data-id="${t.id}" aria-label="${t.name} colours" title="${t.name}" style="--sw:${t.swatch}"></button>`,
+    (t) => `<button type="button" role="radio" data-id="${t.id}" aria-label="${t.name}">${ICONS[t.id]}<span>${t.name}</span></button>`,
   ).join("");
   const mark = () => {
     for (const b of themes.querySelectorAll("button")) b.setAttribute("aria-checked", String(b.dataset.id === document.documentElement.dataset.theme));
@@ -303,7 +315,7 @@ function chooseOrigin(p: Place) {
   requestAnimationFrame(() => (pin.hidden = false)); // restart the drop animation
   refresh(true);
   history.replaceState(null, "", `#${encodeURIComponent(p.id)}`);
-  document.title = `From ${p.name} · Patri`;
+  document.title = `From ${p.name} · Railgaddi`;
   requestAnimationFrame(() => {
     layout();
     if (keepOpen && keepOpen !== p && dests.has(keepOpen)) {
@@ -330,7 +342,7 @@ function backToStart(focus = false) {
   map.setOrigin(null, new Map(), [], false);
   updateCandidates();
   history.replaceState(null, "", location.pathname);
-  document.title = "Patri";
+  document.title = "Railgaddi";
   requestAnimationFrame(() => {
     layout();
     map.fitIndia();
@@ -341,8 +353,8 @@ function backToStart(focus = false) {
 function hint() {
   let seen = false;
   try {
-    seen = !!localStorage.getItem("patri.hinted");
-    localStorage.setItem("patri.hinted", "1");
+    seen = !!localStorage.getItem("railgaddi.hinted");
+    localStorage.setItem("railgaddi.hinted", "1");
   } catch {
     /* show it anyway */
   }

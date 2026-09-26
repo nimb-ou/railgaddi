@@ -50,7 +50,8 @@ export interface Insets {
 
 interface Palette {
   sea: string; sea2: string; land: string; landEdge: string; ripple: string; border: string; net: string;
-  ink: string; accent: string; accent2: string; text: string; muted: string; halo: string; ring: string;
+  ink: string; livery: string; accent: string; text: string; muted: string; halo: string; ring: string;
+  board: string; boardInk: string;
 }
 
 interface Geom {
@@ -89,8 +90,7 @@ const MAX_MINS = 36 * 60;
 const bucketOf = (m: number) => Math.min(BUCKETS - 1, Math.floor(Math.sqrt(Math.max(0, m) / MAX_MINS) * BUCKETS));
 const bucketMins = (b: number) => ((b + 0.5) / BUCKETS) ** 2 * MAX_MINS;
 const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-const FONT = "'Manrope', system-ui, sans-serif";
-const MONO = "'IBM Plex Mono', ui-monospace, monospace";
+const FONT = "'Archivo', system-ui, sans-serif";
 
 export function fmtMins(m: number) {
   if (m < 60) return `${Math.round(m)}m`;
@@ -208,9 +208,10 @@ export class RailMap {
     const v = (n: string) => css.getPropertyValue(n).trim();
     this.c = {
       sea: v("--sea"), sea2: v("--sea-2"), land: v("--land"), landEdge: v("--land-edge"), ripple: v("--ripple"),
-      border: v("--border"), net: v("--net"), ink: v("--ink"), accent: v("--accent"), accent2: v("--accent-2"),
-      text: v("--text"), muted: v("--muted"), halo: v("--halo"), ring: v("--ring"),
+      border: v("--border"), net: v("--net"), ink: v("--ink"), livery: v("--livery"), accent: v("--accent"),
+      text: v("--text"), muted: v("--muted"), halo: v("--halo"), ring: v("--ring"), board: v("--board"), boardInk: v("--board-ink"),
     };
+    this.labelWidth.clear();
     this.netStrength = parseFloat(v("--net-strength")) || 1;
     const scale = d3
       .scaleLinear<string>()
@@ -615,11 +616,11 @@ export class RailMap {
     c.save();
     c.translate(x, y);
     c.scale(k, k);
-    // soft coastline ripples, widest first
+    // two faint coastline rules, as on a printed map
     c.lineJoin = "round";
-    const gap = 6 / k;
-    for (let i = 3; i >= 1; i--) {
-      c.globalAlpha = 0.55 - i * 0.12;
+    const gap = 5 / k;
+    for (let i = 2; i >= 1; i--) {
+      c.globalAlpha = i === 2 ? 0.35 : 0.6;
       c.strokeStyle = this.c.ripple;
       c.lineWidth = 2 * i * gap;
       c.stroke(this.landPath);
@@ -630,19 +631,20 @@ export class RailMap {
     }
     c.fillStyle = this.c.land;
     c.fill(this.landPath);
-    c.lineWidth = 1.2 / k;
+    c.lineWidth = 1 / k;
     c.strokeStyle = this.c.landEdge;
     c.stroke(this.landPath);
-    c.lineWidth = 0.8 / k;
+    c.lineWidth = 0.9 / k;
     c.strokeStyle = this.c.border;
+    c.setLineDash([1.5 / k, 2.5 / k]);
     c.stroke(this.statePath);
     c.setLineDash([6 / k, 5 / k]);
-    c.strokeStyle = this.c.border;
     c.stroke(this.tropicPath);
     c.setLineDash([]);
-    const faint = (this.origin ? 0.35 : 1) * this.netStrength;
-    const widths = [0.5, 0.7, 0.9, 1.2, 1.6];
-    const alphas = [0.1, 0.16, 0.24, 0.34, 0.46];
+    // every line in the country, faint, busier corridors a little darker
+    const faint = (this.origin ? 0.4 : 1) * this.netStrength;
+    const widths = [0.5, 0.7, 0.9, 1.1, 1.4];
+    const alphas = [0.14, 0.2, 0.28, 0.36, 0.46];
     c.strokeStyle = this.c.net;
     c.lineCap = "round";
     this.netPaths.forEach((p, i) => {
@@ -678,12 +680,25 @@ export class RailMap {
     if (this.sights.length) this.drawSights();
   }
 
+  /** The railway-map symbol: once zoomed in, lines get pale sleeper ties. */
+  private ties(stroke: () => void, width: number) {
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.strokeStyle = this.c.land;
+    ctx.lineWidth = width;
+    ctx.lineCap = "butt";
+    ctx.setLineDash([width * 2.4, width * 3]);
+    stroke();
+    ctx.restore();
+  }
+
   private drawRoutes() {
     const ctx = this.ctx;
     const { k, x, y } = this.tf;
     const focus = this.selected;
     const trainFocus = this.selectedTrain?.leg.train ?? null;
-    const dim = this.sights.length ? 0.1 : focus || trainFocus ? 0.16 : 0.62;
+    const dim = this.sights.length ? 0.12 : focus || trainFocus ? 0.18 : 0.7;
+    const close = k >= 3;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     if (this.revealMins === Infinity) {
@@ -697,19 +712,21 @@ export class RailMap {
           }
         }
       }
+      const cache = this.routeCache;
       ctx.save();
       ctx.setTransform(this.dpr * k, 0, 0, this.dpr * k, this.dpr * x, this.dpr * y);
-      ctx.lineWidth = 1.5 / k;
+      ctx.lineWidth = (close ? 3.4 : 1.5) / k;
       ctx.globalAlpha = dim;
-      this.routeCache.forEach((p, b) => {
+      cache.forEach((p, b) => {
         ctx.strokeStyle = this.lut[b];
         ctx.stroke(p);
       });
+      if (close && dim > 0.5) this.ties(() => cache.forEach((p) => ctx.stroke(p)), 1.2 / k);
       ctx.restore();
     } else {
-      // spreading out from the origin, by minutes of travel
+      // spreading out from the origin, minute by minute of travel
       ctx.lineWidth = 1.6;
-      ctx.globalAlpha = 0.75;
+      ctx.globalAlpha = 0.8;
       for (const r of this.routes) {
         for (let j = 1; j < r.st.length; j++) {
           const m = (r.mins[j - 1] + r.mins[j]) / 2;
@@ -723,21 +740,21 @@ export class RailMap {
       }
       ctx.globalAlpha = 1;
     }
-    // the lines that reach the selected place, bright
+    // the lines that reach the selected place, in full livery
     if (focus && !trainFocus && !this.sights.length) {
       const dest = new Set(focus.stations);
-      ctx.lineWidth = 2.6;
+      const path = new Path2D();
       for (const r of this.routes) {
         const end = r.st.findIndex((s) => dest.has(s));
         if (end < 1) continue;
-        for (let j = 1; j <= end; j++) {
-          ctx.strokeStyle = this.lut[bucketOf((r.mins[j - 1] + r.mins[j]) / 2)];
-          ctx.beginPath();
-          ctx.moveTo(this.tf.applyX(this.sx[r.st[j - 1]]), this.tf.applyY(this.sy[r.st[j - 1]]));
-          ctx.lineTo(this.tf.applyX(this.sx[r.st[j]]), this.tf.applyY(this.sy[r.st[j]]));
-          ctx.stroke();
-        }
+        path.moveTo(this.tf.applyX(this.sx[r.st[0]]), this.tf.applyY(this.sy[r.st[0]]));
+        for (let j = 1; j <= end; j++) path.lineTo(this.tf.applyX(this.sx[r.st[j]]), this.tf.applyY(this.sy[r.st[j]]));
       }
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = this.c.livery;
+      ctx.lineWidth = close ? 4 : 2.6;
+      ctx.stroke(path);
+      if (close) this.ties(() => ctx.stroke(path), 1.4);
     }
   }
 
@@ -749,53 +766,59 @@ export class RailMap {
     const X = (i: number) => this.tf.applyX(this.sx[i]);
     const Y = (i: number) => this.tf.applyY(this.sy[i]);
     const line = (km0: number, km1: number) => {
-      ctx.beginPath();
+      const p = new Path2D();
       let first = true;
       for (let j = 0; j < g.st.length; j++) {
         if (g.km[j] < km0 || g.km[j] > km1) continue;
-        if (first) ctx.moveTo(X(g.st[j]), Y(g.st[j]));
-        else ctx.lineTo(X(g.st[j]), Y(g.st[j]));
+        if (first) p.moveTo(X(g.st[j]), Y(g.st[j]));
+        else p.lineTo(X(g.st[j]), Y(g.st[j]));
         first = false;
       }
-      ctx.stroke();
+      return p;
     };
     ctx.strokeStyle = this.c.ink;
     ctx.globalAlpha = 0.35;
     ctx.lineWidth = 1.4;
     ctx.setLineDash([3, 4]);
-    line(-1, Infinity);
+    ctx.stroke(line(-1, Infinity));
     ctx.setLineDash([]);
     ctx.globalAlpha = 1;
+    const ride = line(t.km[leg.from] - 0.01, t.km[leg.to] + 0.01);
     ctx.strokeStyle = this.c.accent;
-    ctx.lineWidth = 3.2;
-    line(t.km[leg.from] - 0.01, t.km[leg.to] + 0.01);
+    ctx.lineWidth = 4;
+    ctx.stroke(ride);
+    this.ties(() => ctx.stroke(ride), 1.4);
     for (let j = leg.from; j <= leg.to; j++) {
       if ((t.arr[j] < 0 && t.dep[j] < 0) || !this.ok[t.st[j]]) continue;
       ctx.beginPath();
-      ctx.arc(X(t.st[j]), Y(t.st[j]), 3, 0, TAU);
-      ctx.fillStyle = this.c.sea;
+      ctx.arc(X(t.st[j]), Y(t.st[j]), 3.4, 0, TAU);
+      ctx.fillStyle = this.c.ring;
       ctx.fill();
-      ctx.lineWidth = 1.6;
+      ctx.lineWidth = 1.8;
       ctx.strokeStyle = this.c.accent;
       ctx.stroke();
     }
   }
 
+  /** Every other reachable place: a station circle, as on a railway map. */
   private drawDots() {
     if (this.sights.length) return;
     const ctx = this.ctx;
-    const r = this.tf.k > 4 ? 3 : this.tf.k > 1.8 ? 2.4 : 1.9;
+    const r = this.tf.k > 4 ? 3.4 : this.tf.k > 1.8 ? 2.8 : 2.2;
     for (const d of this.reach) {
       if (!this.ok[d.place.anchor] || d.mins > this.revealMins || this.shown.get(d.place)?.alpha === 1) continue;
       const x = this.tf.applyX(this.sx[d.place.anchor]);
       const y = this.tf.applyY(this.sy[d.place.anchor]);
       if (x < -5 || y < -5 || x > this.w + 5 || y > this.h + 5) continue;
       const dim = this.selected && this.selected !== d.place;
-      ctx.globalAlpha = dim ? 0.35 : 0.95;
+      ctx.globalAlpha = dim ? 0.35 : 1;
       ctx.beginPath();
-      ctx.arc(x, y, d.place === this.hover ? r + 2 : r, 0, TAU);
-      ctx.fillStyle = this.timeColor(d.mins);
+      ctx.arc(x, y, d.place === this.hover ? r + 1.5 : r, 0, TAU);
+      ctx.fillStyle = this.c.ring;
       ctx.fill();
+      ctx.lineWidth = 1.4;
+      ctx.strokeStyle = this.timeColor(d.mins);
+      ctx.stroke();
       if (d.place === this.selected) {
         ctx.lineWidth = 2;
         ctx.strokeStyle = this.c.accent;
@@ -809,7 +832,7 @@ export class RailMap {
 
   private drawTrains() {
     const ctx = this.ctx;
-    const dot = (m: Motion, size: number, glow: number) => {
+    const dot = (m: Motion, size: number) => {
       const e = (this.simMinute - m.dep0 + 1440) % 1440;
       let km = this.kmAt(m, e);
       if (km === null && m.end > 1440) km = this.kmAt(m, e + 1440);
@@ -817,43 +840,71 @@ export class RailMap {
       const [bx, by] = this.at(m.geom, km);
       const x = this.tf.applyX(bx), y = this.tf.applyY(by);
       if (x < -10 || y < -10 || x > this.w + 10 || y > this.h + 10) return;
-      if (glow) {
-        ctx.globalAlpha = glow;
-        ctx.beginPath();
-        ctx.arc(x, y, size * 2.6, 0, TAU);
-        ctx.fill();
-        ctx.globalAlpha = 1;
-      }
       ctx.fillRect(x - size, y - size, size * 2, size * 2);
     };
-    ctx.fillStyle = this.c.accent;
     if (!this.origin) {
-      ctx.globalAlpha = 0.7;
-      for (const m of this.everyone) dot(m, 0.9, 0);
+      // the whole country's trains, moving by the timetable: fine specks of ink
+      ctx.fillStyle = this.c.livery;
+      ctx.globalAlpha = 0.45;
+      for (const m of this.everyone) dot(m, 0.9);
       ctx.globalAlpha = 1;
       return;
     }
     if (this.revealMins !== Infinity) return;
+    ctx.fillStyle = this.c.accent;
     if (this.selectedTrain) {
-      dot(this.selectedTrain.motion, 2.4, 0.3);
+      dot(this.selectedTrain.motion, 3);
       return;
     }
-    for (const r of this.routes) dot(r.motion, 1.4, 0.18);
+    for (const r of this.routes) dot(r.motion, 1.5);
   }
 
-  // ---------------------------------------------------------------- photo bubbles
+  // ---------------------------------------------------------------- photo bubbles, named on station boards
 
   private labelWidth = new Map<string, number>();
 
-  private measure(text: string, font: string) {
-    const key = font + text;
-    let w = this.labelWidth.get(key);
+  /** Station-board lettering: bold, condensed, capitals. */
+  private boardFont(size = 11) {
+    this.ctx.font = `800 ${size}px ${FONT}`;
+    if ("fontStretch" in this.ctx) this.ctx.fontStretch = "condensed";
+  }
+
+  private plainFont(weight: number, size: number) {
+    this.ctx.font = `${weight} ${size}px ${FONT}`;
+    if ("fontStretch" in this.ctx) this.ctx.fontStretch = "normal";
+  }
+
+  private boardWidth(text: string) {
+    let w = this.labelWidth.get(text);
     if (w === undefined) {
-      this.ctx.font = font;
-      w = this.ctx.measureText(text).width;
-      this.labelWidth.set(key, w);
+      this.boardFont();
+      w = this.ctx.measureText(text.toUpperCase()).width + 14;
+      this.plainFont(400, 12);
+      this.labelWidth.set(text, w);
     }
     return w;
+  }
+
+  /** A small yellow station board with a black keyline, centred on (x, top). */
+  private stationBoard(text: string, x: number, top: number) {
+    const ctx = this.ctx;
+    const w = this.boardWidth(text);
+    const h = 18;
+    ctx.fillStyle = this.c.board;
+    ctx.beginPath();
+    ctx.roundRect(x - w / 2, top, w, h, 3);
+    ctx.fill();
+    ctx.strokeStyle = this.c.boardInk;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(x - w / 2 + 2, top + 2, w - 4, h - 4, 2);
+    ctx.stroke();
+    this.boardFont();
+    ctx.fillStyle = this.c.boardInk;
+    ctx.textAlign = "center";
+    ctx.fillText(text.toUpperCase(), x, top + 12.8);
+    ctx.textAlign = "start";
+    this.plainFont(400, 12);
   }
 
   private layoutBubbles() {
@@ -867,7 +918,6 @@ export class RailMap {
       boxes.push([ox - 28, oy - 28, ox + 28, oy + 6]);
     }
     const placed = new Map<Place, [number, number]>();
-    const font = `700 12px ${FONT}`;
     const off = R + 8;
     // where a photo may float: above its station first, then below, beside, diagonal
     const spots: [number, number][] = [[0, -off], [0, off + 4], [-off - 14, 0], [off + 14, 0], [-off, -off], [off, -off], [-off, off], [off, off]];
@@ -883,12 +933,13 @@ export class RailMap {
       if (this.sights.length) return; // exploring a place's sights: keep the map quiet
       const x = this.tf.applyX(this.sx[p.anchor]);
       const y = this.tf.applyY(this.sy[p.anchor]);
-      const half = Math.max(R + 3, this.measure(c.title, font) / 2 + 4);
+      const half = Math.max(R + 3, this.boardWidth(c.title) / 2 + 2);
+      const below = c.mins !== null ? 42 : 28; // board, then travel time
       const prev = this.shown.get(p);
       const order = prev?.target ? [[prev.dx, prev.dy] as [number, number], ...spots] : spots; // don't jump around
       for (const [dx, dy] of order) {
         const cx = x + dx, cy = y + dy;
-        const box: [number, number, number, number] = [cx - half, cy - R - 4, cx + half, cy + R + 30];
+        const box: [number, number, number, number] = [cx - half, cy - R - 4, cx + half, cy + R + below];
         if (overlaps(box)) continue;
         boxes.push(box, [x - 4, y - 4, x + 4, y + 4]);
         placed.set(p, [dx, dy]);
@@ -927,15 +978,15 @@ export class RailMap {
     const c = cv.getContext("2d")!;
     c.scale(this.dpr, this.dpr);
     const m = R + pad;
-    c.shadowColor = "rgba(0,0,0,0.35)";
-    c.shadowBlur = 8;
-    c.shadowOffsetY = 3;
+    c.shadowColor = "rgba(0,0,0,0.3)";
+    c.shadowBlur = 7;
+    c.shadowOffsetY = 2;
     c.beginPath();
     c.arc(m, m, R, 0, TAU);
     c.fillStyle = this.c.ring;
     c.fill();
     c.shadowColor = "transparent";
-    drawCover(c, img, m, m, R - 2);
+    drawCover(c, img, m, m, R - 2.5);
     this.discs.set(id, cv);
     return cv;
   }
@@ -962,10 +1013,11 @@ export class RailMap {
       const y = sy + s.dy * pop; // the photo floats beside its station, tethered to it
       s.x = bx;
       s.y = y;
+      // tether to the station circle
       const len = Math.hypot(bx - sx, y - sy);
-      ctx.strokeStyle = this.c.text;
+      ctx.strokeStyle = this.c.ink;
       ctx.lineWidth = 1.2;
-      ctx.globalAlpha = s.alpha * 0.6;
+      ctx.globalAlpha = s.alpha * 0.5;
       if (len > r) {
         ctx.beginPath();
         ctx.moveTo(sx, sy);
@@ -974,50 +1026,50 @@ export class RailMap {
       }
       ctx.globalAlpha = s.alpha;
       ctx.beginPath();
-      ctx.arc(sx, sy, 2.4, 0, TAU);
-      ctx.fillStyle = this.c.text;
+      ctx.arc(sx, sy, 3, 0, TAU);
+      ctx.fillStyle = this.c.ring;
       ctx.fill();
-      // time ring
-      const ring = s.c.mins !== null ? this.timeColor(s.c.mins) : this.c.accent;
-      ctx.beginPath();
-      ctx.arc(bx, y, r + 3, 0, TAU);
-      ctx.fillStyle = p === this.selected ? this.c.accent : ring;
-      ctx.fill();
+      ctx.lineWidth = 1.6;
+      ctx.strokeStyle = this.c.ink;
+      ctx.stroke();
+      // the photo, in a white mount; red ring when it's the one you picked
       const disc = this.disc(s.c.photo, s.c.place.id, R);
       if (disc) {
         const m = (R + 8) * (r / R);
-        ctx.drawImage(disc, s.x - m, y - m, m * 2, m * 2);
+        ctx.drawImage(disc, bx - m, y - m, m * 2, m * 2);
       } else {
         ctx.beginPath();
-        ctx.arc(s.x, y, r, 0, TAU);
+        ctx.arc(bx, y, r, 0, TAU);
         ctx.fillStyle = this.c.land;
         ctx.fill();
-        ctx.fillStyle = this.c.text;
-        ctx.font = `800 ${Math.round(r * 0.8)}px ${FONT}`;
+        this.plainFont(800, Math.round(r * 0.8));
+        ctx.fillStyle = this.c.ink;
         ctx.textAlign = "center";
-        ctx.fillText(s.c.title.slice(0, 1), s.x, y + r * 0.28);
+        ctx.fillText(s.c.title.slice(0, 1), bx, y + r * 0.28);
         ctx.textAlign = "start";
       }
-      // label
+      ctx.beginPath();
+      ctx.arc(bx, y, r + 0.5, 0, TAU);
+      ctx.lineWidth = p === this.selected ? 3 : 1;
+      ctx.strokeStyle = p === this.selected ? this.c.accent : "rgba(0,0,0,0.18)";
+      ctx.stroke();
+      // its name on a station board, and how long the ride is
       if (pop > 0.6) {
         ctx.globalAlpha = s.alpha * Math.min(1, (pop - 0.6) * 2.5);
-        ctx.textAlign = "center";
-        ctx.lineJoin = "round";
-        ctx.font = `700 12px ${FONT}`;
-        ctx.lineWidth = 3.5;
-        ctx.strokeStyle = this.c.halo;
-        const ty = y + r + 17;
-        ctx.strokeText(s.c.title, s.x, ty);
-        ctx.fillStyle = this.c.text;
-        ctx.fillText(s.c.title, s.x, ty);
+        const top = y + r + 5;
+        this.stationBoard(s.c.title, bx, top);
         if (s.c.mins !== null) {
-          ctx.font = `500 10.5px ${MONO}`;
+          this.plainFont(700, 11);
+          ctx.textAlign = "center";
+          ctx.lineJoin = "round";
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = this.c.halo;
           const t = fmtMins(s.c.mins);
-          ctx.strokeText(t, s.x, ty + 13);
-          ctx.fillStyle = ring;
-          ctx.fillText(t, s.x, ty + 13);
+          ctx.strokeText(t, bx, top + 31);
+          ctx.fillStyle = this.c.ink;
+          ctx.fillText(t, bx, top + 31);
+          ctx.textAlign = "start";
         }
-        ctx.textAlign = "start";
       }
     }
     ctx.globalAlpha = 1;
@@ -1027,22 +1079,15 @@ export class RailMap {
     const ctx = this.ctx;
     const R = 16;
     const placed: [number, number, number, number][] = [];
-    // the station you'd arrive at, for scale
+    // the station you'd arrive at, for scale: a small platform sign
     if (this.selected) {
       for (const st of this.selected.stations) {
         if (!this.ok[st]) continue;
         const x = this.tf.applyX(this.sx[st]), y = this.tf.applyY(this.sy[st]);
-        const label = `${this.net.stations[st].code} station`;
-        ctx.font = `700 10.5px ${FONT}`;
-        const w = ctx.measureText(label).width + 26;
-        ctx.fillStyle = this.c.accent;
-        ctx.beginPath();
-        ctx.roundRect(x - w / 2, y - 10, w, 20, 10);
-        ctx.fill();
-        ctx.fillStyle = this.c.sea;
-        ctx.fillRect(x - w / 2 + 8, y - 4, 9, 7); // a tiny coach
-        ctx.fillText(label, x - w / 2 + 21, y + 4);
-        placed.push([x - w / 2, y - 10, x + w / 2, y + 10]);
+        const label = this.net.stations[st].code;
+        this.stationBoard(label, x, y - 9);
+        const w = this.boardWidth(label);
+        placed.push([x - w / 2, y - 9, x + w / 2, y + 9]);
       }
     }
     for (const p of this.sights) {
@@ -1051,10 +1096,6 @@ export class RailMap {
       if (x < -30 || y < -30 || x > this.w + 30 || y > this.h + 30) continue;
       const active = p.i === this.activeSight || p.i === this.hoverSight;
       const r = active ? R * 1.25 : R;
-      ctx.beginPath();
-      ctx.arc(x, y, r + 2.5, 0, TAU);
-      ctx.fillStyle = active ? this.c.accent : this.c.ring;
-      ctx.fill();
       const disc = this.disc(p.photo, `sight:${p.name}`, R);
       if (disc) {
         const m = (R + 8) * (r / R);
@@ -1065,7 +1106,12 @@ export class RailMap {
         ctx.fillStyle = this.c.land;
         ctx.fill();
       }
-      ctx.font = `700 11.5px ${FONT}`;
+      ctx.beginPath();
+      ctx.arc(x, y, r + 0.5, 0, TAU);
+      ctx.lineWidth = active ? 3 : 1;
+      ctx.strokeStyle = active ? this.c.accent : "rgba(0,0,0,0.18)";
+      ctx.stroke();
+      this.plainFont(700, 11.5);
       const w = ctx.measureText(p.name).width;
       const box: [number, number, number, number] = [x - w / 2 - 3, y + r + 4, x + w / 2 + 3, y + r + 19];
       if (!active && placed.some((b) => box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1])) continue;
@@ -1075,7 +1121,7 @@ export class RailMap {
       ctx.lineJoin = "round";
       ctx.strokeStyle = this.c.halo;
       ctx.strokeText(p.name, x, y + r + 16);
-      ctx.fillStyle = this.c.text;
+      ctx.fillStyle = this.c.ink;
       ctx.fillText(p.name, x, y + r + 16);
       ctx.textAlign = "start";
     }

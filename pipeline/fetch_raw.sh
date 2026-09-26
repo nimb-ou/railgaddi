@@ -3,7 +3,7 @@
 # Usage: pipeline/fetch_raw.sh [raw-dir]
 set -euo pipefail
 RAW="${1:-raw}"
-UA="PatriPrototype/0.1 (personal non-commercial train-discovery project)"
+UA="RailgaddiPrototype/0.1 (personal non-commercial train-discovery project)"
 mkdir -p "$RAW"
 cd "$RAW"
 

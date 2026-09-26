@@ -2,3 +2,5 @@ node_modules
 dist
 raw/
 .DS_Store
+.env
+.env.*

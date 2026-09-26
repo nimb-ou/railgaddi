@@ -1,14 +1,16 @@
-// Three palettes to compare. Each one lives in style.css under [data-theme=…].
+// Two palettes, both taken from the journey (see DESIGN.md):
+//   Day   — a printed timetable: paper, coach blue, station-board yellow
+//   Night — a sleeper coach after dark: deep livery blue, lamp yellow
+// Each lives in style.css under [data-theme=…].
 
 export const THEMES = [
-  { id: "dusk", name: "Dusk", swatch: "linear-gradient(135deg, #1b2362 0 50%, #ffc247 50% 70%, #3fc4ff 70%)" },
-  { id: "daylight", name: "Daylight", swatch: "linear-gradient(135deg, #eef5fd 0 50%, #ff7a1a 50% 70%, #5b5bf0 70%)" },
-  { id: "monsoon", name: "Monsoon", swatch: "linear-gradient(135deg, #0e3a37 0 50%, #ffd166 50% 70%, #5be3b3 70%)" },
+  { id: "day", name: "Day" },
+  { id: "night", name: "Night" },
 ] as const;
 
 export type ThemeId = (typeof THEMES)[number]["id"];
 
-const KEY = "patri.theme";
+const KEY = "railgaddi.theme";
 
 export function savedTheme(): ThemeId {
   try {
@@ -17,7 +19,7 @@ export function savedTheme(): ThemeId {
   } catch {
     /* storage can be unavailable; fall back to the default */
   }
-  return "dusk";
+  return "day";
 }
 
 export function applyTheme(id: ThemeId) {

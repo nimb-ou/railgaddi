@@ -57,14 +57,18 @@ export function placeHtml(c: PlaceCtx) {
     const pool = upcoming.length ? upcoming : legs;
     const next = pool.reduce((b, l) => ((l.dep - c.now + 1440) % 1440 < (b.dep - c.now + 1440) % 1440 ? l : b), pool[0]);
     const nextIdx = legs.indexOf(next);
-    travel = `<div class="facts">
-        <div class="fact"><b>${fmtMins(fastest)}</b><span>fastest</span></div>
-        <div class="fact"><b>${legs.length}</b><span>train${legs.length === 1 ? "" : "s"}</span></div>
-        <div class="fact"><b>${fmtKm(km)} km</b><span>by rail</span></div>
-      </div>
-      <button class="next" type="button" data-act="leg" data-i="${nextIdx}">
-        <i class="dot"></i><span>Next train <b>${fmtTime(next.dep)}</b> · ${esc(next.train.name)}</span>
-      </button>`;
+    // the facts of the ride, on a ticket
+    travel = `<div class="ticket">
+        <div class="ticket-route"><span>${esc(shortName(origin))}</span><i>→</i><span>${esc(title)}</span></div>
+        <dl class="ticket-facts">
+          <div><dt>Fastest</dt><dd>${fmtMins(fastest)}</dd></div>
+          <div><dt>Trains</dt><dd>${legs.length}</dd></div>
+          <div><dt>Distance</dt><dd>${fmtKm(km)} km</dd></div>
+        </dl>
+        <button class="ticket-next" type="button" data-act="leg" data-i="${nextIdx}">
+          <i class="dot"></i><span>Next train <b>${fmtTime(next.dep)}</b> · ${esc(next.train.name)}</span><span class="go">→</span>
+        </button>
+      </div>`;
   }
 
   // ---- what to see
@@ -117,6 +121,7 @@ export function placeHtml(c: PlaceCtx) {
     const shown = c.showAllTrains ? legs : (legs.filter(c.passes).length ? legs.filter(c.passes) : legs).slice(0, 4);
     trains = `<section class="trains">
       <div class="section-head"><h3>Trains from ${esc(shortName(origin))}</h3></div>
+      <div class="tt-head" aria-hidden="true"><span>Dep</span><span>Train</span><span>Arr</span></div>
       ${shown
         .map((l) => {
           const t = l.train;
@@ -156,9 +161,12 @@ export function placeHtml(c: PlaceCtx) {
 }
 
 const closeBtn = () => `<button class="close" type="button" data-act="close" aria-label="Close">${CLOSE}</button>`;
+// the place's name on its own station board: local scripts above, English below
 const coverText = (script: string, title: string, where: string) => `<div class="cover-text">
-  ${script ? `<p class="script">${esc(script)}</p>` : ""}
-  <h2>${esc(title)}</h2>
+  <div class="board-plate">
+    ${script ? `<span class="script">${esc(script)}</span>` : ""}
+    <h2 class="name">${esc(title)}</h2>
+  </div>
   <p class="where">${where}</p>
 </div>`;
 
@@ -195,7 +203,7 @@ export function trainHtml(net: Network, leg: Leg, destTitle: string) {
     items.push(`<li class="${cls}" ${j === leg.from ? 'id="boarding"' : ""}>
       <span class="t">${a >= 0 ? fmtTime(a) : "—"}</span><span class="t">${d >= 0 ? fmtTime(d) : "—"}</span>
       <span class="rail" aria-hidden="true"></span>
-      <span class="nm">${esc(s.name)}<code>${esc(s.code)}</code></span></li>`);
+      <span class="nm">${j === leg.from || j === leg.to ? `<span>${esc(s.name)}</span>` : esc(s.name)}<code>${esc(s.code)}</code></span></li>`);
   }
   const from = net.stations[t.st[leg.from]];
   const to = net.stations[t.st[leg.to]];

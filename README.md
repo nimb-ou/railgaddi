@@ -1,8 +1,11 @@
-# Patri (पटरी)
+# Railgaddi (रेलगाड़ी)
 
 Pick where you are, and see every place in India a train can take you without changing trains.
 The best of them float on the map as photo bubbles. Open one to see what it looks like, what to
 see there, and every train that goes. No booking and no live running status, just the timetable.
+
+The look follows one idea: the journey itself. Station boards name places, coach livery
+colours the lines, and timetables, tickets and route strips carry the facts. See [DESIGN.md](DESIGN.md).
 
 ## Run it
 
@@ -28,9 +31,10 @@ src/
                               photo bubbles (layout, pop-in, tethers), sight pins, timetable time-lapse
   panel.ts                    place panel (photo, facts, sights gallery, trains) and train stops
   photos.ts                   Wikimedia thumbnail sizes, image cache, credits
-  theme.ts                    Dusk / Daylight / Monsoon palettes
+  theme.ts                    Day / Night palettes
   main.ts                     wiring: search, dock, bubbles, panel, layout insets
   style.css                   the look; every palette is a block of CSS variables
+scripts/shot.mjs              screenshot the dev server with the installed Chrome (design review)
 ```
 
 The web app only depends on the shape of the JSON files. To use a newer timetable, change
