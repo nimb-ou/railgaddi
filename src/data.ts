@@ -59,19 +59,51 @@ export interface Destination {
   firstKm: number;
 }
 
+export interface Photo {
+  t: string; // 330px thumbnail URL on upload.wikimedia.org
+  w?: number;
+  h?: number;
+  by: string;
+  lic: string;
+  page?: string;
+}
+
+export interface Sight {
+  n: string;
+  k: "see" | "do";
+  d?: string;
+  img?: string;
+  ll?: [number, number];
+  wp?: 1; // from Wikipedia rather than the Wikivoyage guide
+}
+
 export interface Article {
   x: string;
-  img?: string | null;
-  see?: { n: string; d?: string }[];
-  do?: { n: string; d?: string }[];
+  icon?: string | null;
+  banner?: string | null;
+  ll?: [number, number] | null;
+  sights: Sight[];
+  appeal: number;
   alias?: string;
 }
 
 export interface Guides {
-  meta: { source: string; fetched: string };
+  meta: { text: string; photos: string; fetched: string };
   articles: Record<string, Article>;
+  photos: Record<string, Photo>;
   stations: Record<string, [string | null, string[]]>;
   cities: Record<string, string>;
+}
+
+/** The travel guide shown for a place. */
+export interface GuideView {
+  title: string;
+  art: Article;
+  /** true when the guide is a highlight near the station rather than the town itself (Hosapete -> Hampi) */
+  featured: boolean;
+  nearby: string[];
+  icon: Photo | null;
+  banner: Photo | null;
 }
 
 export interface Network {
@@ -251,7 +283,7 @@ export function departures(net: Network, origin: Place) {
 }
 
 export interface Filters {
-  leave: "any" | "2h" | "6h" | "morning" | "night";
+  leave: "any" | "2h" | "6h" | "overnight";
   within: number; // max journey minutes, Infinity = any
 }
 
@@ -265,10 +297,9 @@ export function legPasses(leg: Leg, f: Filters, nowMin: number) {
       return (d - nowMin + 1440) % 1440 <= 120;
     case "6h":
       return (d - nowMin + 1440) % 1440 <= 360;
-    case "morning":
-      return d >= 4 * 60 && d < 12 * 60;
-    case "night":
-      return d >= 19 * 60 || d < 2 * 60;
+    case "overnight":
+      // sleep on the train: leave in the evening, wake up there
+      return (d >= 17 * 60 || d < 60) && leg.dur >= 6 * 60 && leg.dur <= 16 * 60;
   }
 }
 
@@ -292,22 +323,48 @@ export function searchPlaces(net: Network, q: string, limit = 8): Place[] {
   return scored.sort((a, b) => b[0] - a[0]).slice(0, limit).map((s) => s[1]);
 }
 
-export function guideFor(g: Guides | null, net: Network, place: Place): { title: string; art: Article; nearby: string[] } | null {
-  if (!g) return null;
-  let title: string | null = place.isCity ? g.cities[place.id] ?? null : null;
-  let nearby: string[] = [];
-  for (const s of place.stations) {
-    const link = g.stations[net.stations[s].code];
-    if (!link) continue;
-    title ??= link[0];
-    nearby = nearby.concat(link[1]);
-  }
-  const resolve = (t: string) => {
+export function buildGuideIndex(g: Guides, net: Network): Map<Place, GuideView> {
+  const resolve = (t: string | null | undefined): string | null => {
+    if (!t) return null;
     const a = g.articles[t];
-    return a?.alias ? g.articles[a.alias] && a.alias : a ? t : null;
+    if (!a) return null;
+    return a.alias ? (g.articles[a.alias] ? a.alias : null) : t;
   };
-  const main = title ? resolve(title) : null;
-  const near = [...new Set(nearby.map(resolve).filter((t): t is string => !!t && t !== main))].slice(0, 4);
-  if (!main) return near.length ? { title: "", art: { x: "" }, nearby: near } : null;
-  return { title: main, art: g.articles[main], nearby: near };
+  const photos = g.photos ?? {};
+  const photo = (k?: string | null) => (k ? photos[k] ?? null : null);
+  const index = new Map<Place, GuideView>();
+  for (const place of net.places.values()) {
+    let primary = place.isCity ? resolve(g.cities[place.id]) : null;
+    const near: string[] = [];
+    for (const s of place.stations) {
+      const link = g.stations[net.stations[s].code];
+      if (!link) continue;
+      primary ??= resolve(link[0]);
+      for (const t of link[1]) {
+        const r = resolve(t);
+        if (r && !near.includes(r)) near.push(r);
+      }
+    }
+    const nearby = near.filter((t) => t !== primary);
+    // A famous sight next to a small station deserves the spotlight (Hosapete -> Hampi).
+    const appeal = (t: string | null) => (t ? g.articles[t].appeal ?? 0 : 0);
+    const star = nearby.filter((t) => g.articles[t].icon).sort((a, b) => appeal(b) - appeal(a))[0];
+    let title = primary;
+    let featured = false;
+    if (!place.isCity && star && appeal(star) >= 12 && appeal(star) > appeal(primary) * 1.8 + 4) {
+      title = star;
+      featured = !!primary || !place.name.toLowerCase().includes(star.toLowerCase());
+    }
+    if (!title) continue;
+    const art = { ...g.articles[title], sights: g.articles[title].sights ?? [], appeal: g.articles[title].appeal ?? 0 };
+    index.set(place, {
+      title,
+      art,
+      featured,
+      nearby: nearby.filter((t) => t !== title).slice(0, 4),
+      icon: photo(art.icon),
+      banner: photo(art.banner),
+    });
+  }
+  return index;
 }

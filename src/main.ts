@@ -1,28 +1,26 @@
 import type { Topology } from "topojson-specification";
 import {
+  buildGuideIndex,
   departures,
-  guideFor,
   legPasses,
   loadGuides,
   loadNetwork,
   searchPlaces,
   type Destination,
   type Filters,
+  type GuideView,
   type Guides,
   type Leg,
   type Network,
   type Place,
   type Train,
 } from "./data";
-import { RailMap, shortName } from "./map";
+import { RailMap, fmtMins, shortName, type ActiveTrain, type BubbleCandidate, type Reach, type SightPin } from "./map";
+import { destTitleOf, esc, fmtTime, placeHtml, scriptLine, trainHtml } from "./panel";
+import { photoUrl } from "./photos";
+import { THEMES, applyTheme, savedTheme } from "./theme";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
-const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-const pad = (n: number) => String(n).padStart(2, "0");
-const fmtTime = (m: number) => `${pad(Math.floor((((m % 1440) + 1440) % 1440) / 60))}:${pad(Math.floor(m % 60))}`;
-const fmtDur = (m: number) => (m < 60 ? `${m}m` : `${Math.floor(m / 60)}h ${pad(m % 60)}m`);
-const fmtKm = (k: number) => `${Math.round(k).toLocaleString("en-IN")}`;
-const FAST = new Set(["Raj", "Shtb", "Drnt", "JShtb", "GR", "SF"]);
 
 function istNow() {
   const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date());
@@ -30,91 +28,198 @@ function istNow() {
   return (get("hour") % 24) * 60 + get("minute");
 }
 
-// ---------- state ----------
+// "Reach within" slider stops, in minutes
+const STEPS = [60, 120, 180, 240, 360, 480, 720, 1080, 1440, Infinity];
+const TICKS: [number, string][] = [[0, "1h"], [2, "3h"], [4, "6h"], [6, "12h"], [8, "24h"], [9, "Any"]];
+const POPULAR = ["bengaluru", "mumbai", "delhi", "kolkata", "chennai", "hyderabad"];
+// Destinations people cross the country for, most famous first. On the landing page they
+// get first claim on a photo bubble, in this order.
+const ICONIC = [
+  "Agra", "Varanasi", "Jaipur", "Goa", "Udaipur", "Mumbai", "Delhi", "Hampi", "Kochi", "Darjeeling",
+  "Amritsar", "Mysore", "Jaisalmer", "Rishikesh", "Kolkata", "Puri", "Madurai", "Khajuraho", "Jodhpur", "Alappuzha",
+  "Ooty", "Shimla", "Pondicherry", "Kanyakumari", "Rameswaram", "Haridwar", "Aurangabad", "Bodh Gaya", "Mahabalipuram",
+  "Thanjavur", "Gokarna", "Varkala", "Konark", "Pushkar", "Bikaner", "Mount Abu", "Orchha", "Gwalior", "Hyderabad",
+  "Chennai", "Guwahati", "Ujjain", "Sanchi", "Dwarka", "Somnath", "Tirupati", "Ajmer", "Matheran", "Bangalore",
+];
+const iconicRank = new Map(ICONIC.map((t, i) => [t, ICONIC.length - i]));
+
+// ---------------------------------------------------------------- state
 let net: Network;
 let guides: Guides | null = null;
+let gindex = new Map<Place, GuideView>();
+const titlePlace = new Map<string, Place>();
 let map: RailMap;
 let origin: Place | null = null;
 let dests = new Map<Place, Destination>();
 let passing = new Map<Place, Leg[]>();
-let openPlace: Place | null = null;
+let open: { place: Place; showAll: boolean; sight: number; leg: Leg | null } | null = null;
 const filters: Filters = { leave: "any", within: Infinity };
 
-const originEl = $("origin");
+const hero = $("hero");
 const input = $<HTMLInputElement>("origin-input");
 const suggest = $<HTMLUListElement>("suggest");
 const panel = $("panel");
 const tip = $("tip");
 const pin = $("origin-pin");
+const dock = $("dock");
+const chip = $("origin-chip");
+const narrow = () => window.innerWidth <= 720;
 
-// ---------- boot ----------
+// ---------------------------------------------------------------- boot
 async function boot() {
+  applyTheme(savedTheme());
   const [n, india, states] = await Promise.all([
     loadNetwork("data/network.json"),
     fetch("data/india.json").then((r) => r.json() as Promise<Topology>),
     fetch("data/state-lines.json").then((r) => r.json() as Promise<Topology>),
   ]);
   net = n;
-  map = new RailMap($<HTMLCanvasElement>("map"), net, india, states, hasGuide, {
-    onPick: openDestination,
+  map = new RailMap($<HTMLCanvasElement>("map"), net, india, states, {
+    onPick: (p) => openPlace(p),
+    onPickSight: (i) => {
+      if (!open) return;
+      open.sight = i;
+      renderPanel();
+      showSights(open.place, i, false);
+      document.getElementById(`sight-${i}`)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    },
     onHover: showTip,
+    onBackground: () => {
+      if (open) closePanel();
+    },
   });
-  map.simMinute = istNow();
   if (import.meta.env.DEV) Object.assign(window, { __map: map, __net: net });
+  map.simMinute = istNow();
   let shown = -1;
   map.onClock = (m) => {
-    const whole = Math.floor(m);
-    if (whole !== shown) {
-      shown = whole;
-      $("clock-time").textContent = fmtTime(whole);
+    if (Math.floor(m) !== shown) {
+      shown = Math.floor(m);
+      $("clock-time").textContent = fmtTime(shown);
     }
   };
-  $("loading").classList.add("done");
-  setupBoard();
-  setupFilters();
+
+  setupTopbar();
+  setupSearch();
+  setupDock();
   setupClock();
+  layout();
+  map.fitIndia(0);
+  window.addEventListener("resize", () => {
+    layout();
+    if (!origin && !open) map.fitIndia(0);
+  });
   requestAnimationFrame(trackPin);
+  $("loading").classList.add("done");
 
   loadGuides("data/places.json").then((g) => {
     guides = g;
-    if (origin) refresh(false);
-    if (openPlace) openDestination(openPlace);
+    if (g) {
+      gindex = buildGuideIndex(g, net);
+      for (const [p, gv] of gindex) if (!titlePlace.has(gv.title) || p.isCity) titlePlace.set(gv.title, p);
+    }
+    renderPopular();
+    updateCandidates();
+    if (open) renderPanel();
   });
 
   const fromHash = () => net.places.get(decodeURIComponent(location.hash.slice(1)));
   const start = fromHash();
   if (start) chooseOrigin(start);
-  else input.focus({ preventScroll: true });
+  else if (!narrow()) input.focus({ preventScroll: true });
   window.addEventListener("hashchange", () => {
     const p = fromHash();
     if (p && p !== origin) chooseOrigin(p);
   });
 }
 
-function hasGuide(p: Place) {
-  const g = guideFor(guides, net, p);
-  return !!g && !!g.title;
+// ---------------------------------------------------------------- layout: what the map must keep clear of
+function layout() {
+  const vis = (el: HTMLElement) => !el.hidden && !el.classList.contains("leaving");
+  const rects: DOMRect[] = [];
+  const docked = !document.body.classList.contains("panel-open");
+  for (const el of [hero, chip, docked ? dock : null, panel, document.querySelector<HTMLElement>(".topbar")!, $("clock")]) {
+    if (!el) continue;
+    if (vis(el)) rects.push(el.getBoundingClientRect());
+  }
+  map.setSafeRects(rects.filter((r) => r.width && r.height));
+  const panelOpen = !panel.hidden;
+  if (narrow()) {
+    const top = !origin ? hero.getBoundingClientRect().bottom + 4 : chip.getBoundingClientRect().bottom + 8;
+    const bottom = panelOpen ? window.innerHeight * 0.74 : origin ? dock.getBoundingClientRect().height + 24 : 16;
+    map.setInsets({ top, right: 8, bottom, left: 8 });
+  } else {
+    const left = !origin ? hero.getBoundingClientRect().right + 24 : 24;
+    const bottom = origin && !panelOpen ? dock.getBoundingClientRect().height + 36 : 40;
+    map.setInsets({ top: origin ? 80 : 60, right: panelOpen ? 460 : 40, bottom, left });
+  }
 }
 
-// ---------- the station board ----------
-const QUICK = ["bengaluru", "mumbai", "delhi", "kolkata", "chennai", "hyderabad", "goa", "varanasi"];
+// ---------------------------------------------------------------- top bar
+function setupTopbar() {
+  const themes = $("themes");
+  themes.innerHTML = THEMES.map(
+    (t) => `<button type="button" role="radio" data-id="${t.id}" aria-label="${t.name} colours" title="${t.name}" style="--sw:${t.swatch}"></button>`,
+  ).join("");
+  const mark = () => {
+    for (const b of themes.querySelectorAll("button")) b.setAttribute("aria-checked", String(b.dataset.id === document.documentElement.dataset.theme));
+  };
+  mark();
+  themes.addEventListener("click", (e) => {
+    const b = (e.target as HTMLElement).closest("button");
+    if (!b) return;
+    applyTheme(b.dataset.id as (typeof THEMES)[number]["id"]);
+    mark();
+    map.readTheme();
+    paintTrack();
+  });
+  const info = $("info");
+  const btn = $("info-btn");
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    info.hidden = !info.hidden;
+    btn.setAttribute("aria-expanded", String(!info.hidden));
+  });
+  document.addEventListener("click", (e) => {
+    if (!info.hidden && !info.contains(e.target as Node) && e.target !== btn) {
+      info.hidden = true;
+      btn.setAttribute("aria-expanded", "false");
+    }
+  });
+  $("brand").addEventListener("click", (e) => {
+    e.preventDefault();
+    backToStart();
+  });
+  $("chip-change").addEventListener("click", () => backToStart(true));
+}
+
+// ---------------------------------------------------------------- search
 let active = -1;
 let results: Place[] = [];
 
-function setupBoard() {
-  const quick = $("quick");
-  quick.innerHTML = QUICK.map((id) => net.places.get(id))
-    .filter((p): p is Place => !!p)
-    .map((p) => `<button type="button" data-id="${p.id}">${esc(p.name)}</button>`)
-    .join("");
-  quick.addEventListener("click", (e) => {
+function faceOf(p: Place, w = 120) {
+  const ph = gindex.get(p)?.icon;
+  return ph ? `<img class="s-img" src="${esc(photoUrl(ph, w))}" alt="" loading="lazy" referrerpolicy="no-referrer" />` : `<i class="s-img"></i>`;
+}
+
+function renderPopular() {
+  const box = $("popular");
+  box.innerHTML =
+    `<span>Popular</span>` +
+    POPULAR.map((id) => net.places.get(id))
+      .filter((p): p is Place => !!p)
+      .map((p) => `<button class="pill" type="button" data-id="${p.id}">${faceOf(p).replace('class="s-img"', "")}${esc(p.name)}</button>`)
+      .join("");
+}
+
+function setupSearch() {
+  renderPopular();
+  $("popular").addEventListener("click", (e) => {
     const b = (e.target as HTMLElement).closest("button");
     const p = b && net.places.get(b.dataset.id!);
     if (p) chooseOrigin(p);
   });
-
   input.addEventListener("input", () => {
-    results = searchPlaces(net, input.value);
+    results = searchPlaces(net, input.value, 6);
     active = results.length ? 0 : -1;
     renderSuggest();
   });
@@ -129,52 +234,36 @@ function setupBoard() {
       if (p) chooseOrigin(p);
     } else if (e.key === "Escape") {
       closeSuggest();
-      if (origin) dockBoard(origin);
     }
   });
-  input.addEventListener("blur", () => setTimeout(() => {
-    closeSuggest();
-    if (origin && originEl.dataset.editing) dockBoard(origin);
-  }, 150));
+  input.addEventListener("blur", () => setTimeout(closeSuggest, 150));
   suggest.addEventListener("mousedown", (e) => {
     const li = (e.target as HTMLElement).closest("li");
-    if (!li) return;
+    if (!li || li.dataset.i === undefined) return;
     e.preventDefault();
     const p = results[Number(li.dataset.i)];
     if (p) chooseOrigin(p);
   });
-  $("board-change").addEventListener("click", () => {
-    originEl.dataset.editing = "1";
-    for (const id of ["board-name", "board-codes", "board-change"]) $(id).hidden = true;
-    $("board-script").textContent = "कहाँ से चलें?";
-    $("board-script").hidden = false;
-    input.parentElement!.hidden = false;
-    input.value = "";
-    input.focus();
-  });
 }
 
 function renderSuggest() {
+  const q = input.value.trim();
   if (!results.length) {
-    suggest.innerHTML = input.value.trim() ? `<li aria-disabled="true"><span class="s-meta">No station or city by that name in this timetable</span></li>` : "";
-    suggest.hidden = !input.value.trim();
-    input.setAttribute("aria-expanded", String(!suggest.hidden));
-    return;
+    suggest.innerHTML = q ? `<li aria-disabled="true"><span class="s-meta">No station or city by that name in this timetable</span></li>` : "";
+    suggest.hidden = !q;
+  } else {
+    suggest.innerHTML = results
+      .map((p, i) => {
+        const codes = p.stations.map((s) => net.stations[s].code);
+        const meta = p.isCity ? `${p.state} · ${codes.length} stations` : `${p.state ? p.state + " · " : ""}${codes[0]}`;
+        return `<li role="option" id="opt-${i}" data-i="${i}" aria-selected="${i === active}">
+          ${faceOf(p)}<span class="s-name">${esc(p.name)}</span><span class="s-script">${esc(p.hi || p.local)}</span>
+          <span class="s-meta">${esc(meta)}</span></li>`;
+      })
+      .join("");
+    suggest.hidden = false;
   }
-  suggest.innerHTML = results
-    .map((p, i) => {
-      const codes = p.stations.map((s) => net.stations[s].code);
-      const meta = p.isCity
-        ? `${p.state} · ${codes.length} stations · ${codes.slice(0, 4).join(" ")}${codes.length > 4 ? " …" : ""}`
-        : `${p.state} · ${codes[0]}`;
-      const script = p.hi || p.local;
-      return `<li role="option" id="opt-${i}" data-i="${i}" aria-selected="${i === active}">
-        <span class="s-name">${esc(p.name)}</span><span class="s-script">${esc(script)}</span>
-        <span class="s-meta">${esc(meta)}</span></li>`;
-    })
-    .join("");
-  suggest.hidden = false;
-  input.setAttribute("aria-expanded", "true");
+  input.setAttribute("aria-expanded", String(!suggest.hidden));
   input.setAttribute("aria-activedescendant", active >= 0 ? `opt-${active}` : "");
 }
 
@@ -183,90 +272,179 @@ function closeSuggest() {
   input.setAttribute("aria-expanded", "false");
 }
 
-function scriptLine(p: Place) {
-  return [p.hi, p.local].filter((s, i, a) => s && a.indexOf(s) === i).join("  ·  ");
-}
-
-function dockBoard(p: Place) {
-  delete originEl.dataset.editing;
-  originEl.dataset.state = "docked";
-  const script = scriptLine(p);
-  $("board-script").textContent = script;
-  $("board-script").hidden = !script;
-  $("board-name").textContent = shortName(p);
-  $("board-name").hidden = false;
-  const codes = p.stations.map((s) => net.stations[s].code);
-  $("board-codes").textContent = codes.join(" · ");
-  $("board-codes").hidden = false;
-  $("board-change").hidden = false;
-  input.parentElement!.hidden = true;
-  input.blur();
-}
-
+// ---------------------------------------------------------------- choosing where you start
 function chooseOrigin(p: Place) {
   closeSuggest();
-  closePanel();
-  origin = p;
   input.value = "";
-  results = [];
-  dockBoard(p);
-  $("controls").hidden = false;
+  input.blur();
+  const keepOpen = open?.place ?? null;
+  origin = p;
   dests = departures(net, p).dests;
-  refresh(true);
+  hero.classList.add("leaving");
+  setTimeout(() => {
+    if (origin) hero.hidden = true;
+  }, 450);
+  $("chip-name").textContent = shortName(p);
+  $("chip-script").textContent = scriptLine(p);
+  chip.hidden = false;
+  dock.hidden = false;
   pin.hidden = true;
-  requestAnimationFrame(() => {
-    pin.hidden = false; // restarts the drop animation
-  });
-  map.flyToOrigin();
+  requestAnimationFrame(() => (pin.hidden = false)); // restart the drop animation
+  refresh(true);
   history.replaceState(null, "", `#${encodeURIComponent(p.id)}`);
   document.title = `From ${p.name} · Patri`;
+  requestAnimationFrame(() => {
+    layout();
+    if (keepOpen && keepOpen !== p && dests.has(keepOpen)) {
+      openPlace(keepOpen);
+    } else {
+      closePanel(false);
+      map.flyToOrigin();
+    }
+    setTimeout(layout, 700);
+  });
+  hint();
 }
 
-// ---------- filters ----------
-function setupFilters() {
-  for (const id of ["leave", "within"] as const) {
-    $(id).addEventListener("click", (e) => {
-      const b = (e.target as HTMLElement).closest("button");
-      if (!b) return;
-      for (const x of $(id).querySelectorAll("button")) x.setAttribute("aria-pressed", String(x === b));
-      if (id === "leave") filters.leave = b.dataset.v as Filters["leave"];
-      else filters.within = Number(b.dataset.v);
-      refresh(false);
-      map.fitRoutes();
-    });
+function backToStart(focus = false) {
+  origin = null;
+  dests = new Map();
+  passing = new Map();
+  closePanel(false);
+  chip.hidden = true;
+  dock.hidden = true;
+  pin.hidden = true;
+  hero.hidden = false;
+  requestAnimationFrame(() => hero.classList.remove("leaving"));
+  map.setOrigin(null, new Map(), [], false);
+  updateCandidates();
+  history.replaceState(null, "", location.pathname);
+  document.title = "Patri";
+  requestAnimationFrame(() => {
+    layout();
+    map.fitIndia();
+    if (focus) input.focus();
+  });
+}
+
+function hint() {
+  let seen = false;
+  try {
+    seen = !!localStorage.getItem("patri.hinted");
+    localStorage.setItem("patri.hinted", "1");
+  } catch {
+    /* show it anyway */
   }
-  const legend = $("leave").querySelector("legend")!;
-  const tick = () => (legend.innerHTML = `Leaving <span class="now">· now ${fmtTime(istNow())} IST</span>`);
-  tick();
-  setInterval(tick, 20_000);
+  if (seen) return;
+  setTimeout(() => {
+    const t = $("toast");
+    t.textContent = narrow() ? "Tap a photo to explore a place" : "Click a photo to explore a place";
+    t.hidden = false;
+    setTimeout(() => (t.hidden = true), 5200);
+  }, 2600);
+}
+
+// ---------------------------------------------------------------- filters
+function setupDock() {
+  const range = $<HTMLInputElement>("within");
+  $("dock").querySelector(".ticks")!.innerHTML = "";
+  const ticks = $("dock").querySelector<HTMLElement>(".ticks")!;
+  ticks.style.position = "relative";
+  ticks.style.height = "12px";
+  ticks.innerHTML = TICKS.map(
+    ([i, label]) => `<span style="position:absolute;left:calc(${(i / 9) * 100}% + ${10 - (i / 9) * 20}px);transform:translateX(-50%)">${label}</span>`,
+  ).join("");
+  const sync = () => {
+    const v = STEPS[Number(range.value)];
+    filters.within = v;
+    $("within-out").textContent = v === Infinity ? "any time" : `${v / 60} hours`;
+    paintTrack();
+  };
+  range.addEventListener("input", () => {
+    sync();
+    refresh(false);
+  });
+  range.addEventListener("change", () => map.fitRoutes());
+  $("leave").addEventListener("click", (e) => {
+    const b = (e.target as HTMLElement).closest("button");
+    if (!b) return;
+    for (const x of $("leave").querySelectorAll("button")) x.setAttribute("aria-pressed", String(x === b));
+    filters.leave = b.dataset.v as Filters["leave"];
+    refresh(false);
+    map.fitRoutes();
+  });
+  sync();
+}
+
+function paintTrack() {
+  const range = $<HTMLInputElement>("within");
+  if (!map) return;
+  const stops = STEPS.map((m, i) => `${map.timeColor(m === Infinity ? 1800 : m)} ${(i / 9) * 100}%`).join(", ");
+  const pct = (Number(range.value) / 9) * 100;
+  range.style.setProperty(
+    "--track",
+    `linear-gradient(90deg, transparent ${pct}%, color-mix(in srgb, var(--sea) 70%, transparent) ${pct}%), linear-gradient(90deg, ${stops})`,
+  );
 }
 
 function refresh(animate: boolean) {
   if (!origin) return;
   const now = istNow();
-  const act = new Map<Train, { from: number; to: number; legs: Leg[] }>();
+  const act = new Map<Train, ActiveTrain>();
   passing = new Map();
   for (const d of dests.values()) {
     for (const l of d.legs) {
       if (!legPasses(l, filters, now)) continue;
-      let a = act.get(l.train);
-      if (!a) act.set(l.train, (a = { from: l.from, to: l.to, legs: [] }));
-      a.to = Math.max(a.to, l.to);
-      a.legs.push(l);
+      const a = act.get(l.train);
+      if (!a) act.set(l.train, { from: l.from, to: l.to });
+      else a.to = Math.max(a.to, l.to);
       (passing.get(d.place) ?? passing.set(d.place, []).get(d.place)!).push(l);
     }
   }
-  map.setOrigin(origin, [...dests.values()], act, animate);
-  const nPlaces = passing.size;
-  $("stats").innerHTML = dests.size
-    ? act.size
-      ? `<b>${act.size}</b> trains · <b>${nPlaces.toLocaleString("en-IN")}</b> places without changing trains`
-      : `No trains match. Try a wider time window.`
-    : `No trains leave from here in the 2017 timetable.`;
-  if (openPlace && panel.dataset.view === "dest") openDestination(openPlace);
+  const reach: Reach[] = [...passing].map(([place, legs]) => ({ place, mins: Math.min(...legs.map((l) => l.dur)) }));
+  map.setOrigin(origin, act, reach, animate);
+  updateCandidates();
+  const withPhotos = reach.filter((r) => gindex.get(r.place)?.icon).length;
+  $("count").innerHTML = !dests.size
+    ? "No trains leave from here in the 2017 timetable."
+    : act.size
+      ? `<b>${reach.length.toLocaleString("en-IN")}</b> places · <b>${act.size}</b> trains${withPhotos ? ` · ${withPhotos} with travel guides` : ""}`
+      : "No trains match. Try a wider window.";
+  if (open && !open.leg) renderPanel();
 }
 
-// ---------- clock ----------
+function updateCandidates() {
+  if (!map) return;
+  const cands: (BubbleCandidate & { guide: string })[] = [];
+  const add = (place: Place, mins: number | null, score: number) => {
+    const gv = gindex.get(place);
+    if (!gv?.icon) return;
+    cands.push({ place, title: destTitleOf(place, gv), photo: gv.icon, mins, score: score + (iconicRank.has(gv.title) ? (origin ? 0.8 : 10 + iconicRank.get(gv.title)! * 0.1) : 0), guide: gv.title });
+  };
+  if (origin) {
+    for (const [place, legs] of passing) {
+      const gv = gindex.get(place);
+      if (!gv) continue;
+      add(place, Math.min(...legs.map((l) => l.dur)), Math.log1p(gv.art.appeal) + 0.35 * Math.log1p(legs.length) + (place.isCity ? 0.4 : 0));
+    }
+  } else {
+    for (const [place, gv] of gindex) {
+      if (!place.halts) continue;
+      // inspiration: rank by how much there is to see, not by how busy the station is
+      add(place, null, Math.log1p(gv.art.appeal) + (gv.banner ? 0.3 : 0));
+    }
+  }
+  // one bubble per guide: a city's many stations, or two stations sharing a famous neighbour
+  const best = new Map<string, BubbleCandidate>();
+  const pref = (c: BubbleCandidate) => c.score + (c.place.isCity ? 1 : 0) + c.place.halts * 1e-6;
+  for (const c of cands) {
+    const prev = best.get(c.guide);
+    if (!prev || pref(prev) < pref(c)) best.set(c.guide, c);
+  }
+  map.setCandidates([...best.values()]);
+}
+
+// ---------------------------------------------------------------- clock
 function setupClock() {
   const btn = $("clock-toggle");
   const icon = $("clock-icon");
@@ -283,185 +461,164 @@ function setupClock() {
 function trackPin() {
   if (origin && !pin.hidden) {
     const p = map.screenOf(origin);
-    if (p) pin.style.transform = `translate(${p[0] - 32}px, ${p[1] - 27}px)`;
+    if (p) pin.style.transform = `translate(${p[0] - 26}px, ${p[1] - 24}px)`;
   }
   requestAnimationFrame(trackPin);
 }
 
-// ---------- hover ----------
+// ---------------------------------------------------------------- hover
 function showTip(p: Place | null, x: number, y: number) {
-  if (!p) {
+  if (!p || narrow()) {
     tip.hidden = true;
     return;
   }
-  const legs = passing.get(p) ?? [];
-  const fastest = Math.min(...legs.map((l) => l.dur));
-  const km = Math.min(...legs.map((l) => l.km));
-  tip.innerHTML = `<b>${esc(shortName(p))}</b><span>${legs.length} train${legs.length === 1 ? "" : "s"} · fastest ${fmtDur(fastest)} · ≈${fmtKm(km)} km</span>`;
+  const gv = gindex.get(p);
+  const title = destTitleOf(p, gv ?? null);
+  let line = p.state || "";
+  const legs = passing.get(p);
+  if (origin && legs?.length) {
+    line = `${fmtMins(Math.min(...legs.map((l) => l.dur)))} · ${legs.length} train${legs.length === 1 ? "" : "s"}`;
+  }
+  tip.innerHTML = `<b>${esc(title)}</b><span>${esc(line)}</span>`;
   tip.hidden = false;
   const r = tip.getBoundingClientRect();
-  const tx = Math.min(x + 14, window.innerWidth - r.width - 8);
-  const ty = y + 16 + r.height > window.innerHeight ? y - r.height - 10 : y + 16;
-  tip.style.left = `${tx}px`;
-  tip.style.top = `${ty}px`;
+  tip.style.left = `${Math.min(x + 16, window.innerWidth - r.width - 8)}px`;
+  tip.style.top = `${y + 18 + r.height > window.innerHeight ? y - r.height - 12 : y + 18}px`;
 }
 
-// ---------- panel ----------
-function setPanelOpen(open: boolean) {
-  panel.hidden = !open;
-  document.body.classList.toggle("panel-open", open);
-  const narrow = window.innerWidth <= 720;
-  map.setInsetRight(open ? (narrow ? window.innerHeight * 0.64 : 440) : 0);
-}
-
-function closePanel() {
-  openPlace = null;
-  setPanelOpen(false);
-  if (map) {
-    map.select(null);
-    map.selectTrain(null);
-  }
-}
-
-function destBoard(p: Place, km: number | null, withClose = true) {
-  const code = net.stations[p.anchor].code;
-  const script = scriptLine(p);
-  return `<div class="dest-board ${withClose ? "has-close" : ""}">
-    <div>
-      ${script ? `<div class="script">${esc(script)}</div>` : ""}
-      <div class="name">${esc(shortName(p))}</div>
-      <div class="codes">${esc(p.stations.map((s) => net.stations[s].code).join(" · "))} · ${esc(p.state)}</div>
-    </div>
-    ${km !== null ? `<div class="kmstone" aria-label="About ${fmtKm(km)} kilometres by rail"><div class="cap">${esc(code)}</div><div class="num">${fmtKm(km)}<small>KM</small></div></div>` : ""}
-    ${withClose ? `<button class="close" type="button" data-act="close" aria-label="Close">×</button>` : ""}
-  </div>`;
-}
-
-function guideHtml(p: Place) {
-  const g = guideFor(guides, net, p);
-  if (!guides) return `<p class="noguide">Loading the travel guide…</p>`;
-  if (!g) return `<p class="noguide">No travel guide for this stop yet. Small stations are often the best surprises.</p>`;
-  const wv = (t: string) => `https://en.wikivoyage.org/wiki/${encodeURIComponent(t.replace(/ /g, "_"))}`;
-  const a = g.art;
-  const list = (items: { n: string; d?: string }[] | undefined, title: string) =>
-    items && items.length
-      ? `<div><h3>${title}</h3><ul>${items.slice(0, 5).map((it) => `<li><b>${esc(it.n)}</b>${it.d ? ` <span>${esc(it.d)}</span>` : ""}</li>`).join("")}</ul></div>`
-      : "";
-  const img = a.img
-    ? `<figure><img src="https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(a.img)}?width=720" alt="" loading="lazy" onerror="this.parentElement.remove()" />
-       <figcaption>Photo: <a href="https://commons.wikimedia.org/wiki/File:${encodeURIComponent(a.img)}" target="_blank" rel="noopener">Wikimedia Commons</a></figcaption></figure>`
-    : "";
-  const nearby = g.nearby.length
-    ? `<div class="nearby"><h3>Nearby</h3>${g.nearby.map((t) => `<a href="${wv(t)}" target="_blank" rel="noopener">${esc(t)} ↗</a>`).join("")}</div>`
-    : "";
-  return `<section class="guide">
-    ${img}
-    ${a.x ? `<p>${esc(a.x)}</p>` : ""}
-    ${list(a.see, "See")}
-    ${list(a.do, "Do")}
-    ${nearby}
-    ${g.title ? `<p class="src">From <a href="${wv(g.title)}" target="_blank" rel="noopener">Wikivoyage: ${esc(g.title)}</a> · CC BY-SA 4.0</p>` : ""}
-  </section>`;
-}
-
-function openDestination(p: Place) {
-  if (!origin) return;
-  const d = dests.get(p);
-  if (!d) return;
-  openPlace = p;
+// ---------------------------------------------------------------- panel
+function openPlace(p: Place) {
+  if (p === origin) return;
+  tip.hidden = true;
+  open = { place: p, showAll: false, sight: -1, leg: null };
   map.select(p);
   map.selectTrain(null);
-  const now = istNow();
-  const legs = [...d.legs].sort((a, b) => a.dep - b.dep);
-  const ok = legs.filter((l) => legPasses(l, filters, now));
-  const fastest = Math.min(...legs.map((l) => l.dur));
-  const next = legs.reduce((best, l) => ((l.dep - now + 1440) % 1440 < (best.dep - now + 1440) % 1440 ? l : best), legs[0]);
-  const multi = origin.stations.length > 1;
-  const rows = legs
-    .map((l, i) => {
-      const t = l.train;
-      const on = legPasses(l, filters, now);
-      const arr = t.arr[l.to];
-      const plusDay = Math.floor((l.dep + l.dur) / 1440);
-      const from = net.stations[t.st[l.from]].code;
-      const to = net.stations[t.st[l.to]].code;
-      return `<button class="row ${on ? "" : "off"}" type="button" data-leg="${i}">
-        <span class="dep">${fmtTime(l.dep)}</span>
-        <span><span class="no">${esc(t.no)}</span><span class="pill ${FAST.has(t.type) ? "fast" : ""}">${esc(t.typeLabel)}</span>
-          <span class="tname">${esc(t.name)}</span>
-          <span class="sub">${multi ? `${from} → ${to} · ` : ""}${l.halts ? `${l.halts} halt${l.halts === 1 ? "" : "s"}` : "non-stop"} · ≈${fmtKm(l.km)} km</span></span>
-        <span class="arr">${fmtTime(arr)}${plusDay ? `<sup>+${plusDay}</sup>` : ""}<small>${fmtDur(l.dur)}</small></span>
-      </button>`;
-    })
-    .join("");
-  panel.dataset.view = "dest";
-  panel.innerHTML = `<div class="panel-scroll">
-    ${destBoard(p, d.firstKm)}
-    <dl class="facts">
-      <div><dt>Trains</dt><dd>${legs.length}</dd></div>
-      <div><dt>Fastest</dt><dd>${fmtDur(fastest)}</dd></div>
-      <div><dt>Next train</dt><dd>${fmtTime(next.dep)}</dd></div>
-    </dl>
-    ${guideHtml(p)}
-    <section class="trains">
-      <h3>Trains from ${esc(shortName(origin))}</h3>
-      <p class="note">${ok.length === legs.length ? "Departure → arrival, by the timetable." : `${ok.length} of ${legs.length} match your filters; the rest are dimmed.`}</p>
-      ${rows}
-    </section>
-  </div>`;
-  panel.onclick = (e) => {
-    const el = (e.target as HTMLElement).closest<HTMLElement>("[data-act],[data-leg]");
-    if (!el) return;
-    if (el.dataset.act === "close") closePanel();
-    else if (el.dataset.leg) openTrain(legs[Number(el.dataset.leg)], p);
-  };
+  map.showSights([]);
+  renderPanel();
   setPanelOpen(true);
+  panel.querySelector(".panel-scroll")?.scrollTo({ top: 0 });
   map.focusOn(p);
 }
 
-function openTrain(leg: Leg, dest: Place) {
-  const t = leg.train;
-  map.selectTrain(leg);
-  const items: string[] = [];
-  let lastDay = 0;
-  let firstDay = true;
-  for (let j = 0; j < t.st.length; j++) {
-    const a = t.arr[j], d = t.dep[j];
-    if (a < 0 && d < 0) continue;
-    const day = Math.floor((d >= 0 ? d : a) / 1440) + 1;
-    if (day !== lastDay) {
-      if (!firstDay || day > 1) items.push(`<li class="dayrow"><span class="day">Day ${day}</span></li>`);
-      lastDay = day;
-      firstDay = false;
-    }
-    const s = net.stations[t.st[j]];
-    const cls = [j >= leg.from && j <= leg.to ? "ride" : "", j === leg.from ? "board-at" : "", j === leg.to ? "alight-at" : ""].join(" ");
-    items.push(`<li class="${cls}" ${j === leg.from ? 'id="boarding"' : ""}>
-      <span class="t">${a >= 0 ? fmtTime(a) : "—"}</span><span class="t">${d >= 0 ? fmtTime(d) : "—"}</span>
-      <span class="rail" aria-hidden="true"></span>
-      <span class="nm">${esc(s.name)}<code>${esc(s.code)}</code></span></li>`);
+function renderPanel() {
+  if (!open) return;
+  const p = open.place;
+  const gv = gindex.get(p) ?? null;
+  if (open.leg) {
+    panel.innerHTML = trainHtml(net, open.leg, destTitleOf(p, gv));
+    panel.dataset.view = "train";
+    panel.querySelector("#boarding")?.scrollIntoView({ block: "center" });
+    return;
   }
-  const from = net.stations[t.st[leg.from]];
-  const to = net.stations[t.st[leg.to]];
-  panel.dataset.view = "train";
-  panel.innerHTML = `<div class="panel-scroll">
-    <button class="back" type="button" data-act="back">← All trains to ${esc(shortName(dest))}</button>
-    <header class="tr-head">
-      <span class="no">${esc(t.no)}</span><span class="pill ${FAST.has(t.type) ? "fast" : ""}">${esc(t.typeLabel)}</span>
-      <h2>${esc(t.name)}</h2>
-      <p>${esc(from.name)} ${fmtTime(t.dep[leg.from])} → ${esc(to.name)} ${fmtTime(t.arr[leg.to])} · ${fmtDur(leg.dur)} · ≈${fmtKm(leg.km)} km.
-      Running days aren't in this 2017 timetable, so check <a href="https://enquiry.indianrail.gov.in/mntes/" target="_blank" rel="noopener">NTES</a> before you plan.</p>
-    </header>
-    <div class="stops-wrap">
-      <div class="stop-head" aria-hidden="true"><span>Arr</span><span>Dep</span><span></span><span>Halt</span></div>
-      <ol class="stops">${items.join("")}</ol>
-    </div>
-  </div>`;
-  panel.onclick = (e) => {
-    const el = (e.target as HTMLElement).closest<HTMLElement>("[data-act]");
-    if (el?.dataset.act === "back") openDestination(dest);
-  };
-  panel.querySelector("#boarding")?.scrollIntoView({ block: "center" });
+  const now = istNow();
+  const scroll = panel.querySelector(".panel-scroll")?.scrollTop ?? 0;
+  panel.dataset.view = "place";
+  panel.innerHTML = placeHtml({
+    net,
+    guides,
+    place: p,
+    gv,
+    origin,
+    legs: dests.get(p)?.legs ?? [],
+    passes: (l) => legPasses(l, filters, now),
+    now,
+    showAllTrains: open.showAll,
+    activeSight: open.sight,
+    titleToPlace: (t) => titlePlace.get(t) ?? null,
+  });
+  panel.querySelector(".panel-scroll")!.scrollTop = scroll;
+}
+
+panel.addEventListener("click", (e) => {
+  const el = (e.target as HTMLElement).closest<HTMLElement>("[data-act]");
+  if (!el || !open) return;
+  const p = open.place;
+  const now = istNow();
+  const legs = [...(dests.get(p)?.legs ?? [])].sort((a, b) => ((a.dep - now + 1440) % 1440) - ((b.dep - now + 1440) % 1440));
+  switch (el.dataset.act) {
+    case "close":
+      closePanel();
+      break;
+    case "leg": {
+      const leg = legs[Number(el.dataset.i)];
+      if (!leg) break;
+      open.leg = leg;
+      map.selectTrain(leg);
+      map.showSights([]);
+      renderPanel();
+      map.focusLeg(leg);
+      break;
+    }
+    case "back":
+      open.leg = null;
+      map.selectTrain(null);
+      renderPanel();
+      map.focusOn(p);
+      break;
+    case "all-trains":
+      open.showAll = true;
+      renderPanel();
+      break;
+    case "sight": {
+      const i = Number(el.dataset.i);
+      open.sight = open.sight === i ? -1 : i;
+      for (const s of panel.querySelectorAll(".sight")) s.classList.toggle("active", Number((s as HTMLElement).dataset.i) === open.sight);
+      if (open.sight >= 0) showSights(p, i, true);
+      break;
+    }
+    case "sights-map":
+      open.sight = -1;
+      showSights(p, -1, true);
+      break;
+    case "place": {
+      const q = net.places.get(el.dataset.id!);
+      if (q) openPlace(q);
+      break;
+    }
+    case "pick-origin":
+      closePanel();
+      input.focus();
+      break;
+    case "from-here":
+      chooseOrigin(p);
+      break;
+  }
+});
+
+function sightPins(p: Place): SightPin[] {
+  const gv = gindex.get(p);
+  if (!gv || !guides) return [];
+  return gv.art.sights
+    .map((s, i) => ({ s, i }))
+    .filter(({ s }) => s.ll)
+    .map(({ s, i }) => ({ i, name: s.n, lat: s.ll![0], lon: s.ll![1], photo: s.img ? guides!.photos[s.img] ?? null : null }));
+}
+
+function showSights(p: Place, active: number, fly: boolean) {
+  const pins = sightPins(p);
+  if (!pins.length) return;
+  map.showSights(pins, active);
+  if (fly) map.focusSights(pins, pins.find((x) => x.i === active));
+}
+
+function setPanelOpen(on: boolean) {
+  panel.hidden = !on;
+  document.body.classList.toggle("panel-open", on);
+  layout();
+}
+
+function closePanel(refit = true) {
+  const was = open;
+  open = null;
+  setPanelOpen(false);
+  if (!map) return;
+  map.select(null);
+  map.selectTrain(null);
+  map.showSights([]);
+  if (refit && was) {
+    if (origin) map.fitRoutes();
+    else map.fitIndia();
+  }
 }
 
 boot().catch((err) => {
