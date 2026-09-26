@@ -11,7 +11,7 @@ const browser = await puppeteer.launch({
 const page = await browser.newPage();
 if (theme) await page.evaluateOnNewDocument((t) => localStorage.setItem("railgaddi.theme", t), theme);
 page.on("pageerror", (e) => console.error("page error:", e.message));
-await page.goto(`http://localhost:5173/${path}`, { waitUntil: "networkidle2", timeout: 60000 });
+await page.goto(path.startsWith("http") ? path : `http://localhost:5173/${path}`, { waitUntil: "networkidle2", timeout: 60000 });
 await new Promise((r) => setTimeout(r, Number(wait)));
 await page.screenshot({ path: out });
 await browser.close();
