@@ -8,12 +8,18 @@
 3. Photos: the place's Wikidata photo (P18) becomes its map bubble (Mysore -> the palace),
    and its Wikivoyage banner (P948) becomes the header. Listings take their own `image=`,
    else the photo of their Wikidata item.
-4. Where a guide has few photographed sights (small towns), add notable landmarks from
-   Wikipedia near the place: temples, forts, lakes, falls and the like.
-5. Fetch credit (author, licence) and a thumbnail URL for every photo from Wikimedia Commons.
+4. Landmarks: every photographed heritage site, temple, fort, lake, waterfall… in India
+   from one Wikidata query (RAW/wd_landmarks.json), ranked by how many Wikipedias cover
+   it. They fill out each guide's sights, and give stations with no guide but real
+   landmarks a place of their own (Shravanabelagola -> the Gommateshwara statue).
+5. Thumbnails are computed from file names; credits (author, licence) come from Commons
+   where known, otherwise the photo links to its Commons page, which carries them.
 
-Text: Wikivoyage / Wikipedia, CC BY-SA. Photos: Wikimedia Commons, licence per file.
-All responses are cached on disk (RAW/wv-cache), so re-runs only fetch what's new.
+Text: Wikivoyage, CC BY-SA. Landmarks: Wikidata, CC0. Photos: Wikimedia Commons, per file.
+
+Every API response is cached in RAW/wv-cache and indexed by title / item / file, so a
+re-run only asks for what is genuinely new. `--quick` never calls an API at all and
+builds from what is known (Wikimedia rate-limits unidentified clients hard).
 """
 import hashlib
 import json
@@ -25,7 +31,7 @@ import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
-from collections import Counter
+from collections import Counter, defaultdict
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -35,15 +41,13 @@ CACHE.mkdir(parents=True, exist_ok=True)
 NET = json.load(open(ROOT / "public" / "data" / "network.json"))
 OUT = ROOT / "public" / "data" / "places.json"
 WV = "https://en.wikivoyage.org/w/api.php"
-WP = "https://en.wikipedia.org/w/api.php"
 WD = "https://www.wikidata.org/w/api.php"
 COMMONS = "https://commons.wikimedia.org/w/api.php"
 UA = "PatriPrototype/0.1 (personal non-commercial train-discovery prototype)"
 MIN_HALTS = 8
 MAX_SIGHTS = 8
-# --quick: use only what is cached or needs no API (Wikimedia rate-limits unidentified clients hard).
-# Skips new Wikipedia landmark lookups and photo-credit lookups; thumbnails are computed from file names.
 QUICK = "--quick" in sys.argv
+CREDITS = "--credits" in sys.argv  # photo credits mean thousands of Commons lookups: opt in
 
 
 def api(params, base=WV):
@@ -99,6 +103,58 @@ def toks(s):
     return {t for t in s.split() if len(t) > 2 and t not in STOP}
 
 
+def squash(s):
+    return re.sub(r"[^a-z]", "", unicodedata.normalize("NFKD", s).lower())
+
+
+# ---------------------------------------------------------------- cache index
+# Everything we've ever fetched, by title / Wikidata item / Commons file.
+EXTRACTS, REVISIONS, ALIASES, ENTITIES, IMAGEINFO = {}, {}, {}, {}, {}
+
+
+def absorb(d):
+    if "entities" in d:
+        ENTITIES.update({k: v for k, v in d["entities"].items() if "missing" not in v})
+        return
+    q = d.get("query") or {}
+    for x in q.get("redirects", []) + q.get("normalized", []):
+        ALIASES.setdefault(x["from"], x["to"])
+    for p in q.get("pages", []):
+        if p.get("missing") or p.get("invalid"):
+            continue
+        if "imageinfo" in p:
+            IMAGEINFO[p["title"].split(":", 1)[1]] = p["imageinfo"][0]
+        elif "revisions" in p:
+            REVISIONS[p["title"]] = p["revisions"][0]["slots"]["main"]["content"]
+        elif "extract" in p:
+            EXTRACTS[p["title"]] = p
+
+
+for f in CACHE.glob("*.json"):
+    try:
+        absorb(json.loads(f.read_text()))
+    except (ValueError, KeyError):
+        pass
+print(f"cache: {len(EXTRACTS)} guides, {len(REVISIONS)} guide texts, {len(ENTITIES)} items, {len(IMAGEINFO)} photo credits")
+
+
+def resolve(t):
+    seen = set()
+    while t in ALIASES and t not in seen:
+        seen.add(t)
+        t = ALIASES[t]
+    return t
+
+
+def fetch_missing(kind, keys, size, params):
+    keys = sorted(set(keys))
+    if QUICK or not keys:
+        return
+    print(f"fetching {len(keys)} new {kind}", flush=True)
+    for batch in chunks(keys, size):
+        absorb(api(params(batch), base=COMMONS if kind == "credits" else WD if kind == "items" else WV))
+
+
 # ---------------------------------------------------------------- 1. stations -> guides
 S = NET["stations"]
 city_by_station = {i: c for c in NET["cities"] for i in c["stations"]}
@@ -112,6 +168,7 @@ for b in json.load(open(RAW / "wv_india.json"))["results"]["bindings"]:
     if m and "entity/Q" not in b["coord"]["value"]:  # skip non-Earth globes
         GUIDES.append((title, float(m.group(2)), float(m.group(1))))
 GUIDE_TITLES = {t.lower(): t for t, _, _ in GUIDES if "/" not in t}
+GUIDE_LL = {t: (lat, lon) for t, lat, lon in GUIDES}
 
 # Guide pages that are regions, itineraries or infrastructure rather than somewhere to go.
 NOT_A_PLACE = re.compile(
@@ -168,27 +225,41 @@ for c in NET["cities"]:
                 break
 
 titles = sorted({t for p, nb in station_links.values() for t in ([p] if p else []) + nb} | set(city_links.values()))
-print("guides:", len(titles))
+print("guides wanted:", len(titles))
 
 # ---------------------------------------------------------------- 2. guide text + listings
-articles = {}
-aliases = {}
-for batch in chunks(titles, 20):
-    r = api({"action": "query", "titles": "|".join(batch), "redirects": 1,
-             "prop": "extracts|pageprops|coordinates|info", "exintro": 1, "explaintext": 1,
-             "exsentences": 3, "exlimit": 20, "ppprop": "page_image_free|wikibase_item", "inprop": "url"})
-    q = r.get("query", {})
-    for x in q.get("redirects", []) + q.get("normalized", []):
-        aliases[x["from"]] = x["to"]
-    for p in q.get("pages", []):
-        if p.get("missing"):
-            continue
-        extract = re.sub(r"\s+", " ", p.get("extract", "")).strip()
-        extract = re.sub(r"\s*\([^()]*[^\x00-\x7F][^()]*\)", "", extract)  # drop native-script parentheticals
-        coords = (p.get("coordinates") or [{}])[0]
-        pp = p.get("pageprops", {})
-        articles[p["title"]] = {"x": extract, "qid": pp.get("wikibase_item"), "lead": pp.get("page_image_free"),
-                                "lat": coords.get("lat"), "lon": coords.get("lon")}
+fetch_missing("guides", [t for t in titles if resolve(t) not in EXTRACTS], 20, lambda b: {
+    "action": "query", "titles": "|".join(b), "redirects": 1, "prop": "extracts|pageprops|coordinates|info",
+    "exintro": 1, "explaintext": 1, "exsentences": 3, "exlimit": 20, "ppprop": "page_image_free|wikibase_item", "inprop": "url"})
+
+articles, aliases = {}, {}
+for t in titles:
+    r = resolve(t)
+    p = EXTRACTS.get(r)
+    if not p:
+        continue
+    if r != t:
+        aliases[t] = r
+    extract = re.sub(r"\s+", " ", p.get("extract", "")).strip()
+    extract = re.sub(r"\s*\([^()]*[^\x00-\x7F][^()]*\)", "", extract)  # drop native-script parentheticals
+    coords = (p.get("coordinates") or [{}])[0]
+    lat, lon = coords.get("lat"), coords.get("lon")
+    if lat is None and r in GUIDE_LL:
+        lat, lon = GUIDE_LL[r]
+    pp = p.get("pageprops", {})
+    articles[r] = {"x": extract, "qid": pp.get("wikibase_item"), "lead": pp.get("page_image_free"), "lat": lat, "lon": lon}
+print("guides known:", len(articles), "of", len(titles))
+
+# forget links to guides we couldn't get, so those stations can still become places from landmarks
+known = lambda t: t and resolve(t) in articles  # noqa: E731
+for code, (primary, nearby) in list(station_links.items()):
+    primary = resolve(primary) if known(primary) else None
+    nearby = [r for r in dict.fromkeys(resolve(t) for t in nearby if known(t)) if r != primary]
+    if primary or nearby:
+        station_links[code] = [primary, nearby]
+    else:
+        del station_links[code]
+city_links = {k: resolve(v) for k, v in city_links.items() if known(v)}
 
 LISTING = re.compile(r"\{\{\s*(see|do|listing)\s*\|", re.I)
 
@@ -262,96 +333,96 @@ def file_name(s):
     return s if re.search(r"\.(jpe?g|png|webp|tiff?|gif)$", s, re.I) else None
 
 
+fetch_missing("guide texts", [t for t in articles if t not in REVISIONS], 25, lambda b: {
+    "action": "query", "titles": "|".join(b), "prop": "revisions", "rvprop": "content", "rvslots": "main"})
+
 listings = {}
-for batch in chunks(articles, 25):
-    r = api({"action": "query", "titles": "|".join(batch), "prop": "revisions", "rvprop": "content", "rvslots": "main"})
-    for p in r.get("query", {}).get("pages", []):
-        if p["title"] not in articles or not p.get("revisions"):
+for title in articles:
+    text = REVISIONS.get(title)
+    if not text:
+        continue
+    items = []
+    for kind, body in templates(text):
+        pr = params(body)
+        if kind == "listing":
+            kind = pr.get("type", "").lower()
+        if kind not in ("see", "do"):
             continue
-        text = p["revisions"][0]["slots"]["main"]["content"]
-        items = []
-        for kind, body in templates(text):
-            pr = params(body)
-            if kind == "listing":
-                kind = pr.get("type", "").lower()
-            if kind not in ("see", "do"):
-                continue
-            name = clean(pr.get("name", ""))
-            if not name or len(name) > 70:
-                continue
-            qid = pr.get("wikidata", "").strip()
-            items.append({
-                "n": name,
-                "d": shorten(clean(pr.get("content") or pr.get("description") or "")),
-                "k": kind,
-                "img": file_name(pr.get("image")),
-                "qid": qid if re.fullmatch(r"Q\d+", qid) else None,
-                "lat": num(pr.get("lat")), "lon": num(pr.get("long")),
-            })
-        listings[p["title"]] = items
+        name = clean(pr.get("name", ""))
+        if not name or len(name) > 70:
+            continue
+        qid = pr.get("wikidata", "").strip()
+        items.append({
+            "n": name,
+            "d": shorten(clean(pr.get("content") or pr.get("description") or "")),
+            "k": kind,
+            "img": file_name(pr.get("image")),
+            "qid": qid if re.fullmatch(r"Q\d+", qid) else None,
+            "lat": num(pr.get("lat")), "lon": num(pr.get("long")),
+        })
+    listings[title] = items
 print("listings parsed:", sum(len(v) for v in listings.values()))
 
 # ---------------------------------------------------------------- 3. Wikidata photos
 qids = {a["qid"] for a in articles.values() if a["qid"]} | {it["qid"] for v in listings.values() for it in v if it["qid"]}
-claims = {}
-for batch in chunks(sorted(qids), 50):
-    r = api({"action": "wbgetentities", "ids": "|".join(batch), "props": "claims"}, base=WD)
-    for q, ent in r.get("entities", {}).items():
-        c = ent.get("claims", {})
+fetch_missing("items", [q for q in qids if q not in ENTITIES], 50, lambda b: {
+    "action": "wbgetentities", "ids": "|".join(b), "props": "claims"})
 
-        def first(prop):
-            for x in c.get(prop, []):
-                v = x.get("mainsnak", {}).get("datavalue", {}).get("value")
-                if v:
-                    return v
-            return None
-        coord = first("P625")
-        claims[q] = {"p18": first("P18"), "p948": first("P948"),
-                     "lat": coord.get("latitude") if isinstance(coord, dict) else None,
-                     "lon": coord.get("longitude") if isinstance(coord, dict) else None}
-print("wikidata items:", len(claims))
+
+def claim(q, prop):
+    for x in ENTITIES.get(q or "", {}).get("claims", {}).get(prop, []):
+        v = x.get("mainsnak", {}).get("datavalue", {}).get("value")
+        if v:
+            return v
+    return None
+
 
 for items in listings.values():
     for it in items:
-        cl = claims.get(it["qid"] or "", {})
-        it["img"] = it["img"] or cl.get("p18")
-        if it["lat"] is None and cl.get("lat") is not None:
-            it["lat"], it["lon"] = cl["lat"], cl["lon"]
+        it["img"] = it["img"] or claim(it["qid"], "P18")
+        coord = claim(it["qid"], "P625")
+        if it["lat"] is None and isinstance(coord, dict):
+            it["lat"], it["lon"] = coord.get("latitude"), coord.get("longitude")
 
-# ---------------------------------------------------------------- 4. Wikipedia landmarks for thin guides
-LANDMARK = re.compile(
-    r"\b(temple|mandir|fort|fortress|palace|lake|falls|waterfall|museum|beach|hill|peak|national park|"
-    r"sanctuary|reserve|church|cathedral|basilica|mosque|masjid|dargah|tomb|mausoleum|cave|garden|dam|"
-    r"monument|stupa|monastery|gurdwara|basadi|jain|ghat|island|zoo|statue|shrine|archaeological|"
-    r"ruins|lighthouse|backwater|viewpoint|haveli|step ?well|baori|memorial|tea estate|valley)\b", re.I)
-EXCLUDE = re.compile(r"\b(railway station|school|college|university|village|constituency|hospital|company|"
-                     r"neighbourhood|suburb|district|taluk|mandal|panchayat|film|politician|born)\b", re.I)
+# ---------------------------------------------------------------- 4. landmarks
+# heritage-listed, but not why anyone takes a train somewhere
+NOT_A_SIGHT = re.compile(r"\b(railway station|station building|school|college|university|hospital|office|court|bank|"
+                         r"police|secretariat|collectorate|circuit house|dak bungalow|residency building)\b", re.I)
+LANDMARKS = {}
+lm_file = RAW / "wd_landmarks.json"
+if lm_file.exists():
+    for b in json.load(open(lm_file))["results"]["bindings"]:
+        q = b["item"]["value"].rsplit("/", 1)[1]
+        m = re.search(r"Point\(([-\d.]+) ([-\d.]+)\)", b["coord"]["value"])
+        img = file_name(urllib.parse.unquote(b["image"]["value"].rsplit("/", 1)[1]))
+        label = b["label"]["value"].strip()
+        if q in LANDMARKS or not m or not img or re.fullmatch(r"[A-Z0-9\-/ ]+", label) or NOT_A_SIGHT.search(label):
+            continue
+        desc = b.get("desc", {}).get("value", "")
+        LANDMARKS[q] = {"q": q, "n": label, "d": desc[:1].upper() + desc[1:], "img": img,
+                        "lat": float(m.group(2)), "lon": float(m.group(1)), "links": int(b["links"]["value"])}
+print("landmarks:", len(LANDMARKS))
+
+GRID = defaultdict(list)
+for lm in LANDMARKS.values():
+    GRID[(int(lm["lat"] * 10), int(lm["lon"] * 10))].append(lm)
 
 
-def cached_only(params, base):
-    params = {**params, "format": "json", "formatversion": "2", "maxlag": "5"}
-    keyed = params if base == WV else {**params, "__base": base}
-    f = CACHE / f"{hashlib.sha1(json.dumps(keyed, sort_keys=True).encode()).hexdigest()}.json"
-    return json.loads(f.read_text()) if f.exists() else {}
-
-
-def wikipedia_landmarks(lat, lon, skip):
-    r = (cached_only if QUICK else api)({"action": "query", "generator": "geosearch", "ggscoord": f"{lat}|{lon}", "ggsradius": 10000,
-             "ggslimit": 50, "prop": "pageimages|description|coordinates", "piprop": "name", "coprimary": "primary"}, WP)
+def landmarks_near(lat, lon, km):
+    """Photographed landmarks within `km`, most famous (most Wikipedia languages) first."""
+    r = int(km / 10) + 1
+    ci, cj = int(lat * 10), int(lon * 10)
     out = []
-    for p in r.get("query", {}).get("pages", []):
-        desc = p.get("description", "")
-        text = f"{p['title']} {desc}"
-        if not p.get("pageimage") or not LANDMARK.search(text) or EXCLUDE.search(text):
-            continue
-        if p["title"].lower() in skip:
-            continue
-        c = (p.get("coordinates") or [{}])[0]
-        out.append({"n": p["title"], "d": desc[:1].upper() + desc[1:] if desc else "", "k": "see",
-                    "img": file_name(p["pageimage"]), "lat": c.get("lat"), "lon": c.get("lon"), "wp": 1,
-                    "rank": p.get("index", 99)})  # geosearch order: nearest first
-    out.sort(key=lambda o: o.pop("rank"))
-    return out
+    for di in range(-r, r + 1):
+        for dj in range(-r, r + 1):
+            for lm in GRID.get((ci + di, cj + dj), ()):
+                if dist_m(lat, lon, lm["lat"], lm["lon"]) <= km * 1000:
+                    out.append(lm)
+    return sorted(out, key=lambda lm: -lm["links"])
+
+
+def as_sight(lm):
+    return {"n": lm["n"], "d": lm["d"], "k": "see", "img": lm["img"], "lat": lm["lat"], "lon": lm["lon"], "q": lm["q"]}
 
 
 sights = {}
@@ -359,36 +430,72 @@ for title, a in articles.items():
     items = listings.get(title, [])
     with_img = [it for it in items if it["img"]]
     without = [it for it in items if not it["img"] and it["d"]]
-    chosen = with_img[:MAX_SIGHTS]
-    has_bubble = claims.get(a["qid"] or "", {}).get("p18") or a["lead"]
-    if len(chosen) < 4 and a["lat"] is not None and has_bubble:
-        names = {it["n"].lower() for it in items}
-        chosen += wikipedia_landmarks(a["lat"], a["lon"], names)[:MAX_SIGHTS - len(chosen)]
-    chosen += without[:max(0, 6 - len(chosen))]
-    sights[title] = chosen
-print("guides with 4+ photographed sights:", sum(1 for v in sights.values() if sum(1 for s in v if s.get("img")) >= 4))
+    have_q = {it["qid"] for it in items if it["qid"]}
+    have_n = [squash(it["n"]) for it in items]
 
-# ---------------------------------------------------------------- 5. photo credits + thumbnails
+    def known(lm):
+        n = squash(lm["n"])
+        return lm["q"] in have_q or any(n == h or (min(len(n), len(h)) >= 6 and (n in h or h in n)) for h in have_n)
+
+    chosen = with_img[:5]
+    here = squash(title)
+    if a["lat"] is not None:
+        for lm in landmarks_near(a["lat"], a["lon"], 12):
+            if len(chosen) >= MAX_SIGHTS:
+                break
+            if lm["links"] >= 2 and not known(lm) and squash(lm["n"]) != here:  # not "Hampi" as a sight of Hampi
+                chosen.append(as_sight(lm))
+                have_n.append(squash(lm["n"]))
+    chosen += with_img[5:][: max(0, MAX_SIGHTS - len(chosen))]
+    chosen += without[: max(0, 6 - len(chosen))]
+    sights[title] = chosen
+
+# Stations with no guide but real landmarks become places of their own.
+TOWN = re.compile(r"\s*\(.*?\)|\s+(junction|jn\.?|halt|cantt|cantonment|town|city|railway station)$", re.I)
+pseudo = {}
+guide_pts = [(t, a["lat"], a["lon"]) for t, a in articles.items() if a["lat"] is not None and "/" not in t]
+for i, code in enumerate(S["code"]):
+    if code in station_links or S["lat"][i] is None or S["halts"][i] < 2:
+        continue
+    # a small station on the edge of a town with a guide belongs to that guide (Madurai East -> Madurai)
+    lat, lon = S["lat"][i], S["lon"][i]
+    close = min(((dist_m(lat, lon, glat, glon), t) for t, glat, glon in guide_pts
+                 if abs(glat - lat) < 0.1 and abs(glon - lon) < 0.1), default=None)
+    if close and close[0] <= 8000:
+        station_links[code] = [close[1], []]
+        continue
+    lms = [lm for lm in landmarks_near(S["lat"][i], S["lon"][i], 7) if lm["links"] >= 3]
+    if not lms or (lms[0]["links"] < 8 and len(lms) < 2):
+        continue
+    town = TOWN.sub("", S["name"][i]).strip() or code
+    title = town if town not in articles and town not in pseudo else f"{town} ({code})"
+    top = lms[0]
+    pseudo[title] = {
+        "x": f"Near the station: {top['n']}" + (f" ({top['d']})" if top["d"] else "") + ".",
+        "qid": None, "lead": top["img"], "lat": S["lat"][i], "lon": S["lon"][i], "src": "wd",
+        "appeal": sum(min(lm["links"], 40) for lm in lms[:5]) / 8 + min(len(lms), MAX_SIGHTS),
+    }
+    sights[title] = [as_sight(lm) for lm in lms[:MAX_SIGHTS]]
+    station_links[code] = [title, []]
+print("places made from landmarks:", len(pseudo), "e.g.", [t for t in pseudo if "Shravan" in t][:2])
+
+# ---------------------------------------------------------------- 5. photos
 def icon_of(a):
-    cl = claims.get(a["qid"] or "", {})
-    return cl.get("p18") or a["lead"]
+    return claim(a["qid"], "P18") or a["lead"]
 
 
 files = set()
-for title, a in articles.items():
-    cl = claims.get(a["qid"] or "", {})
-    for f in (icon_of(a), cl.get("p948")):
+for title, a in list(articles.items()) + list(pseudo.items()):
+    for f in (icon_of(a), claim(a["qid"], "P948")):
         if f:
             files.add(f.replace("_", " "))
     for s in sights[title]:
         if s.get("img"):
-            files.add(s["img"])
-print("photos:", len(files))
+            files.add(s["img"].replace("_", " "))
 
-
-def strip_html(s):
-    s = re.sub(r"<[^>]+>", "", s or "")
-    return re.sub(r"\s+", " ", s).strip()
+fetch_missing("credits", [f for f in files if f not in IMAGEINFO] if CREDITS else [], 40, lambda b: {
+    "action": "query", "titles": "|".join("File:" + f for f in b), "prop": "imageinfo",
+    "iiprop": "url|size|extmetadata", "iiurlwidth": 330, "iiextmetadatafilter": "Artist|LicenseShortName"})
 
 
 def commons_thumb(name, w=330):
@@ -403,30 +510,21 @@ def commons_thumb(name, w=330):
     return f"https://upload.wikimedia.org/wikipedia/commons/thumb/{h[0]}/{h[:2]}/{q}/{thumb}"
 
 
+def strip_html(s):
+    return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", s or "")).strip()
+
+
 photos = {}
-for f in files:  # baseline: no API needed; credits get filled in below when available
-    photos[f] = {"t": commons_thumb(f), "by": "", "lic": "",
-                 "page": "https://commons.wikimedia.org/wiki/File:" + urllib.parse.quote(f.replace(" ", "_"))}
-for batch in chunks(sorted(files), 40):
-    r = (cached_only if QUICK else api)({"action": "query", "titles": "|".join("File:" + f for f in batch), "prop": "imageinfo",
-             "iiprop": "url|size|extmetadata", "iiurlwidth": 330,
-             "iiextmetadatafilter": "Artist|LicenseShortName"}, COMMONS)
-    q = r.get("query", {})
-    norm = {x["to"]: x["from"] for x in q.get("normalized", [])}
-    for p in q.get("pages", []):
-        ii = (p.get("imageinfo") or [None])[0]
-        if not ii or not ii.get("thumburl"):
-            continue
-        name = norm.get(p["title"], p["title"]).split(":", 1)[1]
+for f in files:
+    ii = IMAGEINFO.get(f)
+    page = "https://commons.wikimedia.org/wiki/File:" + urllib.parse.quote(f.replace(" ", "_"))
+    if ii and ii.get("thumburl"):
         md = ii.get("extmetadata", {})
-        artist = strip_html(md.get("Artist", {}).get("value", ""))
-        photos[name] = {
-            "t": ii["thumburl"],  # 330px; the app swaps the width for other sizes
-            "w": ii.get("width"), "h": ii.get("height"),
-            "by": artist[:60],
-            "lic": md.get("LicenseShortName", {}).get("value", ""),
-            "page": ii.get("descriptionurl"),
-        }
+        photos[f] = {"t": ii["thumburl"], "w": ii.get("width"), "h": ii.get("height"),
+                     "by": strip_html(md.get("Artist", {}).get("value", ""))[:60],
+                     "lic": md.get("LicenseShortName", {}).get("value", ""), "page": ii.get("descriptionurl") or page}
+    else:  # no API needed: the file page carries author and licence
+        photos[f] = {"t": commons_thumb(f), "by": "", "lic": "", "page": page}
 print("photos:", len(photos), "with credits:", sum(1 for p in photos.values() if p["lic"]))
 
 
@@ -436,40 +534,44 @@ def photo_key(f):
 
 
 # ---------------------------------------------------------------- output
+def sight_out(s):
+    it = {"n": s["n"], "k": s["k"]}
+    if s.get("d"):
+        it["d"] = s["d"]
+    if photo_key(s.get("img")):
+        it["img"] = photo_key(s["img"])
+    if s.get("lat") is not None and s.get("lon") is not None:
+        it["ll"] = [round(s["lat"], 5), round(s["lon"], 5)]
+    if s.get("q"):
+        it["q"] = s["q"]
+    return it
+
+
 out_articles = {}
 for title, a in articles.items():
     if "/" in title:  # district pages (Kolkata/East) reached through redirects aren't destinations
         continue
-    cl = claims.get(a["qid"] or "", {})
-    items = []
-    for s in sights[title]:
-        it = {"n": s["n"], "k": s["k"]}
-        if s.get("d"):
-            it["d"] = s["d"]
-        if photo_key(s.get("img")):
-            it["img"] = photo_key(s["img"])
-        if s.get("lat") is not None and s.get("lon") is not None:
-            it["ll"] = [round(s["lat"], 5), round(s["lon"], 5)]
-        if s.get("wp"):
-            it["wp"] = 1
-        items.append(it)
-    all_listings = listings.get(title, [])
+    items = [sight_out(s) for s in sights[title]]
+    banner = claim(a["qid"], "P948")
     out_articles[title] = {
         "x": a["x"],
         "icon": photo_key(icon_of(a)),
-        "banner": photo_key(cl.get("p948")),
+        "banner": photo_key(banner),
         "ll": [a["lat"], a["lon"]] if a["lat"] is not None else None,
         "sights": items,
         # how much there is to do: drives which places get a photo bubble first
-        "appeal": len(all_listings) + 3 * sum(1 for s in items if s.get("img")) + (6 if cl.get("p948") else 0),
+        "appeal": len(listings.get(title, [])) + 3 * sum(1 for s in items if s.get("img")) + (6 if banner else 0),
     }
+for title, a in pseudo.items():
+    out_articles[title] = {"x": a["x"], "icon": photo_key(a["lead"]), "banner": None, "ll": [a["lat"], a["lon"]],
+                           "sights": [sight_out(s) for s in sights[title]], "appeal": round(a["appeal"], 1), "src": "wd"}
 for src, dst in aliases.items():
     if dst in out_articles and src not in out_articles:
         out_articles[src] = {"alias": dst}
 
 doc = {
-    "meta": {"text": "Wikivoyage & Wikipedia, CC BY-SA 4.0", "photos": "Wikimedia Commons, licence per photo",
-             "fetched": time.strftime("%Y-%m-%d")},
+    "meta": {"text": "Wikivoyage, CC BY-SA 4.0; landmarks from Wikidata, CC0",
+             "photos": "Wikimedia Commons, licence per photo", "fetched": time.strftime("%Y-%m-%d")},
     "articles": out_articles,
     "photos": photos,
     "stations": station_links,
@@ -477,6 +579,6 @@ doc = {
 }
 OUT.write_text(json.dumps(doc, ensure_ascii=False, separators=(",", ":")))
 real = [a for a in out_articles.values() if "alias" not in a]
-print(f"stations linked: {len(station_links)}  guides: {len(real)}  with bubble photo: {sum(1 for a in real if a['icon'])}"
+print(f"stations linked: {len(station_links)}  places: {len(real)}  with bubble photo: {sum(1 for a in real if a['icon'])}"
       f"  with banner: {sum(1 for a in real if a['banner'])}  -> {OUT.stat().st_size / 1e6:.2f} MB")
-print("sights per guide:", Counter(min(len(a["sights"]), 8) for a in real).most_common())
+print("sights per place:", Counter(min(len(a["sights"]), 8) for a in real).most_common())

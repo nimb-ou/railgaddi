@@ -88,7 +88,7 @@ async function boot() {
       if (open) closePanel();
     },
   });
-  if (import.meta.env.DEV) Object.assign(window, { __map: map, __net: net });
+  if (import.meta.env.DEV) Object.assign(window, { __map: map, __net: net, __open: (id: string) => openPlace(net.places.get(id)!) });
   map.simMinute = istNow();
   let shown = -1;
   map.onClock = (m) => {
@@ -183,6 +183,17 @@ function setupTopbar() {
     if (!info.hidden && !info.contains(e.target as Node) && e.target !== btn) {
       info.hidden = true;
       btn.setAttribute("aria-expanded", "false");
+    }
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape" || document.activeElement === input) return;
+    if (!info.hidden) {
+      info.hidden = true;
+      btn.setAttribute("aria-expanded", "false");
+    } else if (open?.leg) {
+      panel.querySelector<HTMLElement>('[data-act="back"]')?.click();
+    } else if (open) {
+      closePanel();
     }
   });
   $("brand").addEventListener("click", (e) => {

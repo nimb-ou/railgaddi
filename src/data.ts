@@ -74,7 +74,7 @@ export interface Sight {
   d?: string;
   img?: string;
   ll?: [number, number];
-  wp?: 1; // from Wikipedia rather than the Wikivoyage guide
+  q?: string; // a Wikidata landmark rather than a Wikivoyage listing
 }
 
 export interface Article {
@@ -84,6 +84,7 @@ export interface Article {
   ll?: [number, number] | null;
   sights: Sight[];
   appeal: number;
+  src?: "wd"; // no Wikivoyage guide: a place put together from Wikidata landmarks
   alias?: string;
 }
 

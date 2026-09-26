@@ -14,6 +14,11 @@ export function photoUrl(p: Photo, want: number): string {
 }
 
 export function credit(p: Photo) {
+  if (!p.by && !p.lic) {
+    // author and licence live on the file's Commons page, which this credit links to
+    const file = decodeURIComponent((p.page ?? "").split("File:")[1] ?? "photo").replace(/_/g, " ").replace(/\.\w+$/, "");
+    return `${file} · Wikimedia Commons`;
+  }
   const by = p.by && !/^unknown/i.test(p.by) ? p.by : "Unknown author";
   return `${by}${p.lic ? `, ${p.lic}` : ""}`;
 }

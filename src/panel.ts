@@ -10,7 +10,6 @@ export const fmtKm = (k: number) => Math.round(k).toLocaleString("en-IN");
 const FAST = new Set(["Raj", "Shtb", "Drnt", "JShtb", "GR", "SF"]);
 const CLOSE = `<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M5 5l10 10M15 5L5 15"/></svg>`;
 const wv = (t: string) => `https://en.wikivoyage.org/wiki/${encodeURIComponent(t.replace(/ /g, "_"))}`;
-const wp = (t: string) => `https://en.wikipedia.org/wiki/${encodeURIComponent(t.replace(/ /g, "_"))}`;
 
 export function scriptLine(p: Place) {
   return [p.hi, p.local].filter((s, i, a) => s && a.indexOf(s) === i).join("  ·  ");
@@ -166,8 +165,13 @@ const coverText = (script: string, title: string, where: string) => `<div class=
 function creditsHtml(gv: GuideView | null, used: Photo[]) {
   if (!gv) return "";
   const uniq = [...new Set(used)];
+  const wd = `<a href="https://www.wikidata.org/" target="_blank" rel="noopener">Wikidata</a>`;
+  const text =
+    gv.art.src === "wd"
+      ? `Landmarks near the station from ${wd} (CC0).`
+      : `Text: <a href="${wv(gv.title)}" target="_blank" rel="noopener">Wikivoyage</a>, CC BY-SA 4.0${gv.art.sights.some((s) => s.q) ? `. More landmarks from ${wd} (CC0)` : ""}.`;
   return `<footer class="credits-foot">
-    Text: <a href="${wv(gv.title)}" target="_blank" rel="noopener">Wikivoyage</a>${gv.art.sights.some((s) => s.wp) ? ` and <a href="${wp(gv.title)}" target="_blank" rel="noopener">Wikipedia</a>` : ""}, CC BY-SA 4.0.
+    ${text}
     ${uniq.length ? `<details><summary>Photo credits (${uniq.length})</summary><ul>${uniq
       .map((p) => `<li><a href="${esc(p.page ?? "#")}" target="_blank" rel="noopener">${esc(credit(p))}</a></li>`)
       .join("")}</ul></details>` : ""}

@@ -128,9 +128,15 @@ for code in set(dm_st) | set(ogd_station_name):
             best = min(cands, key=lambda e: hav(lat, lon, e["lat"], e["lon"]))
             if hav(lat, lon, best["lat"], best["lon"]) > 25:
                 best = None
+    elif len(cands) == 1:
+        best = cands[0]  # the only railway station carrying this code
     else:
+        # official names are often truncated ("Shravanabela"): allow prefix matches
         toks = norm_tokens(name)
-        best = next((e for e in cands if toks & norm_tokens(e["tags"].get("name:en") or e["tags"].get("name", ""))), None)
+        def similar(e):
+            other = norm_tokens(e["tags"].get("name:en") or e["tags"].get("name", ""))
+            return any(a == b or (min(len(a), len(b)) >= 5 and (a.startswith(b) or b.startswith(a))) for a in toks for b in other)
+        best = next((e for e in cands if similar(e)), None)
     hi = local = None
     if best:
         t = best["tags"]
@@ -146,6 +152,12 @@ for code in set(dm_st) | set(ogd_station_name):
         coord_source["datameet" if lat is not None else "none"] += 1
     stations[code] = dict(code=code, name=name, lat=lat, lon=lon, state=state, hi=hi, local=local)
 print("station coordinates:", dict(coord_source))
+
+# stations only in the official timetable have no state: borrow the nearest station's
+known = [(v["lat"], v["lon"], v["state"]) for v in stations.values() if v["state"] and v["lat"] is not None]
+for v in stations.values():
+    if not v["state"] and v["lat"] is not None:
+        v["state"] = min(known, key=lambda k: (k[0] - v["lat"]) ** 2 + (k[1] - v["lon"]) ** 2)[2]
 
 # ---------- datameet: names, types, and the path between halts ----------
 dm_meta = {f["properties"]["number"]: f["properties"] for f in json.load(open(RAW / "trains.json"))["features"]}
