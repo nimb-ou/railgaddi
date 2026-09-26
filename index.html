@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Patri</title>
+    <meta name="description" content="Pick a station and see every place a train can take you in India, straight from the timetable." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..900&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Noto+Sans+Devanagari:wght@600;700&family=Noto+Sans+Kannada:wght@600;700&family=Noto+Sans+Tamil:wght@600;700&family=Noto+Sans+Telugu:wght@600;700&family=Noto+Sans+Malayalam:wght@600;700&family=Noto+Sans+Bengali:wght@600;700&family=Noto+Sans+Gujarati:wght@600;700&family=Noto+Sans+Gurmukhi:wght@600;700&family=Noto+Sans+Oriya:wght@600;700&display=swap"
+    />
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <canvas id="map" aria-label="Map of India's railway network"></canvas>
+
+    <header class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">Patri</span>
+      <span class="brand-tag">पटरी · the track</span>
+    </header>
+
+    <section class="origin" id="origin" data-state="landing">
+      <div class="board" id="board">
+        <div class="board-script" id="board-script" lang="hi">कहाँ से चलें?</div>
+        <label class="board-field" for="origin-input">
+          <span class="board-label" id="board-label">Start from</span>
+          <input id="origin-input" type="text" autocomplete="off" spellcheck="false" placeholder="City or station" role="combobox" aria-expanded="false" aria-controls="suggest" aria-autocomplete="list" />
+        </label>
+        <div class="board-name" id="board-name" hidden></div>
+        <div class="board-codes" id="board-codes" hidden></div>
+        <button class="board-change" id="board-change" type="button" hidden>Change</button>
+      </div>
+      <ul class="suggest" id="suggest" role="listbox" hidden></ul>
+      <div class="quick" id="quick" aria-label="Popular starting points"></div>
+      <p class="hint" id="hint">Pick where you are. See every place a train goes from there, without changing trains, straight from the timetable.</p>
+
+      <div class="controls" id="controls" hidden>
+        <p class="stats" id="stats"></p>
+        <fieldset class="seg" id="leave">
+          <legend>Leaving</legend>
+          <div class="seg-row">
+            <button type="button" data-v="any" aria-pressed="true">Any time</button>
+            <button type="button" data-v="2h" aria-pressed="false">Next 2 h</button>
+            <button type="button" data-v="6h" aria-pressed="false">Next 6 h</button>
+            <button type="button" data-v="morning" aria-pressed="false">Morning</button>
+            <button type="button" data-v="night" aria-pressed="false">Night</button>
+          </div>
+        </fieldset>
+        <fieldset class="seg" id="within">
+          <legend>Reach within</legend>
+          <div class="seg-row">
+            <button type="button" data-v="Infinity" aria-pressed="true">Any</button>
+            <button type="button" data-v="180" aria-pressed="false">3 h</button>
+            <button type="button" data-v="360" aria-pressed="false">6 h</button>
+            <button type="button" data-v="720" aria-pressed="false">12 h</button>
+            <button type="button" data-v="1440" aria-pressed="false">A day</button>
+          </div>
+        </fieldset>
+      </div>
+    </section>
+
+    <div class="origin-pin" id="origin-pin" hidden aria-hidden="true">
+      <svg viewBox="0 0 64 30" width="64" height="30">
+        <path class="pin-rail" d="M2 27h60" />
+        <path class="pin-panto" d="M18 7l6-5 6 5" />
+        <rect class="pin-body" x="8" y="7" width="48" height="16" rx="3" />
+        <path class="pin-nose" d="M56 7h1a6 6 0 0 1 5 6v10h-6z" />
+        <rect class="pin-win" x="13" y="10" width="7" height="5" rx="1" />
+        <rect class="pin-win" x="23" y="10" width="7" height="5" rx="1" />
+        <rect class="pin-win" x="33" y="10" width="7" height="5" rx="1" />
+        <rect class="pin-stripe" x="8" y="18" width="48" height="2" />
+        <circle class="pin-wheel" cx="17" cy="25" r="2.4" />
+        <circle class="pin-wheel" cx="26" cy="25" r="2.4" />
+        <circle class="pin-wheel" cx="40" cy="25" r="2.4" />
+        <circle class="pin-wheel" cx="49" cy="25" r="2.4" />
+        <circle class="pin-lamp" cx="60" cy="16" r="1.6" />
+      </svg>
+    </div>
+
+    <div class="tip" id="tip" hidden></div>
+
+    <aside class="panel" id="panel" hidden aria-live="polite"></aside>
+
+    <footer class="clock" id="clock">
+      <button type="button" id="clock-toggle" aria-label="Pause the timetable clock" aria-pressed="true">
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path id="clock-icon" d="M4 3h3v10H4zM9 3h3v10H9z" /></svg>
+      </button>
+      <div>
+        <div class="clock-time" id="clock-time">--:--</div>
+        <div class="clock-cap" id="clock-cap">Timetable clock · trains move as scheduled</div>
+      </div>
+    </footer>
+
+    <p class="credits" id="credits">
+      <span class="proto">Prototype</span>
+      Timetable: Indian Railways via <a href="https://www.data.gov.in/catalog/indian-railways-train-time-table" target="_blank" rel="noopener">data.gov.in</a>, Dec 2017, not for travel ·
+      Stations © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> ·
+      Guides: <a href="https://en.wikivoyage.org/" target="_blank" rel="noopener">Wikivoyage</a> CC BY-SA
+    </p>
+
+    <div class="loading" id="loading">Loading the timetable…</div>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
