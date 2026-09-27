@@ -3,77 +3,100 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>Railgaddi</title>
-    <meta name="description" content="Railgaddi: pick your station and see every place in India a train can take you, with what to see when you get there." />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Noto+Sans+Devanagari:wght@600;700&family=Noto+Sans+Kannada:wght@600;700&family=Noto+Sans+Tamil:wght@600;700&family=Noto+Sans+Telugu:wght@600;700&family=Noto+Sans+Malayalam:wght@600;700&family=Noto+Sans+Bengali:wght@600;700&family=Noto+Sans+Gujarati:wght@600;700&family=Noto+Sans+Gurmukhi:wght@600;700&family=Noto+Sans+Oriya:wght@600;700&display=swap"
-    />
-    <link rel="stylesheet" href="./src/style.css" />
+    <title>Railgaddi · where can the train take you?</title>
+    <meta name="description" content="Pick your station and see every place in India a train can take you without changing, with photos and what to see when you get there." />
+    <meta name="theme-color" content="#ffd02b" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-48.png" type="image/png" sizes="48x48" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- link previews (WhatsApp, X, LinkedIn, iMessage) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Railgaddi" />
+    <meta property="og:title" content="Railgaddi · where can the train take you?" />
+    <meta property="og:description" content="Pick your station. See every place in India you can reach without changing trains, and what's worth seeing there." />
+    <meta property="og:image" content="/og.jpg" />
+    <meta property="og:image:alt" content="A map of India with photos of places you can reach by train" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <link rel="preconnect" href="https://upload.wikimedia.org" crossorigin />
   </head>
   <body>
-    <canvas id="map" aria-label="Map of India's railway network"></canvas>
+    <a class="skip" href="#origin-input">Skip to search</a>
+    <canvas id="map" role="img" aria-label="Map of India's railway network. Places you can reach are listed with the List button."></canvas>
 
     <header class="topbar">
-      <a class="brand" href="#" id="brand" aria-label="Railgaddi, start over">
+      <a class="brand" href="/" id="brand" aria-label="Railgaddi, home">
         <span class="brand-hi" lang="hi">रेलगाड़ी</span>
         <span class="brand-name">Railgaddi</span>
       </a>
       <div class="topbar-tools">
         <div class="themes" id="themes" role="radiogroup" aria-label="Day or night"></div>
-        <button class="icon-btn" id="info-btn" type="button" aria-label="About the data" aria-expanded="false" aria-controls="info">
+        <button class="icon-btn" id="info-btn" type="button" aria-label="About Railgaddi and its data" aria-expanded="false" aria-controls="info">
           <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="10" cy="10" r="8.2" /><path d="M10 9v5M10 6.2v.1" /></svg>
         </button>
       </div>
     </header>
 
-    <section class="hero" id="hero">
-      <p class="eyebrow">Discover India by train</p>
-      <h1>Where can the train <span>take you?</span></h1>
-      <p class="lede">Pick your station. See every place you can reach without changing trains, and what's worth seeing when you get there.</p>
-      <div class="board" id="board">
-        <div class="board-script" lang="hi">कहाँ से चलें?</div>
-        <label class="board-field" for="origin-input">
-          <span class="board-label">Start from</span>
-          <input id="origin-input" type="text" autocomplete="off" spellcheck="false" placeholder="City or station" role="combobox" aria-expanded="false" aria-controls="suggest" aria-autocomplete="list" />
-        </label>
-      </div>
-      <ul class="suggest" id="suggest" role="listbox" hidden></ul>
-      <div class="popular" id="popular"><span>Popular</span></div>
-    </section>
-
-    <div class="origin-box" id="origin-chip" hidden>
-      <div class="origin-chip">
-        <div class="chip-board">
-          <span class="chip-from">From</span>
-          <span class="chip-name" id="chip-name"></span>
-          <span class="chip-script" id="chip-script"></span>
+    <main>
+      <section class="hero" id="hero" aria-labelledby="hero-title">
+        <p class="eyebrow">Discover India by train</p>
+        <h1 id="hero-title">Where can the train <span>take you?</span></h1>
+        <p class="lede">Pick your station. See every place you can reach without changing trains, and what's worth seeing when you get there.</p>
+        <div class="board" id="board">
+          <div class="board-script" lang="hi" aria-hidden="true">कहाँ से चलें?</div>
+          <label class="board-field" for="origin-input">
+            <span class="board-label">Start from</span>
+            <input id="origin-input" type="search" enterkeyhint="go" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="City or station" role="combobox" aria-expanded="false" aria-controls="suggest" aria-autocomplete="list" />
+          </label>
         </div>
-        <button class="chip-change" id="chip-change" type="button" aria-label="Change starting point">
-          <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M5 5l10 10M15 5L5 15" /></svg>
-        </button>
-      </div>
-      <p class="origin-count" id="count" aria-live="polite"></p>
-    </div>
+        <ul class="suggest" id="suggest" role="listbox" aria-label="Matching stations" hidden></ul>
+        <nav class="popular" id="popular" aria-label="Popular starting points"></nav>
+      </section>
 
-    <div class="dock" id="dock" hidden>
-      <div class="dock-row">
-        <label class="dock-label" for="within">Reach within <output id="within-out" for="within">any time</output></label>
-        <input type="range" id="within" min="0" max="9" step="1" value="9" />
-        <div class="ticks" aria-hidden="true"><span>1h</span><span>3h</span><span>6h</span><span>12h</span><span>24h</span><span>Any</span></div>
+      <div class="origin-box" id="origin-chip" hidden>
+        <div class="origin-chip">
+          <div class="chip-board">
+            <span class="chip-from">From</span>
+            <span class="chip-name" id="chip-name"></span>
+            <span class="chip-script" id="chip-script"></span>
+          </div>
+          <button class="chip-change" id="chip-change" type="button" aria-label="Change starting point">
+            <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M5 5l10 10M15 5L5 15" /></svg>
+          </button>
+        </div>
+        <p class="origin-count" id="count" aria-live="polite"></p>
       </div>
-      <div class="dock-row dock-leave" role="group" aria-label="Leaving">
-        <span class="dock-label">Leaving</span>
-        <div class="seg" id="leave">
-          <button type="button" data-v="any" aria-pressed="true">Any time</button>
-          <button type="button" data-v="2h" aria-pressed="false">Next 2 h</button>
-          <button type="button" data-v="6h" aria-pressed="false">Next 6 h</button>
-          <button type="button" data-v="overnight" aria-pressed="false">Overnight</button>
+
+      <div class="dock" id="dock" role="region" aria-label="Filters" hidden>
+        <div class="dock-row">
+          <label class="dock-label" for="within">Reach within <output id="within-out" for="within">any time</output></label>
+          <input type="range" id="within" min="0" max="9" step="1" value="9" />
+          <div class="ticks" aria-hidden="true"></div>
+        </div>
+        <div class="dock-row dock-leave" role="group" aria-labelledby="leave-label">
+          <span class="dock-label" id="leave-label">Leaving</span>
+          <div class="seg" id="leave">
+            <button type="button" data-v="any" aria-pressed="true">Any<span class="long"> time</span></button>
+            <button type="button" data-v="2h" aria-pressed="false"><span class="long">Next </span>2 h</button>
+            <button type="button" data-v="6h" aria-pressed="false"><span class="long">Next </span>6 h</button>
+            <button type="button" data-v="overnight" aria-pressed="false">Overnight</button>
+          </div>
+        </div>
+        <div class="dock-row dock-list">
+          <span class="dock-label" aria-hidden="true">View</span>
+          <button class="list-btn" id="list-btn" type="button" aria-pressed="false" aria-label="Show the places as a list">
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M5 4h9M5 8h9M5 12h9M2 4h.01M2 8h.01M2 12h.01" /></svg>
+            <span class="list-txt">List</span>
+          </button>
         </div>
       </div>
-    </div>
+
+      <aside class="panel" id="panel" aria-labelledby="panel-title" hidden></aside>
+    </main>
 
     <div class="origin-pin" id="origin-pin" hidden aria-hidden="true">
       <svg viewBox="0 0 64 30" width="52" height="24">
@@ -92,29 +115,28 @@
       </svg>
     </div>
 
-    <div class="tip" id="tip" hidden></div>
-    <div class="toast" id="toast" role="status" hidden></div>
-
-    <aside class="panel" id="panel" hidden aria-live="polite"></aside>
+    <div class="tip" id="tip" role="tooltip" hidden></div>
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
     <div class="clock" id="clock">
-      <button type="button" id="clock-toggle" aria-label="Pause the timetable clock" aria-pressed="true">
+      <button type="button" id="clock-toggle" aria-label="Pause the moving trains" aria-pressed="true">
         <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path id="clock-icon" d="M4 3h3v10H4zM9 3h3v10H9z" /></svg>
       </button>
-      <span class="clock-time" id="clock-time">--:--</span>
+      <span class="clock-time" id="clock-time" aria-hidden="true">--:--</span>
       <span class="clock-cap">timetable clock</span>
     </div>
 
-    <div class="info" id="info" role="dialog" aria-label="About the data" hidden>
-      <h2>About the data</h2>
-      <p><b>Timetable:</b> the Indian Railways timetable published on <a href="https://www.data.gov.in/catalog/indian-railways-train-time-table" target="_blank" rel="noopener">data.gov.in</a>, December 2017. This is a prototype: trains introduced since then (every Vande Bharat, for one) are missing and running days aren't known. Check <a href="https://enquiry.indianrail.gov.in/mntes/" target="_blank" rel="noopener">NTES</a> before you travel.</p>
-      <p><b>Stations:</b> © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors, and <a href="https://github.com/datameet/railways" target="_blank" rel="noopener">datameet</a>.</p>
+    <div class="info" id="info" role="dialog" aria-labelledby="info-title" hidden>
+      <h2 id="info-title" tabindex="-1">About Railgaddi</h2>
+      <p>Pick where you are and see every place in India a train can take you without changing, with photos and what's worth seeing there.</p>
+      <p><b>Timetable:</b> the Indian Railways timetable published on <a href="https://www.data.gov.in/catalog/indian-railways-train-time-table" target="_blank" rel="noopener">data.gov.in</a>, December 2017. Trains introduced since then (every Vande Bharat, for one) are missing and running days aren't known yet. Check <a href="https://enquiry.indianrail.gov.in/mntes/" target="_blank" rel="noopener">NTES</a> before you travel.</p>
       <p><b>Places:</b> guides from <a href="https://en.wikivoyage.org/" target="_blank" rel="noopener">Wikivoyage</a> (CC BY-SA 4.0) and landmarks from <a href="https://www.wikidata.org/" target="_blank" rel="noopener">Wikidata</a> (CC0). Photos from <a href="https://commons.wikimedia.org/" target="_blank" rel="noopener">Wikimedia Commons</a>, credited on each place.</p>
-      <p><b>Map:</b> India outline per Survey of India, via <a href="https://github.com/datameet/maps" target="_blank" rel="noopener">datameet/maps</a>.</p>
-      <p>Railgaddi is an independent project. It isn't affiliated with Indian Railways or IRCTC, and it doesn't sell tickets.</p>
+      <p><b>Map:</b> stations © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors and <a href="https://github.com/datameet/railways" target="_blank" rel="noopener">datameet</a>; India outline per Survey of India, via <a href="https://github.com/datameet/maps" target="_blank" rel="noopener">datameet/maps</a>.</p>
+      <p>Railgaddi is an independent project. It isn't affiliated with Indian Railways or IRCTC, doesn't sell tickets, and doesn't track you.</p>
     </div>
 
-    <div class="loading" id="loading"><b>Railgaddi</b><span></span>Loading the timetable</div>
-    <script type="module" src="./src/main.ts"></script>
+    <div class="loading" id="loading" role="status"><b>Railgaddi</b><span aria-hidden="true"></span>Loading the timetable</div>
+    <noscript><article class="static"><h1>Where can the train take you?</h1><p>Railgaddi needs JavaScript to draw the map of trains.</p></article></noscript>
+    <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

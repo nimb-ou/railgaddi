@@ -11,7 +11,7 @@ import urllib.request
 from pathlib import Path
 
 RAW = Path(sys.argv[1])
-UA = "RailgaddiPrototype/0.1 (personal non-commercial train-discovery project)"
+UA = "Railgaddi/1.0 (https://github.com/nimb-ou/railgaddi; non-commercial train-discovery site)"
 GROUPS = {
     # start from India's own designations (Monument of National Importance, …): a handful of items
     "heritage sites": "?heritage wdt:P17 wd:Q668 . ?item wdt:P1435 ?heritage .",

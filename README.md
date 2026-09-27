@@ -1,83 +1,88 @@
 # Railgaddi (रेलगाड़ी)
 
-Pick where you are, and see every place in India a train can take you without changing trains.
-The best of them float on the map as photo bubbles. Open one to see what it looks like, what to
-see there, and every train that goes. No booking and no live running status, just the timetable.
+Pick your station and see every place in India a train can take you without changing. The best
+of them float on the map as photo bubbles; open one to see what it looks like, what to see there,
+and every train that goes. No booking and no live running status: the timetable, and the country
+it opens up.
 
-The look follows one idea: the journey itself. Station boards name places, coach livery
-colours the lines, and timetables, tickets and route strips carry the facts. See [DESIGN.md](DESIGN.md).
+The look follows one idea, the journey itself: station boards name places, coach livery colours
+the lines, and timetables, tickets and route strips carry the facts. See [DESIGN.md](DESIGN.md).
+
+- **Fast.** One request per data file, content-hashed and cached forever; the whole timetable is
+  a binary file of about 300 kB compressed. Works offline once visited, and installs as an app.
+- **Shareable.** Every view has an address (`/from/bengaluru/to/hampi/`), and the build writes a
+  real page for ~3,000 of them with their own title, description and photo for link previews and
+  search engines.
+- **Free to run.** A static site: no server, no database, no accounts, no tracking.
 
 ## Run it
 
+Needs Node 20+ (`.nvmrc`) and, only to rebuild the data, Python 3.10+.
+
 ```bash
 npm install
-npm run dev        # http://localhost:5173  (deep link: /#bengaluru, /#mumbai, /#HPT)
-npm run build      # static site in dist/
+npm run dev          # http://localhost:5173
+npm test             # core logic against the real data
+npm run build        # dist/: the app + prerendered pages + sitemap
 ```
 
 ## How it's put together
 
 ```
-pipeline/                     Python, run offline; writes public/data/*.json
-  fetch_raw.sh                downloads the raw sources into raw/ (git-ignored)
-  fetch_landmarks.py          photographed landmarks in India, from the Wikidata Query Service
-  build_network.py            timetable + stations  -> network.json
-  build_places.py             guides, sights, photos -> places.json
-  cities.json                 hand-curated multi-station cities (Bengaluru = SBC, YPR, BNC, KJM, …)
-public/data/                  what the browser loads
+data/                  the published data, written by pipeline/ (see ARCHITECTURE.md for formats)
+pipeline/              Python, run offline: raw sources -> data/
 src/
-  data.ts                     loads the network; "where can I go from here?" queries, filters, guide index
-  map.ts                      canvas atlas: projection, zoom, routes coloured by travel time,
-                              photo bubbles (layout, pop-in, tethers), sight pins, timetable time-lapse
-  panel.ts                    place panel (photo, facts, sights gallery, trains) and train stops
-  photos.ts                   Wikimedia thumbnail sizes, image cache, credits
-  theme.ts                    Day / Night palettes
-  main.ts                     wiring: search, dock, bubbles, panel, layout insets
-  style.css                   the look; every palette is a block of CSS variables
-scripts/shot.mjs              screenshot the dev server with the installed Chrome (design review)
+  core/                pure logic, no DOM: timetable decoding, trips, places, search, addresses
+  map/map.ts           the canvas map: projection, zoom, routes, photo bubbles, moving trains
+  ui/                  DOM pieces: panel, list, search, dock, chrome, photos, offline, styles
+  app/                 the controller (state, history, panel) and the router
+  main.ts              boot: fetch, decode, wire up
+scripts/
+  prerender.ts         after `vite build`: per-view pages, sitemap.xml, robots.txt
+  make-icons.mjs       app icons and the link-preview image, rendered with Chrome
+  shot.mjs             screenshot any view (design review)
+test/                  vitest
 ```
 
-The web app only depends on the shape of the JSON files. To use a newer timetable, change
-`build_network.py`, not the frontend.
+[ARCHITECTURE.md](ARCHITECTURE.md) explains the data flow and file formats;
+[DEPLOY.md](DEPLOY.md) covers hosting and connecting a domain.
 
 ## Data and licences
 
 | What | Source | Licence |
 |---|---|---|
-| Timetable (halts, times, distances) | Indian Railways timetable on [data.gov.in](https://www.data.gov.in/catalog/indian-railways-train-time-table), Dec 2017 ([mirror](https://github.com/itzmeanjan/indian-railway)). 11,113 trains; 4,366 suburban locals dropped | GODL-India |
+| Timetable (halts, times, distances) | Indian Railways timetable on [data.gov.in](https://www.data.gov.in/catalog/indian-railways-train-time-table), Dec 2017. 6,746 trains after dropping suburban locals | GODL-India |
 | Train names, types, track path between halts | [datameet/railways](https://github.com/datameet/railways), Aug 2016 | CC0 |
 | Station positions, names in Indian scripts | OpenStreetMap via Overpass | ODbL |
 | India outline, state borders | [datameet/maps](https://github.com/datameet/maps) (Survey of India boundary) | CC0 |
 | Travel guides: intro, See / Do listings | [Wikivoyage](https://en.wikivoyage.org), matched to stations via Wikidata | CC BY-SA 4.0 |
-| Landmarks and place photos | [Wikidata](https://www.wikidata.org) (P18 photo, P948 banner, heritage sites) | CC0 |
+| Landmarks | [Wikidata](https://www.wikidata.org) (heritage sites, temples, forts, falls, parks…) | CC0 |
 | Photos | Wikimedia Commons, hotlinked; each credit links to the file page with author and licence | per file |
+| Fonts | Archivo, Noto Sans (Indian scripts), self-hosted via Fontsource | SIL OFL 1.1 |
 
 ### Rebuilding the data
 
 ```bash
-pipeline/fetch_raw.sh raw
-python3 pipeline/fetch_landmarks.py raw
-python3 pipeline/build_network.py raw
-python3 pipeline/build_places.py raw          # fetches what isn't cached yet (slow: see below)
-python3 pipeline/build_places.py raw --quick  # never calls an API; builds from the cache
+pipeline/fetch_raw.sh raw                      # raw sources into raw/ (git-ignored)
+python3 pipeline/fetch_landmarks.py raw        # Wikidata landmarks (slow: 1 query a minute)
+python3 pipeline/build_network.py raw          # -> data/meta.json, timetable.bin, paths.bin
+python3 pipeline/build_places.py raw           # -> data/places/; fetches what isn't cached
+python3 pipeline/build_places.py raw --quick   # never calls an API; builds from the cache
 ```
 
-Every Wikimedia response is cached in `raw/wv-cache` and indexed by title, item and file, so re-runs
-only ask for what is new. Wikimedia throttles clients that don't identify themselves (HTTP 429). Put a
-contact address in `UA` at the top of `build_places.py` for much faster fetching.
+Every Wikimedia response is cached in `raw/wv-cache`, so re-runs only ask for what is new.
 
-## Known limits of the prototype
+## Known limits
 
-- **The timetable is from December 2017.** Trains introduced since then are missing (every Vande
-  Bharat and Amrit Bharat), as are renamed stations such as SMVT Bengaluru. Times have changed on
-  many trains.
-- **Running days are missing.** The time-lapse and the "next 2 h" filter treat every train as daily.
-- About 160 stations have no known position. Their trains list them, but they aren't on the map.
-- Zoomed in to a town's sights, the map has no streets or water, just the sights.
+- **The timetable is from December 2017.** Newer trains are missing (every Vande Bharat and
+  Amrit Bharat), as are renamed stations such as SMVT Bengaluru, and many times have changed.
+  The site says so and links to NTES.
+- **Running days are missing**, so "next 2 h" treats every train as daily.
+- About 160 stations have no known position; their trains list them, but they aren't drawn.
 
-## Next steps
+## Next
 
-1. A current timetable: a paid API synced into this same `network.json` shape (RailRadar,
-   indianrailapi.com, …), with running days. Check its terms allow storing the data.
-2. A detailed base map when zoomed in close.
-3. "Trains between two places" and trip planning with one change.
+1. A current timetable with running days, from a licensed API (e.g. RailRadar), written into the
+   same `data/` formats so nothing in the app changes.
+2. Trips with one change, and "trains between two places".
+3. A detailed base map when zoomed in to a town.

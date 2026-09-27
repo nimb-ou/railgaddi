@@ -1,4 +1,6 @@
-# Build the site and publish it on GitHub Pages on every push to main.
+# Test, build and publish the site on GitHub Pages on every push to main.
+# When the site moves to its own domain, set the repository variable SITE_URL
+# (Settings → Secrets and variables → Actions → Variables), e.g. https://railgaddi.in
 name: Deploy to GitHub Pages
 
 on:
@@ -18,13 +20,19 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # a project site lives under /<repo>/; a custom domain serves from the root
+      BASE_PATH: ${{ vars.SITE_URL && '/' || '/railgaddi/' }}
+      SITE_URL: ${{ vars.SITE_URL || 'https://nimb-ou.github.io/railgaddi' }}
+      SPA_404: "1" # GitHub Pages has no SPA fallback: 404.html is the app shell
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - run: npm test
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:

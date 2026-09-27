@@ -5,16 +5,12 @@
 import * as d3 from "d3";
 import { feature, mesh } from "topojson-client";
 import type { Topology } from "topojson-specification";
-import type { Leg, Network, Photo, Place, Train } from "./data";
-import { drawCover, loadedImage, photoUrl } from "./photos";
-
-export interface BubbleCandidate {
-  place: Place;
-  title: string;
-  photo: Photo | null;
-  mins: number | null; // fastest ride from the origin; null when no origin is picked
-  score: number;
-}
+import { fmtMins } from "../core/format";
+import type { Geom, Network, Place, Train } from "../core/network";
+import type { Photo } from "../core/places";
+import type { BubbleCandidate } from "../core/rank";
+import type { Leg } from "../core/trips";
+import { coverWidth, drawCover, loadedImage, photoUrl } from "../ui/photos";
 
 export interface SightPin {
   i: number;
@@ -54,11 +50,6 @@ interface Palette {
   board: string; boardInk: string;
 }
 
-interface Geom {
-  st: Int32Array; // stations with coordinates, in running order
-  km: Float32Array;
-}
-
 interface Motion {
   geom: Geom;
   t: Float32Array; // minutes since boarding
@@ -90,14 +81,7 @@ const MAX_MINS = 36 * 60;
 const bucketOf = (m: number) => Math.min(BUCKETS - 1, Math.floor(Math.sqrt(Math.max(0, m) / MAX_MINS) * BUCKETS));
 const bucketMins = (b: number) => ((b + 0.5) / BUCKETS) ** 2 * MAX_MINS;
 const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-const FONT = "'Archivo', system-ui, sans-serif";
-
-export function fmtMins(m: number) {
-  if (m < 60) return `${Math.round(m)}m`;
-  const h = Math.floor(m / 60);
-  const mm = Math.round(m % 60);
-  return mm ? `${h}h ${mm}m` : `${h}h`;
-}
+const FONT = "'Archivo Variable', 'Archivo', system-ui, sans-serif";
 
 export class RailMap {
   private ctx: CanvasRenderingContext2D;
@@ -118,7 +102,6 @@ export class RailMap {
   private sx: Float32Array;
   private sy: Float32Array;
   private ok: Uint8Array;
-  private geoms = new Map<number, Geom>();
   private everyone: Motion[] = [];
   private edges: { a: number; b: number; w: number }[] = [];
   private zoom: d3.ZoomBehavior<HTMLCanvasElement, unknown>;
@@ -152,12 +135,14 @@ export class RailMap {
   playing = true;
   onClock: (m: number) => void = () => {};
 
+  /** What the app wants to hear about: picks, hovers, clicks on empty map. */
+  hooks: Hooks = { onPick() {}, onPickSight() {}, onHover() {}, onBackground() {} };
+
   constructor(
     private canvas: HTMLCanvasElement,
     private net: Network,
     india: Topology,
     states: Topology,
-    private hooks: Hooks,
   ) {
     this.ctx = canvas.getContext("2d")!;
     this.land = feature(india, Object.values(india.objects)[0]) as unknown as d3.GeoPermissibleObjects;
@@ -167,20 +152,7 @@ export class RailMap {
     this.sy = new Float32Array(n);
     this.ok = new Uint8Array(n);
 
-    // the national network: deduplicated station-to-station edges, weighted by trains
-    const em = new Map<number, { a: number; b: number; w: number }>();
-    for (const t of net.trains) {
-      const g = this.geom(t);
-      for (let j = 1; j < g.st.length; j++) {
-        const a = Math.min(g.st[j - 1], g.st[j]);
-        const b = Math.max(g.st[j - 1], g.st[j]);
-        const e = em.get(a * 100000 + b);
-        if (e) e.w++;
-        else em.set(a * 100000 + b, { a, b, w: 1 });
-      }
-      this.everyone.push(this.motion(t, 0, t.st.length - 1));
-    }
-    this.edges = [...em.values()];
+    this.indexNetwork();
 
     this.zoom = d3
       .zoom<HTMLCanvasElement, unknown>()
@@ -231,19 +203,32 @@ export class RailMap {
   }
 
   private geom(t: Train): Geom {
-    let g = this.geoms.get(t.i);
-    if (g) return g;
-    const st: number[] = [];
-    const km: number[] = [];
-    for (let j = 0; j < t.st.length; j++) {
-      if (this.net.stations[t.st[j]].lat === null) continue;
-      if (st.length && st[st.length - 1] === t.st[j]) continue;
-      st.push(t.st[j]);
-      km.push(t.km[j]);
+    return t.geom;
+  }
+
+  /** The national network (edges weighted by trains) and every train's motion, from the current lines. */
+  private indexNetwork() {
+    const em = new Map<number, { a: number; b: number; w: number }>();
+    this.everyone = [];
+    for (const t of this.net.trains) {
+      const g = t.geom;
+      for (let j = 1; j < g.st.length; j++) {
+        const a = Math.min(g.st[j - 1], g.st[j]);
+        const b = Math.max(g.st[j - 1], g.st[j]);
+        const e = em.get(a * 100000 + b);
+        if (e) e.w++;
+        else em.set(a * 100000 + b, { a, b, w: 1 });
+      }
+      this.everyone.push(this.motion(t, 0, t.st.length - 1));
     }
-    g = { st: Int32Array.from(st), km: Float32Array.from(km) };
-    this.geoms.set(t.i, g);
-    return g;
+    this.edges = [...em.values()];
+  }
+
+  /** Call after the network's lines change (the detailed route geometry arrived). */
+  refreshNetwork() {
+    this.indexNetwork();
+    this.resize();
+    if (this.selectedTrain) this.selectTrain(this.selectedTrain.leg);
   }
 
   /** Minute -> km samples between two point indices (halts carry the times). */
@@ -273,7 +258,8 @@ export class RailMap {
   resize() {
     const r = this.canvas.getBoundingClientRect();
     if (!r.width || !r.height) return;
-    this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+    // full density on phones (3x screens), capped at 2x on big screens where pixels add up fast
+    this.dpr = Math.min(window.devicePixelRatio || 1, r.width < 800 ? 3 : 2);
     this.w = r.width;
     this.h = r.height;
     for (const cv of [this.canvas, this.base]) {
@@ -969,7 +955,8 @@ export class RailMap {
     const hit = this.discs.get(id);
     if (hit) return hit;
     if (!photo) return null;
-    const img = loadedImage(photoUrl(photo, R * this.dpr * 2 > 120 ? 250 : 120), () => {});
+    const d = 2 * R * this.dpr;
+    const img = loadedImage(photoUrl(photo, coverWidth(photo, d, d)), () => {});
     if (!img) return null;
     const pad = 8;
     const size = Math.ceil((R + pad) * 2 * this.dpr);
@@ -1126,8 +1113,4 @@ export class RailMap {
       ctx.textAlign = "start";
     }
   }
-}
-
-export function shortName(p: Place) {
-  return p.name.replace(/\s+(Junction|Jn\.?)$/i, "").replace(/\s*\((.+)\)$/, "");
 }

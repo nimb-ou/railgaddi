@@ -1,0 +1,12 @@
+// Cloudflare Workers static assets: `npx wrangler deploy` after `npm run build`.
+// Free plan: unlimited static requests and bandwidth. See DEPLOY.md.
+{
+  "name": "railgaddi",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./dist",
+    // any address the build didn't prerender still opens the app (with a 200, not a 404)
+    "not_found_handling": "single-page-application",
+    "html_handling": "auto-trailing-slash"
+  }
+}

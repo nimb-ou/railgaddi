@@ -1,4 +1,4 @@
-"""Build public/data/network.json from raw timetable + station sources.
+"""Build the railway network data (data/meta.json, data/timetable.bin, data/paths.bin).
 
 Sources (all in RAW, see README):
   - ogd_timetable_2017.csv  Indian Railways timetable published on data.gov.in (Dec 2017),
@@ -17,14 +17,16 @@ import csv
 import json
 import math
 import re
+import struct
 import sys
 import unicodedata
+from array import array
 from collections import Counter, defaultdict
 from pathlib import Path
 
 RAW = Path(sys.argv[1])
 ROOT = Path(__file__).resolve().parent.parent
-OUT = ROOT / "public" / "data" / "network.json"
+OUT = ROOT / "data"
 
 TYPE_LABELS = {
     "Pass": "Passenger", "Exp": "Express", "SF": "Superfast", "MEMU": "MEMU", "DEMU": "DEMU",
@@ -317,14 +319,82 @@ for c in cities:
     if members:
         out_cities.append({k: c[k] for k in ("id", "name", "hi", "aka", "state")} | {"local": c.get("local", ""), "stations": members})
 
-out_trains = []
+# ---------- write: meta.json (names), timetable.bin (halts), paths.bin (drawing geometry) ----------
+# Binary layouts are documented in ARCHITECTURE.md; the app reads them with zero parsing.
+NONE = 0xFFFF
+train_start, h_station, h_arr, h_dep, h_dist, t_type = [0], [], [], [], [], []
+pass_count, pass_station = [], []  # pass_count[h]: points passed between halt h and the next halt
 for t in trains:
-    flat = []
+    gap = []
     for code, a, d, km in t["stops"]:
-        flat += [idx[code], -1 if a is None else a, -1 if d is None else d, -1 if km is None else round(km)]
-    out_trains.append([t["number"], t["name"], tidx[t["type"]], flat])
+        if a is None and d is None:  # a point the train passes through: geometry only
+            gap.append(idx[code])
+            continue
+        for v in (a, d, km):
+            assert v is None or 0 <= v < NONE, (t["number"], v)
+        if len(h_station) > train_start[-1]:  # close the gap after this train's previous halt
+            pass_count[-1] = len(gap)
+            pass_station += gap
+        gap = []
+        h_station.append(idx[code])
+        h_arr.append(NONE if a is None else a)
+        h_dep.append(NONE if d is None else d)
+        h_dist.append(NONE if km is None else round(km))
+        pass_count.append(0)
+    train_start.append(len(h_station))
+    t_type.append(tidx[t["type"]])
 
-doc = {
+n_trains, n_halts = len(trains), len(h_station)
+
+# Times and distances are stored as differences from the previous halt, which compress
+# far better (450 -> 270 kB brotli). Arithmetic is mod 2^16, so any value round-trips.
+#   first halt:  arr = none, dep = d_dep (absolute), dist = d_dist (absolute)
+#   later halts: arr = prev dep + d_arr, dep = arr + d_dep (last halt: none), dist = prev + d_dist
+d_arr, d_dep, d_dist = [0] * n_halts, [0] * n_halts, [0] * n_halts
+for t in range(n_trains):
+    prev_dep = prev_dist = 0
+    for h in range(train_start[t], train_start[t + 1]):
+        first, last = h == train_start[t], h == train_start[t + 1] - 1
+        assert (h_arr[h] == NONE) == first and (h_dep[h] == NONE) == last, trains[t]["number"]
+        dist = prev_dist if h_dist[h] == NONE else h_dist[h]  # rare gaps: carry the last distance
+        d_arr[h] = 0 if first else (h_arr[h] - prev_dep) % 65536
+        if last:
+            d_dep[h] = 0
+        elif first:
+            d_dep[h] = h_dep[h]
+        else:
+            d_dep[h] = (h_dep[h] - h_arr[h]) % 65536
+        d_dist[h] = (dist - prev_dist) % 65536
+        prev_dep, prev_dist = h_dep[h], dist
+        h_dist[h] = dist
+
+
+def decode(t):
+    """Mirror of the app's decoder (src/core/network.ts), used to check the file round-trips."""
+    out, dep, dist = [], 0, 0
+    for h in range(train_start[t], train_start[t + 1]):
+        first, last = h == train_start[t], h == train_start[t + 1] - 1
+        a = NONE if first else (dep + d_arr[h]) % 65536
+        d = NONE if last else d_dep[h] if first else (a + d_dep[h]) % 65536
+        dist = (dist + d_dist[h]) % 65536
+        out.append((h_station[h], a, d, dist))
+        dep = d
+    return out
+
+
+for t in range(n_trains):
+    want = [(h_station[h], h_arr[h], h_dep[h], h_dist[h]) for h in range(train_start[t], train_start[t + 1])]
+    assert decode(t) == want, f"timetable round-trip failed for {trains[t]['number']}"
+
+timetable = bytearray(b"RGTT") + struct.pack("<III", 2, n_trains, n_halts)
+timetable += array("I", train_start).tobytes()
+for col_ in (h_station, d_arr, d_dep, d_dist):
+    timetable += array("H", col_).tobytes()
+timetable += array("B", t_type).tobytes()
+paths = bytearray(b"RGTP") + struct.pack("<III", 1, n_halts, len(pass_station))
+paths += array("H", pass_count).tobytes() + array("H", pass_station).tobytes()
+
+meta = {
     "meta": {
         "timetable": "Indian Railways timetable on data.gov.in (Dec 2017), GODL-India",
         "stations": "OpenStreetMap contributors (ODbL) + datameet (CC0)",
@@ -334,7 +404,12 @@ doc = {
     "states": states,
     "stations": col,
     "cities": out_cities,
-    "trains": out_trains,
+    "trains": [[t["number"], t["name"]] for t in trains],
 }
-OUT.write_text(json.dumps(doc, ensure_ascii=False, separators=(",", ":")))
-print("stations used:", len(used), "->", OUT, f"{OUT.stat().st_size / 1e6:.1f} MB")
+OUT.mkdir(parents=True, exist_ok=True)
+(OUT / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, separators=(",", ":")))
+(OUT / "timetable.bin").write_bytes(timetable)
+(OUT / "paths.bin").write_bytes(paths)
+for f in ("meta.json", "timetable.bin", "paths.bin"):
+    print(f"  {f}: {(OUT / f).stat().st_size / 1e3:.0f} kB")
+print(f"trains {n_trains}, halts {n_halts}, pass-through points {len(pass_station)}, stations {len(used)}")

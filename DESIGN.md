@@ -29,7 +29,7 @@ Two times of day, not two "skins":
   The station boards stay the same yellow, as they do at night.
 
 Distance on the map is one hue getting lighter the further you'd travel, not a rainbow.
-All colours are CSS variables in `src/style.css`; the canvas map reads the same variables.
+All colours are CSS variables in `src/ui/style.css`; the canvas map reads the same variables.
 
 ## Type
 

@@ -1,4 +1,4 @@
-"""Build public/data/places.json: what each destination looks like and what to do there.
+"""Build data/places/ (index.json + 32 shards): what each destination looks like and what to do there.
 
 1. Match stations to Wikivoyage guides. Candidates are every Indian Wikivoyage guide
    (listed via Wikidata), within 10 km of the station. Prefer the guide *about* that
@@ -22,6 +22,7 @@ re-run only asks for what is genuinely new. `--quick` never calls an API at all 
 builds from what is known (Wikimedia rate-limits unidentified clients hard).
 """
 import hashlib
+import html
 import json
 import math
 import re
@@ -38,12 +39,13 @@ ROOT = Path(__file__).resolve().parent.parent
 RAW = Path(sys.argv[1])
 CACHE = RAW / "wv-cache"
 CACHE.mkdir(parents=True, exist_ok=True)
-NET = json.load(open(ROOT / "public" / "data" / "network.json"))
-OUT = ROOT / "public" / "data" / "places.json"
+NET = json.load(open(ROOT / "data" / "meta.json"))
+OUT = ROOT / "data" / "places"
+SHARDS = 32  # place details are split so opening a place fetches ~15 kB, not the whole guide
 WV = "https://en.wikivoyage.org/w/api.php"
 WD = "https://www.wikidata.org/w/api.php"
 COMMONS = "https://commons.wikimedia.org/w/api.php"
-UA = "RailgaddiPrototype/0.1 (personal non-commercial train-discovery prototype)"
+UA = "Railgaddi/1.0 (https://github.com/nimb-ou/railgaddi; non-commercial train-discovery site)"
 MIN_HALTS = 8
 MAX_SIGHTS = 8
 QUICK = "--quick" in sys.argv
@@ -310,6 +312,8 @@ def clean(s):
     s = re.sub(r"\[https?://\S+\]", "", s)
     s = re.sub(r"'{2,}", "", s)
     s = re.sub(r"<[^>]+>", "", s)
+    s = html.unescape(s)
+    s = re.sub(r"^#\d+[.:)]?\s*", "", s.strip())  # map-legend numbers ("#23. Dedicated to ...")
     return re.sub(r"\s+", " ", s).strip()
 
 
@@ -520,7 +524,9 @@ for f in files:
     page = "https://commons.wikimedia.org/wiki/File:" + urllib.parse.quote(f.replace(" ", "_"))
     if ii and ii.get("thumburl"):
         md = ii.get("extmetadata", {})
-        photos[f] = {"t": ii["thumburl"], "w": ii.get("width"), "h": ii.get("height"),
+        # the canonical upload.wikimedia.org path, not the API's thumburl (which now points at a
+        # tracking-tagged host the app can't resize): the app picks the size per screen
+        photos[f] = {"t": commons_thumb(f), "w": ii.get("width"), "h": ii.get("height"),
                      "by": strip_html(md.get("Artist", {}).get("value", ""))[:60],
                      "lic": md.get("LicenseShortName", {}).get("value", ""), "page": ii.get("descriptionurl") or page}
     else:  # no API needed: the file page carries author and licence
@@ -537,7 +543,7 @@ def photo_key(f):
 def sight_out(s):
     it = {"n": s["n"], "k": s["k"]}
     if s.get("d"):
-        it["d"] = s["d"]
+        it["d"] = s["d"][:1].upper() + s["d"][1:]  # Wikidata descriptions start lower-case
     if photo_key(s.get("img")):
         it["img"] = photo_key(s["img"])
     if s.get("lat") is not None and s.get("lon") is not None:
@@ -565,20 +571,67 @@ for title, a in articles.items():
 for title, a in pseudo.items():
     out_articles[title] = {"x": a["x"], "icon": photo_key(a["lead"]), "banner": None, "ll": [a["lat"], a["lon"]],
                            "sights": [sight_out(s) for s in sights[title]], "appeal": round(a["appeal"], 1), "src": "wd"}
-for src, dst in aliases.items():
-    if dst in out_articles and src not in out_articles:
-        out_articles[src] = {"alias": dst}
 
-doc = {
+# ---------------------------------------------------------------- write: an index for the map, details in shards
+def fnv1a(text):
+    """32-bit FNV-1a over UTF-8; the app computes the same to find a place's shard."""
+    h = 0x811C9DC5
+    for b in text.encode("utf-8"):
+        h = ((h ^ b) * 0x01000193) & 0xFFFFFFFF
+    return h
+
+
+THUMB = "https://upload.wikimedia.org/wikipedia/commons/thumb/"
+
+
+def photo_out(key):
+    p = photos[key]
+    out = {"t": p["t"][len(THUMB):] if p["t"].startswith(THUMB) else p["t"]}  # the app restores the prefix
+    for k in ("w", "h", "by", "lic"):
+        if p.get(k):
+            out[k] = p[k]
+    return out
+
+
+# every link must land on a place we actually publish
+exists = lambda t: t in out_articles  # noqa: E731
+station_links = {c: [p if exists(p) else None, [t for t in nb if exists(t)]] for c, (p, nb) in station_links.items()}
+station_links = {c: v for c, v in station_links.items() if v[0] or v[1]}
+city_links = {k: v for k, v in city_links.items() if exists(v)}
+
+index = {
     "meta": {"text": "Wikivoyage, CC BY-SA 4.0; landmarks from Wikidata, CC0",
-             "photos": "Wikimedia Commons, licence per photo", "fetched": time.strftime("%Y-%m-%d")},
-    "articles": out_articles,
-    "photos": photos,
+             "photos": "Wikimedia Commons, licence per photo", "fetched": time.strftime("%Y-%m-%d"), "shards": SHARDS},
     "stations": station_links,
     "cities": city_links,
+    "articles": {},
+    "photos": {},
 }
-OUT.write_text(json.dumps(doc, ensure_ascii=False, separators=(",", ":")))
-real = [a for a in out_articles.values() if "alias" not in a]
-print(f"stations linked: {len(station_links)}  places: {len(real)}  with bubble photo: {sum(1 for a in real if a['icon'])}"
-      f"  with banner: {sum(1 for a in real if a['banner'])}  -> {OUT.stat().st_size / 1e6:.2f} MB")
-print("sights per place:", Counter(min(len(a["sights"]), 8) for a in real).most_common())
+shards = [{"articles": {}, "photos": {}} for _ in range(SHARDS)]
+for title, a in out_articles.items():
+    entry = {k: a[k] for k in ("icon", "banner", "ll", "appeal") if a.get(k) is not None}
+    if a.get("src"):
+        entry["src"] = a["src"]
+    entry["n"] = len(a["sights"])
+    index["articles"][title] = entry
+    for k in (a["icon"], a["banner"]):
+        if k:
+            index["photos"][k] = photo_out(k)
+    shard = shards[fnv1a(title) % SHARDS]
+    shard["articles"][title] = {"x": a["x"], "sights": a["sights"]}
+    for sight in a["sights"]:
+        if sight.get("img"):
+            shard["photos"][sight["img"]] = photo_out(sight["img"])
+
+OUT.mkdir(parents=True, exist_ok=True)
+for old in OUT.glob("*.json"):
+    old.unlink()
+dump = lambda path, obj: path.write_text(json.dumps(obj, ensure_ascii=False, separators=(",", ":")))  # noqa: E731
+dump(OUT / "index.json", index)
+for i, shard in enumerate(shards):
+    dump(OUT / f"{i:02d}.json", shard)
+sizes = [(OUT / f"{i:02d}.json").stat().st_size for i in range(SHARDS)]
+print(f"places: {len(out_articles)} ({sum(1 for a in out_articles.values() if a['icon'])} with a bubble photo, "
+      f"{sum(1 for a in out_articles.values() if a['banner'])} with a banner); stations linked: {len(station_links)}")
+print(f"  index.json {(OUT / 'index.json').stat().st_size / 1e3:.0f} kB; shards {min(sizes) / 1e3:.0f}-{max(sizes) / 1e3:.0f} kB")
+print("sights per place:", Counter(min(len(a["sights"]), 8) for a in out_articles.values()).most_common())

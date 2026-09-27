@@ -33,5 +33,5 @@ curl -sS -A "$UA" -H "Accept: application/sparql-results+json" https://query.wik
   -o wv_india.json
 
 echo "Now simplify the map shapes (once):"
-echo "  npx mapshaper $RAW/india-composite.geojson -simplify 4% keep-shapes -filter-islands min-area=20km2 -o public/data/india.json format=topojson quantization=1e5"
-echo "  npx mapshaper $RAW/Admin2.shp -simplify 3% keep-shapes -innerlines -o public/data/state-lines.json format=topojson quantization=1e5"
+echo "  npx mapshaper $RAW/india-composite.geojson -simplify 4% keep-shapes -filter-islands min-area=20km2 -o src/assets/geo/india.json format=topojson quantization=1e5"
+echo "  npx mapshaper $RAW/Admin2.shp -simplify 3% keep-shapes -innerlines -o src/assets/geo/state-lines.json format=topojson quantization=1e5"
