@@ -19,7 +19,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - name: Wikipedia: running days and newer trains
+      - name: "Wikipedia: running days and newer trains"
         run: python3 pipeline/import_wikipedia.py raw --refresh
       - name: Rebuild data/ (validates every row)
         run: python3 pipeline/build_network.py
