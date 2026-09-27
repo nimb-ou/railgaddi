@@ -73,6 +73,10 @@ python3 pipeline/import_wikipedia.py raw       # running days and newer trains (
 python3 pipeline/import_ogd2017.py raw         # rebuild db/'s base from the 2017 sources (rarely)
 ```
 
+The official 2026 timetable can't be published without Indian Railways' permission, so its
+importer (`fetch_tag.sh`, `import_tag.py`, `merge_tag.py`) reads and checks it but only writes to
+`db/` once permission is on record: see [docs/permission-requests.md](docs/permission-requests.md).
+
 ### Places and photos
 
 ```bash

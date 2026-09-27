@@ -1,0 +1,2 @@
+# Only for reading Trains at a Glance PDFs (import_tag.py). Everything else uses the standard library.
+pymupdf>=1.24

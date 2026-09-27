@@ -49,6 +49,8 @@ export interface Train {
   geom: Geom;
   /** Days it leaves its origin: bit 0 = Monday … bit 6 = Sunday; 0 = not known. */
   days: number;
+  /** Where its times come from, e.g. "the 2017 timetable (data.gov.in)". */
+  source: string;
 }
 
 /** A train we know runs (from Wikipedia) but whose halts and times we don't have yet. */
@@ -81,7 +83,8 @@ export interface MetaFile {
     halts: number[];
   };
   cities: { id: string; name: string; hi: string; local: string; aka: string[]; state: string; stations: number[] }[];
-  trains: [string, string][];
+  trains: [string, string, number?][];
+  sources?: [string, string][];
   newer?: [string, string, string, number, number, number, number, number, number, number, string][];
 }
 
@@ -212,6 +215,7 @@ export function decodeNetwork(meta: MetaFile, timetable: ArrayBuffer): Network {
       km: KM.subarray(a0, a1),
       geom: { st: new Int32Array(0), km: new Float32Array(0) },
       days: tDays[t],
+      source: meta.sources?.[meta.trains[t][2] ?? 0]?.[1] ?? meta.meta.timetable,
     };
     layLine(stations, train);
     trains[t] = train;

@@ -248,7 +248,7 @@ export function trainHtml(net: Network, leg: Leg, destTitle: string) {
       <h2 id="panel-title" tabindex="-1">${esc(t.name)}</h2>
       <p>${esc(from.name)} <b>${fmtTime(t.dep[leg.from])}</b> → ${esc(to.name)} <b>${fmtTime(t.arr[leg.to])}</b> · ${fmtMins(leg.dur)} · ${fmtKm(leg.km)} km · ${plural(leg.halts, "halt")} on the way.</p>
       <p class="runs">${t.days ? `Leaves ${esc(from.name)}: <b>${daysAt(t, leg.from)}</b>` : "Running days not known"}</p>
-      <p>Times are from the ${esc(net.meta.snapshot.slice(0, 4))} timetable and may have changed: check <a href="https://enquiry.indianrail.gov.in/mntes/" target="_blank" rel="noopener">NTES</a> before you travel.
+      <p>Times are from ${esc(t.source)} and may have changed: check <a href="https://enquiry.indianrail.gov.in/mntes/" target="_blank" rel="noopener">NTES</a> before you travel.
       <a href="${esc(reportUrl(t))}" target="_blank" rel="noopener">Report a mistake</a></p>
     </header>
     <div>

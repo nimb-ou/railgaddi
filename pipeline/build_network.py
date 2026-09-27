@@ -68,9 +68,11 @@ for no in sorted(train_rows):
         sys.exit(f"train {no}: needs a departure at its first halt and an arrival at its last")
     if any(b < a for a, b in zip(times, times[1:])):
         sys.exit(f"train {no}: times go backwards (use +1, +2 for later days)")
-    trains.append(dict(number=no, name=t["name"], type=t["type"], days=days_mask(t["days"]), stops=stops))
+    trains.append(dict(number=no, name=t["name"], type=t["type"], days=days_mask(t["days"]), src=t["src"], stops=stops))
 
 newer = read_table("newer_trains")
+SOURCES = {"ogd2017": "the 2017 timetable (data.gov.in)", "tag2026": "Indian Railways' 2026 timetable (Trains at a Glance)"}
+source_keys = sorted({t["src"] for t in trains})
 print(f"db/: {len(stations)} stations, {len(trains)} trains, {sum(len(v) for v in halts.values())} halts, "
       f"{sum(1 for t in trains if t['days'])} with running days, {len(newer)} newer trains")
 
@@ -193,13 +195,15 @@ meta = {
     "meta": {
         "timetable": "Indian Railways timetable on data.gov.in (Dec 2017), GODL-India",
         "stations": "OpenStreetMap contributors (ODbL) + datameet (CC0)",
-        "snapshot": "2017-12",
+        "snapshot": "2026-01" if "tag2026" in source_keys else "2017-12",
     },
     "types": [[t, TYPE_LABELS.get(t, t)] for t in types],
     "states": states,
     "stations": col,
     "cities": out_cities,
-    "trains": [[t["number"], t["name"]] for t in trains],
+    # where each train's times come from: index into "sources"
+    "sources": [[k, SOURCES.get(k, k)] for k in source_keys],
+    "trains": [[t["number"], t["name"], source_keys.index(t["src"])] for t in trains],
     # trains we know run but whose halts we don't have yet: shown as a note, not on the map
     "newer": [[n["numbers"], n["name"], n["type"], idx.get(n["from"], -1), idx.get(n["to"], -1), days_mask(n["days"]),
                int(n["per_week"] or 0), int(n["minutes"] or 0), int(float(n["km"] or 0)), int(n["stops"] or 0), n["src"]]

@@ -40,6 +40,7 @@ an arrival) and says which train is wrong.
 |---|---|---|
 | `import_ogd2017.py` | Indian Railways timetable on data.gov.in (Dec 2017); datameet/railways (2016) for names, types and track paths; OpenStreetMap for station positions and names | GODL-India; CC0; ODbL |
 | `import_wikipedia.py` | English Wikipedia train infoboxes: running days, newer trains | CC BY-SA 4.0 |
+| `merge_tag.py` (after `import_tag.py`) | Indian Railways, *Trains at a Glance* | only with written permission, recorded in `docs/permissions/` |
 
 See [SOURCES.md](../SOURCES.md) for every source considered and why.
 

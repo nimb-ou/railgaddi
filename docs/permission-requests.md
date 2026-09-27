@@ -87,7 +87,32 @@ account).
 
 ## When permission arrives
 
-Keep the reply (a PDF of the email is fine) in a safe place and note its date and scope in
-`SOURCES.md`. The Trains at a Glance tables then need an importer (`pipeline/import_tag.py`) that
-reads the PDFs into `db/` with `src` set to `tag2026`; `import_wikipedia.py` and the rest stay as
-they are.
+The importer is built and tested; switching over is a few commands.
+
+1. Record it: copy the template in [permissions/README.md](permissions/README.md) to
+   `docs/permissions/tag2026.md` and fill it in.
+2. Run:
+
+   ```bash
+   pipeline/fetch_tag.sh raw 2026            # the PDFs from the Railway Board site
+   python3 pipeline/import_tag.py raw 2026   # read and check them; see raw/tag2026/report.md
+   python3 pipeline/merge_tag.py raw 2026    # into db/
+   python3 pipeline/build_network.py && npm test
+   ```
+
+3. Review the diff of `db/` and deploy.
+
+What to expect, measured on the 2026 edition (September 2026, on a copy of the database):
+
+- 3,323 trains read from 421 pages; 2,130 pass every check (all stations placed, times running
+  forward, no impossible speeds) and replace or join the 2017 timetable: 1,419 updated, 711 new,
+  including 110 of the book's 153 Vande Bharat trains. Running days for 3,108.
+- 13 stations renamed since 2017 take their new codes (Jhansi → Virangana Lakshmibai Jhansi,
+  Aurangabad → Chhatrapati Sambhaji Nagar, Faizabad → Ayodhya Cantt…).
+- The other ~1,200 are held back with a reason (report.md) and keep their 2017 times until the
+  importer reads them reliably.
+- Trade-off: *Trains at a Glance* prints principal halts only, so updated trains lose some small
+  stops (861 places reachable from Bengaluru become 783). Worth doing before switching: keep a
+  2017 minor halt when it lies on the same route between two 2026 halts, marked as approximate.
+- 63% of long stretches between halts follow known track; the rest draw straight until the
+  network gains the lines built since 2016 (OpenStreetMap has them).

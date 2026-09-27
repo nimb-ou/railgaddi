@@ -6,10 +6,12 @@ Conventions (see db/README.md):
   days    days the train leaves its origin: "Daily", "Mon,Thu", or "" when not known
 """
 import csv
+import os
 import re
 from pathlib import Path
 
-DB = Path(__file__).resolve().parent.parent / "db"
+# RAILGADDI_DB points the pipeline at another copy of the database (to try an import safely)
+DB = Path(os.environ.get("RAILGADDI_DB") or Path(__file__).resolve().parent.parent / "db")
 DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 COLUMNS = {
