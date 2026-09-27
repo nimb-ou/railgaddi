@@ -819,9 +819,13 @@ export class RailMap {
   private drawDots() {
     if (this.sights.length) return;
     const ctx = this.ctx;
-    const r = this.tf.k > 4 ? 3 : this.tf.k > 1.8 ? 2.3 : 1.7;
+    const k = this.tf.k;
+    const r = k > 4 ? 3 : k > 1.8 ? 2.3 : 1.7;
+    // zoomed out, only the busier stations get a ring; every stop appears as you zoom in
+    const minHalts = k >= 3.2 ? 0 : k >= 1.8 ? 25 : k >= 1 ? 70 : 140;
     for (const d of this.reach) {
       if (!this.ok[d.place.anchor] || d.mins > this.revealMins || this.shown.get(d.place)?.alpha === 1) continue;
+      if (d.place.halts < minHalts && d.place !== this.selected && d.place !== this.hover) continue;
       const x = this.tf.applyX(this.sx[d.place.anchor]);
       const y = this.tf.applyY(this.sy[d.place.anchor]);
       if (x < -5 || y < -5 || x > this.w + 5 || y > this.h + 5) continue;
