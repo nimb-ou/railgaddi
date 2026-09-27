@@ -117,4 +117,5 @@ What to expect, measured on the 2026 edition (September 2026, on a copy of the d
   their route changed). Places reachable from Bengaluru: 861 on the 2017 data, 855 after the
   merge (783 without this step).
 - Track: lines between halts follow OpenStreetMap's railway (`fetch_osm_rail.py`, `track.py`),
-  falling back to the network `db/` already knows.
+  falling back to the network `db/` already knows. In the trial, 91% of stretches over 25 km
+  follow the real line (63% before the OpenStreetMap track); today's 2017 map is at 95%.
