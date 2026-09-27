@@ -983,7 +983,19 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   .board-script { font-size: 15px; }
   .popular > span { display: none; }
   .origin-box { left: 16px; top: calc(58px + env(safe-area-inset-top, 0px)); }
-  .chip-name { font-size: 21px; }
+  .chip-name { font-size: 19px; }
+  /* the ticket on a phone: one line per end, the start's name gets the room */
+  .origin-box { right: 16px; }
+  .origin-chip { max-width: 100%; }
+  .tk-end { padding: 8px 6px 8px 12px; min-width: 0; }
+  #tk-from { flex: 1 1 auto; }
+  #tk-to { flex: 0 1 auto; }
+  .tk-end .chip-name { max-width: 100%; }
+  .chip-script { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; }
+  #tk-to .chip-name { font-size: 16px; }
+  .tk-end .chip-name.wordy { font-size: 15px; }
+  .tk-end .chip-name .long { display: none; }
+  .tk-arrow svg { width: 16px; }
   /* the dock folds to two rows: how far, then when + the list switch */
   .dock { bottom: calc(10px + env(safe-area-inset-bottom, 0px)); width: calc(100vw - 20px); grid-template-columns: 1fr auto; }
   .dock-row { padding: 10px 14px 8px; gap: 4px; }

@@ -71,6 +71,8 @@ considered, and why the site uses the ones it does.
 python3 pipeline/build_network.py              # db/ -> data/meta.json, timetable.bin, paths.bin
 python3 pipeline/import_wikipedia.py raw       # running days and newer trains (monthly in CI)
 python3 pipeline/import_ogd2017.py raw         # rebuild db/'s base from the 2017 sources (rarely)
+python3 pipeline/fetch_osm_rail.py raw         # India's railway track from OpenStreetMap (slow, cached)
+python3 pipeline/route_paths.py raw            # lines follow that track where db/ had straight stretches
 ```
 
 The official 2026 timetable can't be published without Indian Railways' permission, so its

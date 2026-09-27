@@ -371,12 +371,18 @@ export class App {
     this.chip.hidden = !active;
     this.dockEl.hidden = !this.origin;
     const fromName = $("chip-name");
-    fromName.textContent = this.origin ? titleOf(this.origin, null) : "Anywhere";
+    const from = this.origin ? titleOf(this.origin, null) : "";
+    if (from) fromName.textContent = from;
+    else fromName.innerHTML = `Any<span class="long">where</span>`;
     fromName.classList.toggle("open", !this.origin);
+    fromName.classList.toggle("wordy", from.length > 11); // Thiruvananthapuram: a size down
     $("chip-script").textContent = this.origin ? scriptLine(this.origin) : "";
     const toName = $("tk-to-name");
-    toName.textContent = dest ? this.name(dest) : "Anywhere";
+    const to = dest ? this.name(dest) : "";
+    if (to) toName.textContent = to;
+    else toName.innerHTML = `Any<span class="long">where</span>`;
     toName.classList.toggle("open", !dest);
+    toName.classList.toggle("wordy", to.length > 11);
     $("tk-from").setAttribute("aria-label", this.origin ? `From ${titleOf(this.origin, null)}. Change where you start` : "Choose where you start");
     $("tk-to").setAttribute("aria-label", dest ? `To ${this.name(dest)}. Change where you're going` : "Choose where to go");
     document.body.classList.toggle("to-mode", !!this.target());
