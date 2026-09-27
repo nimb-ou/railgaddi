@@ -14,7 +14,7 @@ import { decodeNetwork, type MetaFile, type Place } from "../src/core/network";
 import { buildGuideIndex, type ArticleDetail, type GuideView, type PlacesIndex } from "../src/core/places";
 import { rankPlaces } from "../src/core/rank";
 import { buildSlugs, titleOf } from "../src/core/slugs";
-import { departures, newerBetween, type Leg } from "../src/core/trips";
+import { arrivals, departures, newerBetween, type Leg } from "../src/core/trips";
 import { photoUrl } from "../src/ui/photos";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -178,10 +178,15 @@ for (const p of placePages) {
     .map((o) => [o, destsOf.get(o)!.get(p)!] as const)
     .sort((a, b) => a[1].fastest - b[1].fastest);
   const intro = d?.x ?? "";
+  const ways = arrivals(net, p).size; // as the app titles this view
   render({
     path: path(undefined, p),
-    title: `${name} by train · Railgaddi`,
-    description: clip(intro ? `${firstSentence(intro)} ${plural(d!.sights.length, "place")} to see, and the trains that go there.` : `${name}, ${p.state}: what to see and the trains that go there.`),
+    title: ways ? `${name} by train: direct from ${plural(ways, "place")} · Railgaddi` : `${name} by train · Railgaddi`,
+    description: clip(
+      intro
+        ? `${firstSentence(intro)} Direct trains from ${plural(ways, "place")}, and ${plural(d!.sights.length, "place")} to see.`
+        : `${name}, ${p.state}: direct trains from ${plural(ways, "place")}, and what to see.`,
+    ),
     image: cover(gv),
     imageAlt: name,
     body: `<h1>${esc(name)}</h1><p>${esc(p.state)}${gv.featured ? ` · nearest station ${esc(titleOf(p, null))}` : ""}</p>${intro ? `<p>${esc(intro)}</p>` : ""}${sightsList(d)}
