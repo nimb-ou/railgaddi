@@ -17,7 +17,7 @@ the lines, and timetables, tickets and route strips carry the facts. See [DESIGN
 
 ## Run it
 
-Needs Node 20+ (`.nvmrc`) and, only to rebuild the data, Python 3.10+.
+Needs Node 22 (`.nvmrc`; 20+ works) and, only to rebuild the data, Python 3.10+.
 
 ```bash
 npm install

@@ -26,15 +26,15 @@ jobs:
       SITE_URL: ${{ vars.SITE_URL || 'https://nimb-ou.github.io/railgaddi' }}
       SPA_404: "1" # GitHub Pages has no SPA fallback: 404.html is the app shell
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
       - run: npm test
       - run: npm run build
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v4
         with:
           path: dist
 
