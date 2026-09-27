@@ -94,6 +94,47 @@ export function waitFor(leg: Leg, now: number) {
   return first;
 }
 
+/**
+ * Every place with a direct train *to* a destination: the mirror of departures(). A ride boards
+ * at the first station of that place the train leaves from (as departures() does) and ends at
+ * the first station of the destination it reaches.
+ */
+export function arrivals(net: Network, dest: Place): Map<Place, Destination> {
+  const destSet = new Set(dest.stations);
+  const seen = new Set<number>();
+  const froms = new Map<Place, Destination>();
+  for (const s of dest.stations) {
+    for (const ti of net.trainsAt[s]) {
+      if (seen.has(ti)) continue;
+      seen.add(ti);
+      const t = net.trains[ti];
+      let to = -1;
+      for (let j = 0; j < t.st.length; j++) {
+        if (destSet.has(t.st[j]) && t.arr[j] >= 0) {
+          to = j;
+          break;
+        }
+      }
+      if (to < 1) continue;
+      const boarded = new Set<Place>();
+      for (let j = 0; j < to; j++) {
+        const place = net.placeOf[t.st[j]];
+        if (place === dest || boarded.has(place) || t.dep[j] < 0) continue;
+        boarded.add(place);
+        let halts = 0;
+        for (let k = j + 1; k < to; k++) if (net.placeOf[t.st[k]] !== place) halts++;
+        const leg: Leg = { train: t, from: j, to, dep: t.dep[j] % 1440, dur: t.arr[to] - t.dep[j], km: t.dist[to] - t.dist[j], halts };
+        let d = froms.get(place);
+        if (!d) froms.set(place, (d = { place, legs: [], fastest: Infinity, firstKm: leg.km }));
+        d.legs.push(leg);
+        d.fastest = Math.min(d.fastest, leg.dur);
+        d.firstKm = Math.min(d.firstKm, leg.km);
+      }
+    }
+  }
+  return froms;
+}
+
 export function legPasses(leg: Leg, f: Filters, now: number) {
   if (leg.dur > f.within) return false;
   switch (f.leave) {
@@ -120,7 +161,10 @@ export function reachable(dests: Map<Place, Destination>, f: Filters, now: numbe
       if (!legPasses(l, f, now)) continue;
       const a = trains.get(l.train);
       if (!a) trains.set(l.train, { from: l.from, to: l.to });
-      else a.to = Math.max(a.to, l.to);
+      else {
+        a.from = Math.min(a.from, l.from); // arrivals: boarding varies, the destination doesn't
+        a.to = Math.max(a.to, l.to); // departures: the other way round
+      }
       let legs = byPlace.get(d.place);
       if (!legs) byPlace.set(d.place, (legs = []));
       legs.push(l);

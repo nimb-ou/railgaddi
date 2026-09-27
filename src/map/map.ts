@@ -50,6 +50,14 @@ interface Palette {
   board: string; boardInk: string;
 }
 
+/** Timetable minutes that pass per real second: slow enough to read, fast enough to see move. */
+const SIM_SPEED = 3;
+/** Length of a train's streak, in timetable minutes behind it. */
+const TAIL = 14;
+
+const LOCAL = new Set(["Pass", "MEMU", "DEMU", "Toy", "Spl"]);
+const PREMIUM = new Set(["Raj", "Shtb", "Drnt", "JShtb", "VB", "AB"]);
+
 interface Motion {
   geom: Geom;
   t: Float32Array; // minutes since boarding
@@ -132,6 +140,7 @@ export class RailMap {
   private lastFrame = 0;
 
   simMinute = 0; // timetable clock, minutes of day
+  private toward = false; // routes lead into the centre place instead of out of it
   playing = true;
   onClock: (m: number) => void = () => {};
 
@@ -219,7 +228,9 @@ export class RailMap {
         if (e) e.w++;
         else em.set(a * 100000 + b, { a, b, w: 1 });
       }
-      this.everyone.push(this.motion(t, 0, t.st.length - 1));
+      // the landing map shows a calm sample: long-distance trains, about one in three
+      const long = !LOCAL.has(t.type) && t.arr[t.st.length - 1] - t.dep[0] >= 180;
+      if (long && (PREMIUM.has(t.type) || (t.i * 2654435761) % 3 === 0)) this.everyone.push(this.motion(t, 0, t.st.length - 1));
     }
     this.edges = [...em.values()];
   }
@@ -313,9 +324,14 @@ export class RailMap {
     }
   }
 
-  setOrigin(origin: Place | null, active: Map<Train, ActiveTrain>, reach: Reach[], animate: boolean) {
-    const changed = origin !== this.origin;
+  /**
+   * Centre the map on a place and draw the trains that link it. `toward` flips the direction:
+   * routes then lead *into* the place (arrivals) and times count down to reaching it.
+   */
+  setOrigin(origin: Place | null, active: Map<Train, ActiveTrain>, reach: Reach[], animate: boolean, toward = false) {
+    const changed = origin !== this.origin || toward !== this.toward;
     this.origin = origin;
+    this.toward = toward;
     this.reach = reach;
     this.routes = [];
     this.routeCache = null;
@@ -333,6 +349,13 @@ export class RailMap {
         mins.push(this.minuteAtKm(motion, g.km[j]));
       }
       if (st.length < 2) continue;
+      if (toward) {
+        // start the drawing at the destination, so lines grow outward from it
+        const total = mins[mins.length - 1];
+        st.reverse();
+        mins.reverse();
+        for (let j = 0; j < mins.length; j++) mins[j] = total - mins[j];
+      }
       this.maxMins = Math.max(this.maxMins, mins[mins.length - 1]);
       this.routes.push({ train, st: Int32Array.from(st), mins: Float32Array.from(mins), motion });
     }
@@ -386,6 +409,12 @@ export class RailMap {
 
   fitRoutes(duration = 700) {
     this.fly(this.transformFor(this.boundsOfRoutes(), 7), duration);
+  }
+
+  /** Frame what's within a day's ride of the centre place (the ways in, or the ways out). */
+  fitCore(duration = 900) {
+    if (!this.origin) return this.fitIndia(duration);
+    this.fly(this.transformFor(this.boundsOfCore(), 7), duration);
   }
 
   fitIndia(duration = 900) {
@@ -576,7 +605,7 @@ export class RailMap {
     const dt = this.lastFrame ? Math.min(now - this.lastFrame, 100) : 16;
     this.lastFrame = now;
     if (this.playing && !reduceMotion()) {
-      this.simMinute = (this.simMinute + dt / 28) % 1440; // ~40 s per timetable day
+      this.simMinute = (this.simMinute + (dt / 1000) * SIM_SPEED) % 1440; // timetable minutes per real second
       this.onClock(this.simMinute);
     }
     if (this.revealMins !== Infinity) {
@@ -628,7 +657,7 @@ export class RailMap {
     c.stroke(this.tropicPath);
     c.setLineDash([]);
     // every line in the country, faint, busier corridors a little darker
-    const faint = (this.origin ? 0.4 : 1) * this.netStrength;
+    const faint = (this.origin ? 0.3 : 0.85) * this.netStrength;
     const widths = [0.5, 0.7, 0.9, 1.1, 1.4];
     const alphas = [0.14, 0.2, 0.28, 0.36, 0.46];
     c.strokeStyle = this.c.net;
@@ -683,7 +712,7 @@ export class RailMap {
     const { k, x, y } = this.tf;
     const focus = this.selected;
     const trainFocus = this.selectedTrain?.leg.train ?? null;
-    const dim = this.sights.length ? 0.12 : focus || trainFocus ? 0.18 : 0.7;
+    const dim = this.sights.length ? 0.1 : focus || trainFocus ? 0.16 : 0.55;
     const close = k >= 3;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
@@ -701,7 +730,7 @@ export class RailMap {
       const cache = this.routeCache;
       ctx.save();
       ctx.setTransform(this.dpr * k, 0, 0, this.dpr * k, this.dpr * x, this.dpr * y);
-      ctx.lineWidth = (close ? 3.4 : 1.5) / k;
+      ctx.lineWidth = (close ? 3 : 1.25) / k;
       ctx.globalAlpha = dim;
       cache.forEach((p, b) => {
         ctx.strokeStyle = this.lut[b];
@@ -711,8 +740,8 @@ export class RailMap {
       ctx.restore();
     } else {
       // spreading out from the origin, minute by minute of travel
-      ctx.lineWidth = 1.6;
-      ctx.globalAlpha = 0.8;
+      ctx.lineWidth = 1.4;
+      ctx.globalAlpha = 0.7;
       for (const r of this.routes) {
         for (let j = 1; j < r.st.length; j++) {
           const m = (r.mins[j - 1] + r.mins[j]) / 2;
@@ -790,7 +819,7 @@ export class RailMap {
   private drawDots() {
     if (this.sights.length) return;
     const ctx = this.ctx;
-    const r = this.tf.k > 4 ? 3.4 : this.tf.k > 1.8 ? 2.8 : 2.2;
+    const r = this.tf.k > 4 ? 3 : this.tf.k > 1.8 ? 2.3 : 1.7;
     for (const d of this.reach) {
       if (!this.ok[d.place.anchor] || d.mins > this.revealMins || this.shown.get(d.place)?.alpha === 1) continue;
       const x = this.tf.applyX(this.sx[d.place.anchor]);
@@ -802,7 +831,7 @@ export class RailMap {
       ctx.arc(x, y, d.place === this.hover ? r + 1.5 : r, 0, TAU);
       ctx.fillStyle = this.c.ring;
       ctx.fill();
-      ctx.lineWidth = 1.4;
+      ctx.lineWidth = 1.15;
       ctx.strokeStyle = this.timeColor(d.mins);
       ctx.stroke();
       if (d.place === this.selected) {
@@ -818,31 +847,56 @@ export class RailMap {
 
   private drawTrains() {
     const ctx = this.ctx;
-    const dot = (m: Motion, size: number) => {
+    /** A train as a short streak along its line, brightest at the head, fading in and out at the ends. */
+    const streak = (m: Motion, width: number, alpha: number, head: number) => {
       const e = (this.simMinute - m.dep0 + 1440) % 1440;
-      let km = this.kmAt(m, e);
-      if (km === null && m.end > 1440) km = this.kmAt(m, e + 1440);
-      if (km === null) return;
-      const [bx, by] = this.at(m.geom, km);
-      const x = this.tf.applyX(bx), y = this.tf.applyY(by);
-      if (x < -10 || y < -10 || x > this.w + 10 || y > this.h + 10) return;
-      ctx.fillRect(x - size, y - size, size * 2, size * 2);
+      const minute = this.kmAt(m, e) !== null ? e : m.end > 1440 && this.kmAt(m, e + 1440) !== null ? e + 1440 : -1;
+      if (minute < 0) return;
+      const km = this.kmAt(m, minute)!;
+      const [hx, hy] = this.at(m.geom, km);
+      const x = this.tf.applyX(hx), y = this.tf.applyY(hy);
+      if (x < -20 || y < -20 || x > this.w + 20 || y > this.h + 20) return;
+      const fade = Math.min(1, minute / 12, (m.end - minute) / 12);
+      const tailKm = this.kmAt(m, Math.max(0, minute - TAIL)) ?? km;
+      ctx.globalAlpha = alpha * fade;
+      if (tailKm < km - 0.2) {
+        // the streak follows the track: sample a few points between tail and head
+        ctx.beginPath();
+        for (let i = 0; i <= 4; i++) {
+          const [px, py] = this.at(m.geom, tailKm + ((km - tailKm) * i) / 4);
+          const sx = this.tf.applyX(px), sy = this.tf.applyY(py);
+          if (i === 0) ctx.moveTo(sx, sy);
+          else ctx.lineTo(sx, sy);
+        }
+        ctx.lineWidth = width;
+        ctx.stroke();
+      }
+      ctx.globalAlpha = Math.min(1, alpha * 1.6) * fade;
+      ctx.beginPath();
+      ctx.arc(x, y, head, 0, TAU);
+      ctx.fill();
     };
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
     if (!this.origin) {
-      // the whole country's trains, moving by the timetable: fine specks of ink
-      ctx.fillStyle = this.c.livery;
-      ctx.globalAlpha = 0.45;
-      for (const m of this.everyone) dot(m, 0.9);
+      // a calm sample of the country's long-distance trains, moving by the timetable
+      ctx.strokeStyle = ctx.fillStyle = this.c.livery;
+      for (const m of this.everyone) streak(m, 1.1, 0.3, 1.1);
       ctx.globalAlpha = 1;
       return;
     }
     if (this.revealMins !== Infinity) return;
-    ctx.fillStyle = this.c.accent;
     if (this.selectedTrain) {
-      dot(this.selectedTrain.motion, 3);
+      ctx.strokeStyle = ctx.fillStyle = this.c.accent;
+      streak(this.selectedTrain.motion, 3, 0.9, 4);
+      ctx.globalAlpha = 1;
       return;
     }
-    for (const r of this.routes) dot(r.motion, 1.5);
+    // the trains on the lines from here: ink, not the red that means "you" and "picked"
+    ctx.strokeStyle = ctx.fillStyle = this.c.ink;
+    const dim = this.selected ? 0.35 : 0.7;
+    for (const r of this.routes) streak(r.motion, 1.6, dim, 1.7);
+    ctx.globalAlpha = 1;
   }
 
   // ---------------------------------------------------------------- photo bubbles, named on station boards

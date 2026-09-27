@@ -46,27 +46,50 @@
         <p class="eyebrow">Discover India by train</p>
         <h1 id="hero-title">Where can the train <span>take you?</span></h1>
         <p class="lede">Pick your station. See every place you can reach without changing trains, and what's worth seeing when you get there.</p>
+        <!-- a ticket: fill in where you start, or where you want to go, or both -->
         <div class="board" id="board">
-          <div class="board-script" lang="hi" aria-hidden="true">कहाँ से चलें?</div>
-          <label class="board-field" for="origin-input">
-            <span class="board-label">Start from</span>
-            <input id="origin-input" type="search" enterkeyhint="go" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="City or station" role="combobox" aria-expanded="false" aria-controls="suggest" aria-autocomplete="list" />
-          </label>
+          <div class="board-script" lang="hi" aria-hidden="true">कहाँ से, कहाँ तक?</div>
+          <div class="board-field">
+            <label class="board-label" for="origin-input">From</label>
+            <div class="board-row">
+              <input id="origin-input" type="search" enterkeyhint="go" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="City or station" />
+              <button class="near-btn" id="near-btn" type="button" aria-label="Start from the station nearest you" title="Nearest station">
+                <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="10" cy="10" r="3" /><path d="M10 1.5v3M10 15.5v3M1.5 10h3M15.5 10h3" /><circle cx="10" cy="10" r="6.5" /></svg>
+              </button>
+            </div>
+          </div>
+          <div class="board-field board-to">
+            <label class="board-label" for="to-input">To <span>· or leave it open</span></label>
+            <input id="to-input" type="search" enterkeyhint="go" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Anywhere" />
+          </div>
         </div>
-        <ul class="suggest" id="suggest" role="listbox" aria-label="Matching stations" hidden></ul>
+        <ul class="suggest" id="suggest" aria-label="Matching stations" hidden></ul>
+        <ul class="suggest" id="suggest-to" aria-label="Matching places" hidden></ul>
         <nav class="popular" id="popular" aria-label="Popular starting points"></nav>
       </section>
 
+      <!-- the ticket, once you've picked: either end can be changed at any time -->
       <div class="origin-box" id="origin-chip" hidden>
-        <div class="origin-chip">
-          <div class="chip-board">
+        <div class="origin-chip" id="ticket">
+          <button class="tk-end" id="tk-from" type="button">
             <span class="chip-from">From</span>
             <span class="chip-name" id="chip-name"></span>
             <span class="chip-script" id="chip-script"></span>
-          </div>
-          <button class="chip-change" id="chip-change" type="button" aria-label="Change starting point">
+          </button>
+          <span class="tk-arrow" aria-hidden="true"><svg viewBox="0 0 24 12" width="22" height="11"><path d="M1 6h20M16 1.5 21 6l-5 4.5" /></svg></span>
+          <button class="tk-end" id="tk-to" type="button">
+            <span class="chip-from">To</span>
+            <span class="chip-name" id="tk-to-name"></span>
+          </button>
+          <button class="chip-change" id="chip-change" type="button" aria-label="Start over">
             <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M5 5l10 10M15 5L5 15" /></svg>
           </button>
+        </div>
+        <div class="tk-edit" id="tk-edit" hidden>
+          <input id="tk-from-input" type="search" enterkeyhint="go" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Where do you start?" aria-label="Where do you start?" />
+          <input id="tk-to-input" type="search" enterkeyhint="go" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Where to? City, station or place" aria-label="Where do you want to go?" />
+          <ul class="suggest" id="tk-from-list" aria-label="Where you could start" hidden></ul>
+          <ul class="suggest" id="tk-to-list" aria-label="Where you could go" hidden></ul>
         </div>
         <p class="origin-count" id="count" aria-live="polite"></p>
       </div>

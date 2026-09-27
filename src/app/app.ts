@@ -5,21 +5,23 @@ import type { Network, Place } from "../core/network";
 import type { ArticleDetail, GuideView, Photo, PlaceDetails } from "../core/places";
 import { rankPlaces } from "../core/rank";
 import { titleOf, type Slugs } from "../core/slugs";
-import { ANY, bySoonest, departures, legPasses, newerBetween, reachable, type Destination, type Filters, type Leg } from "../core/trips";
+import { ANY, arrivals, bySoonest, departures, legPasses, newerBetween, reachable, type Destination, type Filters, type Leg } from "../core/trips";
 import type { RailMap, SightPin } from "../map/map";
 import { Dock } from "../ui/dock";
 import { listHtml, type ListItem } from "../ui/list";
-import { esc, placeHtml, scriptLine, trainHtml } from "../ui/panel";
+import { esc, placeHtml, scriptLine, trainHtml, type GetHere } from "../ui/panel";
 import { SearchBox } from "../ui/search";
 import { filtersOf, go, href, parse, type Route } from "./router";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const narrow = () => window.innerWidth <= 720;
 const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const POPULAR = ["bengaluru", "mumbai", "delhi", "kolkata", "chennai", "hyderabad"];
+const LAST = "railgaddi.last"; // the station you started from last time (on this device only)
 
 type Detail = { detail: ArticleDetail; photos: Map<string, Photo> };
 type Open =
-  | { kind: "place"; place: Place; showAll: boolean; sight: number; legs: Leg[] }
+  | { kind: "place"; place: Place; showAll: boolean; sight: number; legs: Leg[]; allFrom?: boolean; choosing?: boolean }
   | { kind: "train"; place: Place; leg: Leg }
   | { kind: "list"; showAll: boolean; withGuides: boolean };
 
@@ -41,7 +43,13 @@ export class App {
   private tip = $("tip");
   private pin = $("origin-pin");
   private search: SearchBox;
+  private tkFrom: SearchBox;
+  private tkTo: SearchBox;
   private dock: Dock;
+  private heroShown = true;
+  private returnFocus: HTMLElement | null = null;
+  private depCache = new Map<Place, Map<Place, Destination>>();
+  private arrCache = new Map<Place, Map<Place, Destination>>();
 
   constructor(
     private net: Network,
@@ -52,8 +60,35 @@ export class App {
   ) {
     for (const [p, gv] of guides) if (!this.titlePlace.has(gv.title) || p.isCity) this.titlePlace.set(gv.title, p);
 
-    this.search = new SearchBox($("origin-input"), $("suggest"), $("popular"), net, () => guides, (p) => this.setOrigin(p, { push: true }));
-    this.search.renderPopular((p) => href({ origin: slugs.of(p) }));
+    const g = () => guides;
+    this.search = new SearchBox($("origin-input"), $("suggest"), net, g, (p) => this.chooseFrom(p), {
+      popular: $("popular"),
+      popularIds: POPULAR,
+    });
+    new SearchBox($("to-input"), $("suggest-to"), net, g, (p) => this.chooseTo(p), {
+      empty: "No station, city or famous place by that name",
+    });
+    this.tkFrom = new SearchBox($("tk-from-input"), $("tk-from-list"), net, g, (p) => this.chooseFrom(p), {
+      context: (p) => this.fromNote(p),
+      suggestions: () => this.suggestFrom(),
+    });
+    this.tkTo = new SearchBox($("tk-to-input"), $("tk-to-list"), net, g, (p) => this.chooseTo(p), {
+      context: (p) => this.toNote(p),
+      suggestions: () => this.suggestTo(),
+    });
+    this.renderPopular();
+    $("tk-from").addEventListener("click", () => this.editTicket("from"));
+    $("tk-to").addEventListener("click", () => this.editTicket("to"));
+    for (const id of ["tk-from-input", "tk-to-input"]) {
+      $(id).addEventListener("blur", () => setTimeout(() => !$("tk-edit").contains(document.activeElement) && ($("tk-edit").hidden = true), 180));
+      $(id).addEventListener("keydown", (e) => e.key === "Escape" && (($("tk-edit").hidden = true), $("tk-from").focus()));
+    }
+    $("near-btn").addEventListener("click", () => this.nearMe());
+    $("count").addEventListener("click", (e) => {
+      if (!(e.target as HTMLElement).closest("[data-act=reset]")) return;
+      this.dock.set({ ...ANY });
+      this.setFilters({ ...ANY }, true);
+    });
     this.dock = new Dock(
       this.dockEl,
       (f, settled) => this.setFilters(f, settled),
@@ -62,7 +97,8 @@ export class App {
     );
 
     map.hooks = {
-      onPick: (p) => this.openPlace(p, { push: true }),
+      // looking at the ways into a place: a click picks where you'd start from
+      onPick: (p) => (this.target() && p !== this.target() ? this.setOrigin(p, { push: true }) : this.openPlace(p, { push: true })),
       onPickSight: (i) => this.pickSight(i, false),
       onHover: (p, x, y) => this.hover(p, x, y),
       onBackground: () => this.open && this.closePanel({ push: true }),
@@ -72,16 +108,16 @@ export class App {
     // photos fade in once loaded; broken ones step aside (no inline handlers, CSP-friendly)
     this.panel.addEventListener("load", (e) => (e.target as HTMLElement).tagName === "IMG" && (e.target as HTMLElement).classList.add("in"), true);
     this.panel.addEventListener("error", (e) => (e.target as HTMLElement).tagName === "IMG" && (e.target as HTMLElement).classList.add("broken"), true);
-    $("chip-change").addEventListener("click", () => this.setOrigin(null, { push: true, focusSearch: true }));
+    $("chip-change").addEventListener("click", () => this.startOver());
     const brand = $("brand") as HTMLAnchorElement;
     brand.href = href({});
     brand.addEventListener("click", (e) => {
       if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return; // new tab: let the browser
       e.preventDefault();
-      this.setOrigin(null, { push: true });
+      this.startOver(false);
     });
     document.addEventListener("keydown", (e) => {
-      if (e.key !== "Escape" || document.activeElement?.id === "origin-input") return;
+      if (e.key !== "Escape" || (document.activeElement as HTMLElement | null)?.matches("input")) return;
       if (this.open?.kind === "train") this.back();
       else if (this.open) this.closePanel({ push: true });
     });
@@ -120,6 +156,7 @@ export class App {
 
   /** Re-measure the UI around the map (after first paint, fonts, resizes); on the landing view, refit India. */
   settle() {
+    this.map.resize(); // the window changed: know the new size before framing anything
     this.layout();
     if (!this.origin && !this.open) this.map.fitIndia(0);
   }
@@ -127,29 +164,20 @@ export class App {
   // ---------------------------------------------------------------- where you start
 
   setOrigin(p: Place | null, o: { push: boolean; fly?: boolean; animate?: boolean; focusSearch?: boolean }) {
-    const keep = this.open?.kind === "place" ? this.open.place : null;
+    // the place you were looking at stays open: now with the trains from where you start
+    const keep = this.destination();
     this.origin = p;
-    this.dests = p ? departures(this.net, p) : new Map();
     if (p) {
-      this.hero.classList.add("leaving");
-      setTimeout(() => this.origin && (this.hero.hidden = true), 450);
-      $("chip-name").textContent = titleOf(p, null);
-      $("chip-script").textContent = scriptLine(p);
-      this.chip.hidden = false;
-      this.dockEl.hidden = false;
+      this.remember(p);
       this.pin.hidden = true;
-      requestAnimationFrame(() => (this.pin.hidden = false)); // restart the drop animation
+      requestAnimationFrame(() => (this.pin.hidden = !this.origin)); // restart the drop animation
       this.hint();
     } else {
-      this.chip.hidden = true;
-      this.dockEl.hidden = true;
       this.pin.hidden = true;
-      this.hero.hidden = false;
-      requestAnimationFrame(() => this.hero.classList.remove("leaving"));
     }
     this.refresh(o.animate ?? true);
     // decide now, not in the next frame: a caller (a shared link) may open a place right after this
-    const reopen = !!(p && keep && keep !== p && this.dests.has(keep));
+    const reopen = !!(keep && keep !== p);
     if (!reopen && this.open) this.closePanel({ push: false, refit: false });
     requestAnimationFrame(() => {
       this.layout();
@@ -163,6 +191,209 @@ export class App {
     this.describe();
   }
 
+  /** Back to the start: nothing picked, the landing page. */
+  private startOver(focus = true) {
+    if (this.open) this.closePanel({ push: false, refit: false });
+    this.setOrigin(null, { push: true, focusSearch: focus && !narrow() });
+  }
+
+  private chooseFrom(p: Place) {
+    $("tk-edit").hidden = true;
+    if (p === this.destination()) {
+      // "from" the place you were looking at: explore from there instead
+      this.closePanel({ push: false, refit: false });
+    }
+    this.setOrigin(p, { push: true });
+  }
+
+  private chooseTo(p: Place) {
+    $("tk-edit").hidden = true;
+    if (p === this.origin) {
+      this.toast(`That's where you start. Pick somewhere to go.`);
+      return;
+    }
+    this.openPlace(p, { push: true });
+  }
+
+  /** Open the ticket's search for one end. */
+  private editTicket(end: "from" | "to") {
+    const box = $("tk-edit");
+    box.hidden = false;
+    $("tk-from-input").hidden = end !== "from";
+    $("tk-to-input").hidden = end !== "to";
+    (end === "from" ? this.tkFrom : this.tkTo).focus();
+    $(end === "from" ? "tk-from-input" : "tk-to-input").dispatchEvent(new Event("focus"));
+  }
+
+  /** The place whose ways in the map shows: open, with no start picked. */
+  private target(): Place | null {
+    return !this.origin && this.open && this.open.kind !== "list" ? this.open.place : null;
+  }
+
+  /** The place you're looking at, with or without a start. */
+  private destination(): Place | null {
+    return this.open && this.open.kind !== "list" ? this.open.place : null;
+  }
+
+  private departuresFrom(p: Place) {
+    let d = this.depCache.get(p);
+    if (!d) this.depCache.set(p, (d = departures(this.net, p)));
+    if (this.depCache.size > 6) this.depCache.delete(this.depCache.keys().next().value!);
+    return d;
+  }
+
+  private arrivalsTo(p: Place) {
+    let d = this.arrCache.get(p);
+    if (!d) this.arrCache.set(p, (d = arrivals(this.net, p)));
+    if (this.arrCache.size > 6) this.arrCache.delete(this.arrCache.keys().next().value!);
+    return d;
+  }
+
+  private name(p: Place) {
+    return titleOf(p, this.guides.get(p));
+  }
+
+  /** In a "from" field: how you'd get from there to where you're looking. */
+  private fromNote(p: Place) {
+    const dest = this.destination();
+    const d = dest && this.arrivalsTo(dest).get(p);
+    if (!d) return null;
+    return { note: `${fmtMins(d.fastest)} to ${this.name(dest!)} · ${plural(new Set(d.legs.map((l) => l.train)).size, "direct train")}`, boost: 10 };
+  }
+
+  /** In a "to" field: how long it takes from where you start. */
+  private toNote(p: Place) {
+    const d = this.origin && this.departuresFrom(this.origin).get(p);
+    if (!d) return null;
+    return { note: `${fmtMins(d.fastest)} from ${titleOf(this.origin!, null)}`, boost: 10 };
+  }
+
+  private suggestFrom(): Place[] {
+    const dest = this.destination();
+    if (dest) return this.fromPlaces(dest).slice(0, 6).map((d) => d.place);
+    const last = this.lastOrigin();
+    return [...(last ? [last] : []), ...POPULAR.map((id) => this.net.places.get(id)!).filter((p) => p && p !== last)].slice(0, 6);
+  }
+
+  private suggestTo(): Place[] {
+    if (!this.origin) return [];
+    return rankPlaces(this.guides, this.reach).slice(0, 6).map((c) => c.place);
+  }
+
+  /** Places with a direct train to `dest`: cities first, then the rest, each quickest first. */
+  private fromPlaces(dest: Place) {
+    return [...this.arrivalsTo(dest).values()].sort((a, b) => Number(b.place.isCity) - Number(a.place.isCity) || a.fastest - b.fastest);
+  }
+
+  private getHere(dest: Place, showAll: boolean, choosing = false): GetHere | null {
+    if (this.origin && this.dests.has(dest) && !choosing) return null; // the trains are right there
+    const all = this.fromPlaces(dest);
+    const home = this.guides.get(dest)?.title;
+    const items = (showAll ? all : all.slice(0, 8)).map((d) => {
+      const gv = this.guides.get(d.place);
+      return {
+        id: d.place.id,
+        title: this.name(d.place),
+        state: d.place.state,
+        mins: d.fastest,
+        trains: new Set(d.legs.map((l) => l.train)).size,
+        href: href({ origin: this.slugs.of(d.place), place: this.slugs.of(dest) }),
+        photo: gv && gv.title !== home ? gv.icon : null,
+      };
+    });
+    return { items, total: all.length, showAll, blockedFrom: this.origin ? titleOf(this.origin, null) : null, choosing };
+  }
+
+  private remember(p: Place) {
+    try {
+      localStorage.setItem(LAST, p.id);
+    } catch {
+      /* private browsing: fine */
+    }
+    this.renderPopular();
+  }
+
+  private lastOrigin(): Place | null {
+    try {
+      const id = localStorage.getItem(LAST);
+      return (id && this.net.places.get(id)) || null;
+    } catch {
+      return null;
+    }
+  }
+
+  private renderPopular() {
+    const last = this.lastOrigin();
+    this.search.renderPopular((p) => href({ origin: this.slugs.of(p) }), last && { place: last, label: "Where you started last time" });
+  }
+
+  /** Start from the station nearest you (the position never leaves this device). */
+  private nearMe() {
+    if (!navigator.geolocation) {
+      this.toast("This browser can't share your location");
+      return;
+    }
+    const btn = $("near-btn");
+    btn.classList.add("busy");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        btn.classList.remove("busy");
+        const { latitude: lat, longitude: lon } = pos.coords;
+        const km = (p: Place) => {
+          const dy = (p.lat! - lat) * 111;
+          const dx = (p.lon! - lon) * 111 * Math.cos((lat * Math.PI) / 180);
+          return Math.hypot(dx, dy);
+        };
+        const near = [...this.net.places.values()].filter((p) => p.halts && p.lat !== null).map((p) => ({ p, d: km(p) }));
+        // within 25 km, the station most trains stop at; otherwise simply the closest
+        const close = near.filter((x) => x.d < 25).sort((a, b) => b.p.halts - a.p.halts);
+        const pick = close[0] ?? near.sort((a, b) => a.d - b.d)[0];
+        if (!pick || pick.d > 150) {
+          this.toast("No station within 150 km of you in this timetable");
+          return;
+        }
+        this.toast(`Starting from ${this.name(pick.p)}, ${Math.round(pick.d)} km away`);
+        this.chooseFrom(pick.p);
+      },
+      () => {
+        btn.classList.remove("busy");
+        this.toast("Couldn't get your location. Type your station instead.");
+      },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 },
+    );
+  }
+
+  /** What's on screen around the map: the landing page, or the ticket once something's picked. */
+  private syncChrome() {
+    const dest = this.destination();
+    const active = !!(this.origin || dest);
+    this.showHero(!active);
+    this.chip.hidden = !active;
+    this.dockEl.hidden = !this.origin;
+    const fromName = $("chip-name");
+    fromName.textContent = this.origin ? titleOf(this.origin, null) : "Anywhere";
+    fromName.classList.toggle("open", !this.origin);
+    $("chip-script").textContent = this.origin ? scriptLine(this.origin) : "";
+    const toName = $("tk-to-name");
+    toName.textContent = dest ? this.name(dest) : "Anywhere";
+    toName.classList.toggle("open", !dest);
+    $("tk-from").setAttribute("aria-label", this.origin ? `From ${titleOf(this.origin, null)}. Change where you start` : "Choose where you start");
+    $("tk-to").setAttribute("aria-label", dest ? `To ${this.name(dest)}. Change where you're going` : "Choose where to go");
+    document.body.classList.toggle("to-mode", !!this.target());
+  }
+
+  private showHero(on: boolean) {
+    if (on === this.heroShown) return;
+    this.heroShown = on;
+    if (on) {
+      this.hero.hidden = false;
+      requestAnimationFrame(() => this.hero.classList.remove("leaving"));
+    } else {
+      this.hero.classList.add("leaving");
+      setTimeout(() => !this.heroShown && (this.hero.hidden = true), 450);
+    }
+  }
+
   private setFilters(f: Filters, settled: boolean) {
     this.filters = f;
     this.refresh(false);
@@ -172,23 +403,35 @@ export class App {
     }
   }
 
-  /** Recompute what's reachable under the filters and hand it to the map. */
-  private refresh(animate: boolean) {
+  /**
+   * Recompute what the map shows: the places reachable from where you start (under the filters),
+   * or, with only a destination open, the places with a direct train to it.
+   */
+  private refresh(animate: boolean, render = true) {
     const now = istWeekMinute();
-    const { trains, byPlace } = reachable(this.dests, this.filters, now);
+    const target = this.target();
+    const hub = this.origin ?? target;
+    this.dests = this.origin ? this.departuresFrom(this.origin) : target ? this.arrivalsTo(target) : new Map();
+    const { trains, byPlace } = reachable(this.dests, this.origin ? this.filters : ANY, now);
     this.reach = byPlace;
     const reach = [...byPlace].map(([place, legs]) => ({ place, mins: Math.min(...legs.map((l) => l.dur)) }));
-    this.map.setOrigin(this.origin, trains, reach, animate);
-    this.map.setCandidates(rankPlaces(this.guides, this.origin ? byPlace : null));
+    this.map.setOrigin(hub, trains, reach, animate, !this.origin && !!target);
+    this.map.setCandidates(rankPlaces(this.guides, hub ? byPlace : null));
     const withGuides = reach.filter((r) => this.guides.get(r.place)?.icon).length;
-    $("count").innerHTML = !this.origin
-      ? ""
-      : !this.dests.size
-        ? "No trains leave from here in the 2017 timetable."
-        : trains.size
-          ? `<b>${reach.length.toLocaleString("en-IN")}</b> places · <b>${trains.size}</b> trains${withGuides ? ` · ${withGuides} with guides` : ""}`
-          : "No trains match. Try a wider window.";
-    if (this.open?.kind === "place" || this.open?.kind === "list") this.renderPanel(false);
+    const year = this.net.meta.snapshot.slice(0, 4);
+    $("count").innerHTML = target
+      ? reach.length
+        ? `<b>${reach.length.toLocaleString("en-IN")}</b> places with a direct train here`
+        : `No direct train comes here in the ${year} timetable`
+      : !this.origin
+        ? ""
+        : !this.dests.size
+          ? `No trains leave from here in the ${year} timetable`
+          : trains.size
+            ? `<b>${reach.length.toLocaleString("en-IN")}</b> places · <b>${trains.size}</b> trains${withGuides ? ` · ${withGuides} with guides` : ""}`
+            : `No train matches these filters. <button type="button" data-act="reset">Show all</button>`;
+    this.syncChrome();
+    if (render && (this.open?.kind === "place" || this.open?.kind === "list")) this.renderPanel(false);
   }
 
   /** The route geometry arrived: redraw lines along the track. */
@@ -201,14 +444,19 @@ export class App {
 
   openPlace(p: Place, o: { push: boolean }) {
     if (p === this.origin) return;
+    if (!this.open) this.returnFocus = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
     this.tip.hidden = true;
+    const before = this.target();
     this.open = { kind: "place", place: p, showAll: false, sight: -1, legs: [] };
     this.map.select(p);
     this.map.selectTrain(null);
     this.map.showSights([]);
+    // no start picked: the map turns to show every way into this place
+    if (!this.origin) this.refresh(before !== p, false);
     this.transition(() => this.renderPanel(true));
     this.setPanelOpen(true);
-    this.map.focusOn(p);
+    if (this.origin) this.map.focusOn(p);
+    else requestAnimationFrame(() => this.map.fitCore());
     if (o.push) this.sync("push");
     this.describe();
   }
@@ -255,21 +503,29 @@ export class App {
 
   closePanel(o: { push: boolean; refit?: boolean }) {
     const was = this.open;
+    const wasTarget = this.target();
     this.open = null;
     this.setPanelOpen(false);
     this.dock.setListOpen(false);
     this.map.select(null);
     this.map.selectTrain(null);
     this.map.showSights([]);
+    if (wasTarget) this.refresh(false); // leaving the ways into a place: back to the whole country
+    else this.syncChrome();
     if (o.refit !== false && was && was.kind !== "list") {
       if (this.origin) this.map.fitRoutes();
       else this.map.fitIndia();
     }
+    // keyboard users land back where they were
+    const back = this.returnFocus;
+    this.returnFocus = null;
+    if (back?.isConnected && back.offsetParent !== null) back.focus({ preventScroll: true });
     if (o.push) this.sync("push");
     this.describe();
   }
 
   private setPanelOpen(on: boolean) {
+    if (!on) document.body.classList.remove("sheet-full");
     this.panel.hidden = !on;
     document.body.classList.toggle("panel-open", on);
     this.layout();
@@ -327,8 +583,17 @@ export class App {
           return { title: t, href: p ? href({ origin: this.origin ? this.slugs.of(this.origin) : undefined, place: this.slugs.of(p) }) : null, photo: ix?.icon ?? null };
         }),
         newer: this.origin ? newerBetween(this.net, this.origin, o.place) : [],
+        getHere: this.getHere(o.place, !!o.allFrom, !!o.choosing),
       });
+      const gh = this.panel.querySelector<HTMLInputElement>("#gh-input");
+      if (gh) {
+        new SearchBox(gh, this.panel.querySelector<HTMLUListElement>("#gh-list")!, this.net, () => this.guides, (p) => this.chooseFrom(p), {
+          context: (p) => this.fromNote(p),
+          suggestions: () => this.suggestFrom(),
+        });
+      }
     }
+    this.addGrip();
     const s = scroller();
     if (s && !fresh) s.scrollTop = keep;
     else if (s && scrollTo) s.scrollTop = scrollTo;
@@ -338,6 +603,54 @@ export class App {
       if (b) s.scrollTop = b.getBoundingClientRect().top - s.getBoundingClientRect().top - s.clientHeight / 3;
     }
     if (fresh) this.panel.querySelector<HTMLElement>("#panel-title")?.focus({ preventScroll: true });
+  }
+
+  /**
+   * The bottom sheet's handle, on phones: drag it down to close, up (or tap) to see more. It's a
+   * real control, not a decoration, so the grip means what it looks like it means.
+   */
+  private addGrip() {
+    const grip = document.createElement("button");
+    grip.type = "button";
+    grip.className = "sheet-grip";
+    grip.setAttribute("aria-label", document.body.classList.contains("sheet-full") ? "Show less" : "Show more");
+    this.panel.prepend(grip);
+    let startY = 0;
+    let dy = 0;
+    let dragging = false;
+    grip.addEventListener("pointerdown", (e) => {
+      if (!narrow()) return;
+      dragging = true;
+      startY = e.clientY;
+      dy = 0;
+      grip.setPointerCapture(e.pointerId);
+      this.panel.style.transition = "none";
+    });
+    grip.addEventListener("pointermove", (e) => {
+      if (!dragging) return;
+      dy = e.clientY - startY;
+      this.panel.style.transform = `translateY(${Math.max(-40, dy)}px)`;
+    });
+    const end = () => {
+      if (!dragging) return;
+      dragging = false;
+      this.panel.style.transition = "";
+      this.panel.style.transform = "";
+      if (dy > 90) this.closePanel({ push: true });
+      else if (dy < -30) this.expandSheet(true);
+      else if (Math.abs(dy) < 6) this.expandSheet(!document.body.classList.contains("sheet-full"));
+    };
+    grip.addEventListener("pointerup", end);
+    grip.addEventListener("pointercancel", end);
+    grip.addEventListener("click", (e) => {
+      if (e.detail === 0) this.expandSheet(!document.body.classList.contains("sheet-full")); // keyboard
+    });
+  }
+
+  private expandSheet(on: boolean) {
+    document.body.classList.toggle("sheet-full", on);
+    this.panel.querySelector(".sheet-grip")?.setAttribute("aria-label", on ? "Show less" : "Show more");
+    this.layout();
   }
 
   private listItems(withGuides: boolean): ListItem[] {
@@ -380,6 +693,14 @@ export class App {
       if (p) this.openPlace(p, { push: true });
       return;
     }
+    if (act === "from") {
+      // "start from here" in the ways-in list: stay on this place, now with its trains
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+      e.preventDefault();
+      const p = this.net.places.get(el.dataset.id!);
+      if (p) this.chooseFrom(p);
+      return;
+    }
     switch (act) {
       case "close":
         this.closePanel({ push: o.kind !== "list" });
@@ -411,9 +732,20 @@ export class App {
           this.showSights(o.place, -1, true);
         }
         break;
-      case "pick-origin":
-        this.closePanel({ push: true });
-        this.search.focus();
+      case "change-from":
+        if (o.kind === "place") {
+          o.choosing = true;
+          this.renderPanel(false);
+          const gh = this.panel.querySelector<HTMLElement>(".get-here");
+          gh?.scrollIntoView({ block: "start", behavior: reducedMotion() ? "auto" : "smooth" });
+          this.panel.querySelector<HTMLInputElement>("#gh-input")?.focus({ preventScroll: true });
+        }
+        break;
+      case "gh-all":
+        if (o.kind === "place") {
+          o.allFrom = true;
+          this.renderPanel(false);
+        }
         break;
       case "from-here":
         if (o.kind === "place") this.setOrigin(o.place, { push: true });
@@ -473,7 +805,13 @@ export class App {
       return;
     }
     const legs = this.reach.get(p);
-    const line = this.origin && legs?.length ? `${fmtMins(Math.min(...legs.map((l) => l.dur)))} · ${plural(legs.length, "train")}` : p.state || "";
+    const target = this.target();
+    const mins = legs?.length ? fmtMins(Math.min(...legs.map((l) => l.dur))) : "";
+    const line = target && legs?.length
+      ? `${mins} to ${this.name(target)} · click to start here`
+      : this.origin && legs?.length
+        ? `${mins} · ${plural(legs.length, "train")}`
+        : p.state || "";
     this.tip.innerHTML = `<b>${esc(titleOf(p, gv))}</b><span>${esc(line)}</span>`;
     this.tip.hidden = false;
     const r = this.tip.getBoundingClientRect();
@@ -575,7 +913,7 @@ export class App {
     if (o?.kind === "train") title = `${o.leg.train.no} ${o.leg.train.name} · ${fmtTime(o.leg.dep)} · Railgaddi`;
     else if (o?.kind === "place") {
       const name = titleOf(o.place, this.guides.get(o.place));
-      title = from ? `${name} by train from ${from} · Railgaddi` : `${name} by train · Railgaddi`;
+      title = from ? `${name} by train from ${from} · Railgaddi` : `${name} by train: direct from ${plural(this.reach.size, "place")} · Railgaddi`;
     } else if (from) title = `Trains from ${from}: ${plural(this.reach.size, "place")} without changing · Railgaddi`;
     document.title = title;
   }
@@ -590,13 +928,14 @@ export class App {
     this.map.setSafeRects(rects.filter((r) => r.width && r.height));
     const open = !this.panel.hidden;
     if (narrow()) {
-      const top = open ? 56 : !this.origin ? this.hero.getBoundingClientRect().bottom + 4 : this.chip.getBoundingClientRect().bottom + 8;
-      const bottom = open ? window.innerHeight * 0.74 : this.origin ? this.dockEl.getBoundingClientRect().height + 24 : 16;
+      const top = open ? 56 : this.heroShown ? this.hero.getBoundingClientRect().bottom + 4 : this.chip.getBoundingClientRect().bottom + 8;
+      const bottom = open ? this.panel.getBoundingClientRect().height || window.innerHeight * 0.74 : this.origin ? this.dockEl.getBoundingClientRect().height + 24 : 16;
       this.map.setInsets({ top, right: 8, bottom, left: 8 });
     } else {
-      const left = !this.origin ? this.hero.getBoundingClientRect().right + 24 : 24;
+      const left = this.heroShown ? this.hero.getBoundingClientRect().right + 24 : 24;
       const bottom = this.origin && !open ? this.dockEl.getBoundingClientRect().height + 36 : 40;
-      this.map.setInsets({ top: this.origin ? 80 : 60, right: open ? 460 : 40, bottom, left });
+      const top = this.heroShown ? 60 : this.chip.getBoundingClientRect().bottom + 12;
+      this.map.setInsets({ top, right: open ? 460 : 40, bottom, left });
     }
   }
 

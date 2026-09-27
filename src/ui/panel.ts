@@ -49,11 +49,62 @@ export interface PlaceView {
   activeSight: number;
   nearby: { title: string; href: string | null; photo: Photo | null }[];
   newer: NewerTrain[]; // trains between origin and here that we know of but have no times for
+  /** Where you can come from, when no start is picked or the picked one has no direct train. */
+  getHere: GetHere | null;
+}
+
+export interface GetHereItem {
+  id: string;
+  title: string;
+  state: string;
+  mins: number;
+  trains: number;
+  href: string;
+  photo: Photo | null;
+}
+
+export interface GetHere {
+  items: GetHereItem[];
+  total: number;
+  showAll: boolean;
+  blockedFrom: string | null; // the picked start, when it has no direct train here
+  choosing: boolean; // asked to change the start, though it has direct trains
+}
+
+function getHereHtml(g: GetHere, title: string) {
+  const head = g.choosing ? "Where do you start?" : g.blockedFrom ? `No direct train from ${esc(g.blockedFrom)}` : `Get to ${esc(title)} by train`;
+  const lede = g.total
+    ? g.choosing
+      ? `Direct trains come here from ${plural(g.total, "place")}.`
+      : `${g.blockedFrom ? "But direct trains" : "Direct trains"} come from ${plural(g.total, "place")}. Where do you start?`
+    : "No direct train comes here in our timetable.";
+  return `<section class="get-here" aria-labelledby="gh-h">
+    <div class="section-head"><h3 id="gh-h">${head}</h3></div>
+    <p class="gh-lede">${lede}</p>
+    ${g.total ? `<div class="gh-search">
+      <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" /><path d="M13 13l4.5 4.5" /></svg>
+      <input id="gh-input" type="search" enterkeyhint="go" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Your city or station" aria-label="Where do you start?" />
+      <ul class="suggest" id="gh-list" aria-label="Where you could start" hidden></ul>
+    </div>
+    <ol class="dest-list gh-list">${g.items
+      .map(
+        (it) => `<li><a href="${esc(it.href)}" data-act="from" data-id="${esc(it.id)}">
+          ${it.photo ? img(it.photo, `${coverWidth(it.photo, 44, 44)}px`, 120, 500) : `<i class="stop-dot" aria-hidden="true"></i>`}
+          <span class="dl-name"><b>${esc(it.title)}</b><small>${esc(it.state)}</small></span>
+          <span class="dl-time"><b>${fmtMins(it.mins)}</b><small>${plural(it.trains, "train")}</small></span>
+        </a></li>`,
+      )
+      .join("")}</ol>
+    ${!g.showAll && g.total > g.items.length ? `<button class="link-btn show-all" type="button" data-act="gh-all">Show all ${g.total}</button>` : ""}` : ""}
+    ${g.blockedFrom && !g.choosing ? `<button class="link-btn gh-here" type="button" data-act="from-here">Or start from ${esc(title)} and see where it goes</button>` : ""}
+  </section>`;
 }
 
 export function placeHtml(v: PlaceView) {
   const { net, place, gv, origin } = v;
-  const cover = gv?.banner ?? gv?.icon ?? null;
+  // the place's own photo when it's big enough; a Wikivoyage banner is a very wide strip and a
+  // squarer crop of it can lose the subject (Goa's becomes a patch of blue)
+  const cover = gv?.icon && (gv.icon.w ?? 0) >= 800 ? gv.icon : gv?.banner ?? gv?.icon ?? null;
   const used: Photo[] = cover ? [cover] : [];
   const codes = place.stations.map((s) => net.stations[s].code);
   const title = titleOf(place, gv);
@@ -71,7 +122,8 @@ export function placeHtml(v: PlaceView) {
     const next = legs.find(v.passes) ?? legs[0];
     const when = dayWord(v.now, waitFor(next, v.now));
     ticket = `<div class="ticket">
-      <div class="ticket-route"><span>${esc(titleOf(origin, null))}</span><i>→</i><span>${esc(title)}</span></div>
+      <div class="ticket-route"><span>${esc(titleOf(origin, null))}</span><i>→</i><span>${esc(title)}</span>
+        <button class="tk-change" type="button" data-act="change-from">Change start</button></div>
       <dl class="ticket-facts">
         <div><dt>Fastest</dt><dd>${fmtMins(fastest)}</dd></div>
         <div><dt>Trains</dt><dd>${legs.length}</dd></div>
@@ -137,12 +189,6 @@ export function placeHtml(v: PlaceView) {
         .join("")}
       ${!v.showAllTrains && shown.length < legs.length ? `<button class="link-btn show-all" type="button" data-act="all-trains">Show all ${legs.length} trains</button>` : ""}
     </section>`;
-  } else if (origin) {
-    trains = `<div class="cta"><p>No train in our timetable goes from ${esc(titleOf(origin, null))} to ${esc(title)} without a change.</p>
-      <button type="button" data-act="from-here">Start from ${esc(title)} instead</button></div>`;
-  } else {
-    trains = `<div class="cta"><p>Where would you start from? Pick your station to see every train that comes here.</p>
-      <button type="button" data-act="pick-origin">Choose a starting point</button></div>`;
   }
   if (origin && v.newer.length) {
     trains += `<section class="newer" aria-labelledby="newer-h">
@@ -185,6 +231,7 @@ export function placeHtml(v: PlaceView) {
   return `<div class="panel-scroll">
     ${coverHtml}
     ${ticket}
+    ${v.getHere ? getHereHtml(v.getHere, title) : ""}
     ${intro}
     ${sights}
     ${trains}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { daysLabel, shiftDays } from "../src/core/format";
-import { departures, legPasses, newerBetween, reachable, waitFor, ANY, type Leg } from "../src/core/trips";
+import { arrivals, departures, legPasses, newerBetween, reachable, waitFor, ANY, type Leg } from "../src/core/trips";
 import { net, place } from "./load";
 
 describe("departures", () => {
@@ -87,5 +87,24 @@ describe("newer trains", () => {
     expect(newerBetween(net, a, b)).toContain(vb);
     expect(newerBetween(net, b, a)).toContain(vb);
     for (const n of net.newer) expect(net.trains.some((t) => n.numbers.split("/").includes(t.no))).toBe(false);
+  });
+});
+
+describe("arrivals", () => {
+  it("mirrors departures: every place with a train to Mysuru has Mysuru among its departures", () => {
+    const mysuru = place("mysuru");
+    const into = arrivals(net, mysuru);
+    expect(into.size).toBeGreaterThan(20);
+    expect(into.has(place("bengaluru"))).toBe(true);
+    for (const [from, d] of into) {
+      expect(from).not.toBe(mysuru);
+      const out = departures(net, from).get(mysuru);
+      expect(out, from.name).toBeDefined();
+      expect(out!.fastest).toBe(d.fastest);
+      for (const l of d.legs) {
+        expect(mysuru.stations).toContain(l.train.st[l.to]);
+        expect(from.stations).toContain(l.train.st[l.from]);
+      }
+    }
   });
 });

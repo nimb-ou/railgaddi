@@ -18,7 +18,7 @@ export function searchPlaces(net: Network, guides: Map<Place, GuideView>, q: str
     if (codes.includes(query)) score = 5;
     else if (name.startsWith(query)) score = 4;
     else if (p.aka.some((a) => fold(a).startsWith(query))) score = 3.5;
-    else if (gv && fold(gv.title).startsWith(query)) score = 3.2;
+    else if (gv && fold(gv.title).startsWith(query)) score = 3.2 + Math.min(1, gv.entry.appeal / 40); // "Hampi": famous places first
     else if (name.split(/[\s(-]+/).some((w) => w.startsWith(query))) score = 3;
     else if (p.hi.startsWith(q.trim()) || p.local.startsWith(q.trim())) score = 3;
     else if (name.includes(query)) score = 2;
