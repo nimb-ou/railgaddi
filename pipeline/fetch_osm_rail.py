@@ -22,26 +22,30 @@ OUT.mkdir(parents=True, exist_ok=True)
 UA = "Railgaddi/1.0 (https://github.com/nimb-ou/railgaddi; non-commercial train-discovery site)"
 MIRRORS = ["https://overpass.private.coffee/api/interpreter", "https://overpass-api.de/api/interpreter",
            "https://overpass.kumi.systems/api/interpreter"]
-STEP = 4
 # running lines only: no yards, sidings or spurs; metre and narrow gauge included
 QUERY = '[out:json][timeout:170];way["railway"~"^(rail|narrow_gauge)$"]["service"!~"."]({s},{w},{n},{e});out skel geom qt;'
 
-tiles = set()
+STEP = 2  # 2°×2° boxes: small enough for busy public servers to answer in time
+
+# what's cached already: "s_w.json" (older 4° files) or "s_w_step.json"
+covered = []
+for f in OUT.glob("*.json"):
+    parts = [int(x) for x in f.stem.split("_")]
+    covered.append((parts[0], parts[1], parts[2] if len(parts) > 2 else 4))
+
+cells = set()
 for r in read_table("stations"):
     if r["lat"]:
         lat, lon = float(r["lat"]), float(r["lon"])
-        tiles.add((int(lat // STEP) * STEP, int(lon // STEP) * STEP))
+        cells.add((int(lat // STEP) * STEP, int(lon // STEP) * STEP))
 
 
 def have(s, w):
-    if (OUT / f"{s}_{w}.json").exists() or (OUT / f"{s}_{w}_{STEP}.json").exists():
-        return True
-    half = STEP // 2
-    return all((OUT / f"{s + a}_{w + b}_{half}.json").exists() for a in (0, half) for b in (0, half))
+    return any(cs <= s and s + STEP <= cs + step and cw <= w and w + STEP <= cw + step for cs, cw, step in covered)
 
 
-todo = sorted(t for t in tiles if not have(*t))
-print(f"{len(tiles)} tiles with stations; {len(todo)} to fetch")
+todo = sorted(c for c in cells if not have(*c))
+print(f"{len(cells)} boxes with stations; {len(todo)} to fetch")
 
 
 def fetch(s, w, step):
@@ -66,12 +70,6 @@ def fetch(s, w, step):
 
 
 for s, w in todo:
-    if fetch(s, w, STEP):
-        continue
-    # a dense tile the servers can't answer in time: four smaller ones
-    half = STEP // 2
-    for ds in (0, half):
-        for dw in (0, half):
-            if not (OUT / f"{s + ds}_{w + dw}_{half}.json").exists() and not fetch(s + ds, w + dw, half):
-                print(f"  {s + ds},{w + dw} ({half}°): giving up for now (run again later)")
+    if not fetch(s, w, STEP):
+        print(f"  {s},{w}: giving up for now (run again later)")
 print("done:", len(list(OUT.glob("*.json"))), "tiles cached")

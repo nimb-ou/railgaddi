@@ -24,6 +24,9 @@ describe("place guides", () => {
   it("finds places by guide name, local script and without diacritics", () => {
     expect(guides.get(searchPlaces(net, guides, "hampi")[0])?.title).toBe("Hampi"); // via Hosapete
     expect(searchPlaces(net, guides, "mysuru")).toContain(place("mysuru"));
+    // a famous place outranks a small station that merely starts with the same letters
+    const ham = searchPlaces(net, guides, "hamp"); // ("ham" is a station code: exact codes win)
+    expect(guides.get(ham[0])?.title).toBe("Hampi");
     expect(searchPlaces(net, guides, "मैसूरु")).toContain(place("mysuru"));
   });
 
