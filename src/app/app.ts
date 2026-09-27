@@ -1,11 +1,11 @@
 // The controller: owns what's picked (where you start, the open place or train, the filters),
 // turns that into map and panel updates, and keeps the address bar in step.
-import { fmtMins, fmtTime, istNow, plural } from "../core/format";
+import { fmtMins, fmtTime, istWeekMinute, plural } from "../core/format";
 import type { Network, Place } from "../core/network";
 import type { ArticleDetail, GuideView, Photo, PlaceDetails } from "../core/places";
 import { rankPlaces } from "../core/rank";
 import { titleOf, type Slugs } from "../core/slugs";
-import { ANY, bySoonest, departures, legPasses, reachable, type Destination, type Filters, type Leg } from "../core/trips";
+import { ANY, bySoonest, departures, legPasses, newerBetween, reachable, type Destination, type Filters, type Leg } from "../core/trips";
 import type { RailMap, SightPin } from "../map/map";
 import { Dock } from "../ui/dock";
 import { listHtml, type ListItem } from "../ui/list";
@@ -174,7 +174,7 @@ export class App {
 
   /** Recompute what's reachable under the filters and hand it to the map. */
   private refresh(animate: boolean) {
-    const now = istNow();
+    const now = istWeekMinute();
     const { trains, byPlace } = reachable(this.dests, this.filters, now);
     this.reach = byPlace;
     const reach = [...byPlace].map(([place, legs]) => ({ place, mins: Math.min(...legs.map((l) => l.dur)) }));
@@ -305,7 +305,7 @@ export class App {
       this.panel.dataset.view = "list";
       this.panel.innerHTML = listHtml(titleOf(this.origin!, null), this.listItems(o.withGuides), o.showAll, o.withGuides);
     } else {
-      const now = istNow();
+      const now = istWeekMinute();
       const gv = this.guides.get(o.place) ?? null;
       const legs = this.dests.get(o.place)?.legs ?? [];
       o.legs = bySoonest(legs, now); // the panel numbers trains in this order
@@ -326,6 +326,7 @@ export class App {
           const ix = p ? this.guides.get(p) : undefined;
           return { title: t, href: p ? href({ origin: this.origin ? this.slugs.of(this.origin) : undefined, place: this.slugs.of(p) }) : null, photo: ix?.icon ?? null };
         }),
+        newer: this.origin ? newerBetween(this.net, this.origin, o.place) : [],
       });
     }
     const s = scroller();

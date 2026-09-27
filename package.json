@@ -39,7 +39,7 @@
     "topojson-client": "^3.1.0"
   },
   "description": "Pick your station and see every place in India a train can take you without changing.",
-  "license": "MIT",
+  "license": "UNLICENSED",
   "engines": {
     "node": ">=20"
   }

@@ -4,9 +4,15 @@ Railgaddi is a static site. Everything a visitor needs is a set of files built a
 can sit on any CDN, scale to any traffic for free, and keep working offline.
 
 ```
-raw sources ──pipeline/ (Python)──▶ data/ ──vite build──▶ dist/assets (hashed) ──▶ CDN ──▶ browser
-                                        └──scripts/prerender.ts──▶ dist/**/index.html, sitemap.xml
+sources ──importers──▶ db/ (CSV, reviewed) ──build_network.py──▶ data/ ──vite build──▶ dist/ ──▶ CDN ──▶ browser
+                                                                   └──prerender.ts──▶ dist/**/index.html, sitemap.xml
 ```
+
+`db/` is Railgaddi's own timetable database: plain CSV, one fact per row, each with its source
+(see [db/README.md](db/README.md) and [SOURCES.md](SOURCES.md)). Importers (`pipeline/import_*.py`)
+bring sources into it; `build_network.py` validates it and writes the binary files the site loads.
+The build needs nothing but `db/`, so it runs in CI and gives the same bytes every time
+(`--check` fails the build if `data/` has drifted). The site never calls an outside API.
 
 ## In the browser
 
@@ -16,7 +22,7 @@ real track.
 
 | File | Raw | Brotli | When |
 |---|---|---|---|
-| `meta.json`: stations, cities, train names | 741 kB | 179 kB | first paint |
+| `meta.json`: stations, cities, train names, newer trains | 791 kB | 191 kB | first paint |
 | `timetable.bin`: every halt of every train | 1.1 MB | 296 kB | first paint |
 | `places/index.json`: which place has a guide, its photos | 373 kB | 76 kB | first paint |
 | `paths.bin`: stations passed between halts | 763 kB | 80 kB | after first paint |
@@ -58,11 +64,11 @@ with the same name keeps the plain one. Back and forward restore each view.
 
 Written by `pipeline/build_network.py`, read by `src/core/network.ts`. All integers little-endian.
 
-### `timetable.bin`: "RGTT" version 2
+### `timetable.bin`: "RGTT" version 3
 
 ```
 char[4]  "RGTT"
-u32      version = 2
+u32      version = 3
 u32      T  trains
 u32      H  halts (all trains)
 u32[T]   first halt of each train (index into the halt columns)
@@ -71,7 +77,11 @@ u16[H]   arrival delta     first halt: unused; else minutes after the previous d
 u16[H]   departure delta   minutes after this halt's arrival (first halt: absolute, from 00:00)
 u16[H]   distance delta    official km since the previous halt (first halt: km from the origin)
 u8[T]    train type index (into meta.types)
+u8[T]    running days: days the train leaves its origin, bit 0 = Monday … bit 6 = Sunday; 0 = unknown
 ```
+
+Running days shift by one for each midnight a train passes before a halt, so "next train" and the
+"leaving in 2 h" filter check the day the train actually leaves *your* station.
 
 Deltas are taken mod 2¹⁶ and decoded as running sums, so times run past midnight across days
 (minute 1,500 is 01:00 on day 2). The last halt has no departure. The pipeline decodes its own
@@ -107,6 +117,11 @@ linked text. The app boots on each exactly as on `/`.
 ## Quality gates
 
 - `npm run typecheck`: strict TypeScript across the app, scripts and tests.
+- `python3 pipeline/build_network.py --check`: every row of `db/` makes sense (known stations,
+  times running forward, a departure at the first halt and an arrival at the last) and `data/`
+  is exactly what `db/` builds.
 - `npm test`: the timetable decodes and runs forward in time at every halt, trips are sane,
-  every place has a unique address that leads back to it, shard hashing matches Python.
-- CI runs both plus a full build on every pull request; `main` deploys only if they pass.
+  running days shift correctly past midnight, every place has a unique address that leads back
+  to it, shard hashing matches Python.
+- CI runs all of these plus a full build on every pull request; `main` deploys only if they pass.
+- Data refreshes arrive as pull requests (`data-refresh.yml`), never straight to the live site.

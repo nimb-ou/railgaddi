@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Live running status
+    url: https://enquiry.indianrail.gov.in/mntes/
+    about: Railgaddi shows the timetable, not where a train is right now. NTES has live status.

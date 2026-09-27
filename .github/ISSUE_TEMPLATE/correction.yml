@@ -1,0 +1,43 @@
+name: Timetable correction
+description: A train's times, stops, running days or name are wrong, or it no longer runs.
+title: "Train "
+labels: ["data"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping keep Railgaddi right. Corrections are checked and then added to the
+        database in `db/` (see db/README.md), so they last through every future update.
+  - type: input
+    id: train
+    attributes:
+      label: Train
+      description: Number and name
+      placeholder: 12007 Chennai – Mysuru Shatabdi Express
+    validations:
+      required: true
+  - type: dropdown
+    id: what
+    attributes:
+      label: What's wrong?
+      options:
+        - Times
+        - Running days
+        - Stops (missing or extra)
+        - Name or number
+        - It no longer runs
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: What should it say?
+      placeholder: "Leaves Chennai Central at 05:50, not 06:00. Runs every day except Wednesday."
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: How do you know?
+      description: A link to NTES or the official timetable, a photo of the station board, or "I travel on it".

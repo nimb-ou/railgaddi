@@ -52,6 +52,7 @@ test/                  vitest
 | What | Source | Licence |
 |---|---|---|
 | Timetable (halts, times, distances) | Indian Railways timetable on [data.gov.in](https://www.data.gov.in/catalog/indian-railways-train-time-table), Dec 2017. 6,746 trains after dropping suburban locals | GODL-India |
+| Running days, trains introduced since 2017 | [Wikipedia](https://en.wikipedia.org) train articles (~1,750), checked against our end stations | CC BY-SA 4.0 |
 | Train names, types, track path between halts | [datameet/railways](https://github.com/datameet/railways), Aug 2016 | CC0 |
 | Station positions, names in Indian scripts | OpenStreetMap via Overpass | ODbL |
 | India outline, state borders | [datameet/maps](https://github.com/datameet/maps) (Survey of India boundary) | CC0 |
@@ -60,29 +61,43 @@ test/                  vitest
 | Photos | Wikimedia Commons, hotlinked; each credit links to the file page with author and licence | per file |
 | Fonts | Archivo, Noto Sans (Indian scripts), self-hosted via Fontsource | SIL OFL 1.1 |
 
-### Rebuilding the data
+### The timetable database
+
+The timetable lives in [`db/`](db/README.md) as plain CSV that anyone can review or correct.
+Nothing on the site calls an outside API. [SOURCES.md](SOURCES.md) explains every source
+considered, and why the site uses the ones it does.
+
+```bash
+python3 pipeline/build_network.py              # db/ -> data/meta.json, timetable.bin, paths.bin
+python3 pipeline/import_wikipedia.py raw       # running days and newer trains (monthly in CI)
+python3 pipeline/import_ogd2017.py raw         # rebuild db/'s base from the 2017 sources (rarely)
+```
+
+### Places and photos
 
 ```bash
 pipeline/fetch_raw.sh raw                      # raw sources into raw/ (git-ignored)
 python3 pipeline/fetch_landmarks.py raw        # Wikidata landmarks (slow: 1 query a minute)
-python3 pipeline/build_network.py raw          # -> data/meta.json, timetable.bin, paths.bin
 python3 pipeline/build_places.py raw           # -> data/places/; fetches what isn't cached
 python3 pipeline/build_places.py raw --quick   # never calls an API; builds from the cache
 ```
 
-Every Wikimedia response is cached in `raw/wv-cache`, so re-runs only ask for what is new.
+Every Wikimedia response is cached in `raw/`, so re-runs only ask for what is new.
 
 ## Known limits
 
 - **The timetable is from December 2017.** Newer trains are missing (every Vande Bharat and
   Amrit Bharat), as are renamed stations such as SMVT Bengaluru, and many times have changed.
   The site says so and links to NTES.
-- **Running days are missing**, so "next 2 h" treats every train as daily.
+- **Running days** are known for ~1,000 trains (from Wikipedia); the rest are treated as daily.
+- **Trains introduced since 2017** (364 known, including every Vande Bharat) are listed between
+  their end stations but aren't on the map, because their halts and times aren't open data.
 - About 160 stations have no known position; their trains list them, but they aren't drawn.
 
 ## Next
 
-1. A current timetable with running days, from a licensed API (e.g. RailRadar), written into the
-   same `data/` formats so nothing in the app changes.
+1. A current timetable: with Indian Railways' permission (drafts in
+   [docs/permission-requests.md](docs/permission-requests.md)), import the official *Trains at a
+   Glance* each year into `db/`.
 2. Trips with one change, and "trains between two places".
 3. A detailed base map when zoomed in to a town.

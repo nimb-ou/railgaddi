@@ -1,6 +1,6 @@
 // "Where can I go from here?" — every place reachable from an origin without changing trains,
 // and which of those rides pass the filters. Pure functions over the Network.
-import type { Network, Place, Train } from "./network";
+import type { Network, NewerTrain, Place, Train } from "./network";
 
 /** One way to ride from the origin to a destination. Indices are halt indices within the train. */
 export interface Leg {
@@ -75,29 +75,49 @@ export function departures(net: Network, origin: Place): Map<Place, Destination>
   return dests;
 }
 
-export function legPasses(leg: Leg, f: Filters, nowMin: number) {
+/**
+ * Minutes from `now` (minutes into the week, Monday 00:00 in India = 0) until this ride next
+ * leaves, honouring the train's running days where they're known.
+ */
+export function waitFor(leg: Leg, now: number) {
+  const minute = now % 1440;
+  const first = (leg.dep - minute + 1440) % 1440;
+  const days = leg.train.days;
+  if (!days || days === 127) return first;
+  const onTheWay = Math.floor(leg.train.dep[leg.from] / 1440); // days since it left its origin
+  const today = Math.floor(now / 1440);
+  for (let n = 0; n < 8; n++) {
+    const wait = first + n * 1440;
+    const weekday = (today + Math.floor((minute + wait) / 1440)) % 7;
+    if ((days >> ((((weekday - onTheWay) % 7) + 7) % 7)) & 1) return wait;
+  }
+  return first;
+}
+
+export function legPasses(leg: Leg, f: Filters, now: number) {
   if (leg.dur > f.within) return false;
-  const d = leg.dep;
   switch (f.leave) {
     case "any":
       return true;
     case "2h":
-      return (d - nowMin + 1440) % 1440 <= 120;
+      return waitFor(leg, now) <= 120;
     case "6h":
-      return (d - nowMin + 1440) % 1440 <= 360;
-    case "overnight":
+      return waitFor(leg, now) <= 360;
+    case "overnight": {
       // sleep on the train: leave in the evening, wake up there
+      const d = leg.dep;
       return (d >= 17 * 60 || d < 60) && leg.dur >= 6 * 60 && leg.dur <= 16 * 60;
+    }
   }
 }
 
 /** Rides that pass the filters, grouped by place, and each train's furthest useful halt. */
-export function reachable(dests: Map<Place, Destination>, f: Filters, nowMin: number) {
+export function reachable(dests: Map<Place, Destination>, f: Filters, now: number) {
   const trains = new Map<Train, { from: number; to: number }>();
   const byPlace = new Map<Place, Leg[]>();
   for (const d of dests.values()) {
     for (const l of d.legs) {
-      if (!legPasses(l, f, nowMin)) continue;
+      if (!legPasses(l, f, now)) continue;
       const a = trains.get(l.train);
       if (!a) trains.set(l.train, { from: l.from, to: l.to });
       else a.to = Math.max(a.to, l.to);
@@ -109,9 +129,20 @@ export function reachable(dests: Map<Place, Destination>, f: Filters, nowMin: nu
   return { trains, byPlace };
 }
 
-/** Soonest first, counting from now (a train at 23:50 comes before one at 00:10 at 23:40). */
-export function bySoonest(legs: Leg[], nowMin: number) {
-  return [...legs].sort((a, b) => ((a.dep - nowMin + 1440) % 1440) - ((b.dep - nowMin + 1440) % 1440));
+/** Soonest first, counting from now and skipping days a train doesn't run. */
+export function bySoonest(legs: Leg[], now: number) {
+  const wait = new Map(legs.map((l) => [l, waitFor(l, now)]));
+  return [...legs].sort((a, b) => wait.get(a)! - wait.get(b)!);
 }
 
 export const fastest = (legs: Leg[]) => Math.min(...legs.map((l) => l.dur));
+
+/** Trains we know run between two places (either way) but have no halts or times for yet. */
+export function newerBetween(net: Network, a: Place, b: Place): NewerTrain[] {
+  return net.newer.filter((n) => {
+    const x = net.placeOf[n.from];
+    const y = net.placeOf[n.to];
+    return (x === a && y === b) || (x === b && y === a);
+  });
+}
+

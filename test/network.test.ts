@@ -34,3 +34,11 @@ describe("timetable", () => {
     for (const s of t.st) expect(net.trainsAt[s]).toContain(t.i);
   });
 });
+
+describe("running days", () => {
+  it("come through for the trains the database has them for", () => {
+    const withDays = net.trains.filter((t) => t.days);
+    expect(withDays.length).toBeGreaterThan(500);
+    for (const t of withDays) expect(t.days).toBeLessThan(128);
+  });
+});

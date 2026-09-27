@@ -1,10 +1,10 @@
 // The side panel (bottom sheet on phones): a place, or one train's stops. Pure templates:
 // the controller (app/app.ts) owns state and handles the [data-act] clicks.
-import { fmtKm, fmtMins, fmtTime, plural } from "../core/format";
-import type { Network, Place } from "../core/network";
+import { dayWord, daysLabel, fmtKm, fmtMins, fmtTime, plural, shiftDays } from "../core/format";
+import type { Network, NewerTrain, Place, Train } from "../core/network";
 import type { ArticleDetail, GuideView, Photo } from "../core/places";
 import { titleOf } from "../core/slugs";
-import { bySoonest, type Leg } from "../core/trips";
+import { bySoonest, waitFor, type Leg } from "../core/trips";
 import { aspect, coverWidth, credit, photoSrcset, photoUrl } from "./photos";
 
 export const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -14,6 +14,11 @@ const ICON = {
   share: `<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M10 13V3M6.5 6.5 10 3l3.5 3.5M4 11v5h12v-5"/></svg>`,
 };
 const wv = (t: string) => `https://en.wikivoyage.org/wiki/${encodeURIComponent(t.replace(/ /g, "_"))}`;
+
+/** Days a train leaves this halt (its origin's running days, moved on by the days it's been travelling). */
+export function daysAt(t: Train, halt: number) {
+  return daysLabel(shiftDays(t.days, Math.floor(t.dep[halt] / 1440)));
+}
 
 export function scriptLine(p: Place) {
   return [p.hi, p.local].filter((s, i, a) => s && a.indexOf(s) === i).join("  ·  ");
@@ -39,10 +44,11 @@ export interface PlaceView {
   origin: Place | null;
   legs: Leg[]; // every train from the origin to this place
   passes: (l: Leg) => boolean;
-  now: number;
+  now: number; // minutes into the week, India time
   showAllTrains: boolean;
   activeSight: number;
   nearby: { title: string; href: string | null; photo: Photo | null }[];
+  newer: NewerTrain[]; // trains between origin and here that we know of but have no times for
 }
 
 export function placeHtml(v: PlaceView) {
@@ -63,6 +69,7 @@ export function placeHtml(v: PlaceView) {
     const fastest = Math.min(...legs.map((l) => l.dur));
     const km = Math.min(...legs.map((l) => l.km));
     const next = legs.find(v.passes) ?? legs[0];
+    const when = dayWord(v.now, waitFor(next, v.now));
     ticket = `<div class="ticket">
       <div class="ticket-route"><span>${esc(titleOf(origin, null))}</span><i>→</i><span>${esc(title)}</span></div>
       <dl class="ticket-facts">
@@ -71,7 +78,7 @@ export function placeHtml(v: PlaceView) {
         <div><dt>Distance</dt><dd>${fmtKm(km)} km</dd></div>
       </dl>
       <button class="ticket-next" type="button" data-act="leg" data-i="${legs.indexOf(next)}">
-        <i class="dot"></i><span>Next train <b>${fmtTime(next.dep)}</b> · ${esc(next.train.name)}</span><span class="go" aria-hidden="true">→</span>
+        <i class="dot"></i><span>Next train <b>${when === "today" ? "" : `${when} `}${fmtTime(next.dep)}</b> · ${esc(next.train.name)}</span><span class="go" aria-hidden="true">→</span>
       </button>
     </div>`;
   }
@@ -123,7 +130,7 @@ export function placeHtml(v: PlaceView) {
           return `<button class="row ${v.passes(l) ? "" : "off"}" type="button" data-act="leg" data-i="${legs.indexOf(l)}">
             <span class="dep">${fmtTime(l.dep)}</span>
             <span><span class="tname">${esc(t.name)}</span>
-              <span class="sub">${esc(t.no)}<span class="tag ${FAST.has(t.type) ? "fast" : ""}">${esc(t.typeLabel)}</span>${multi ? ` · from ${net.stations[t.st[l.from]].code}` : ""}</span></span>
+              <span class="sub">${esc(t.no)}<span class="tag ${FAST.has(t.type) ? "fast" : ""}">${esc(t.typeLabel)}</span>${multi ? ` · from ${net.stations[t.st[l.from]].code}` : ""}${t.days ? ` · <span class="days">${daysAt(t, l.from)}</span>` : ""}</span></span>
             <span class="arr">${fmtTime(t.arr[l.to])}${plusDay ? `<sup>+${plusDay}</sup>` : ""}<small>${fmtMins(l.dur)}</small></span>
           </button>`;
         })
@@ -131,11 +138,25 @@ export function placeHtml(v: PlaceView) {
       ${!v.showAllTrains && shown.length < legs.length ? `<button class="link-btn show-all" type="button" data-act="all-trains">Show all ${legs.length} trains</button>` : ""}
     </section>`;
   } else if (origin) {
-    trains = `<div class="cta"><p>No train goes from ${esc(titleOf(origin, null))} to ${esc(title)} without a change.</p>
+    trains = `<div class="cta"><p>No train in our timetable goes from ${esc(titleOf(origin, null))} to ${esc(title)} without a change.</p>
       <button type="button" data-act="from-here">Start from ${esc(title)} instead</button></div>`;
   } else {
     trains = `<div class="cta"><p>Where would you start from? Pick your station to see every train that comes here.</p>
       <button type="button" data-act="pick-origin">Choose a starting point</button></div>`;
+  }
+  if (origin && v.newer.length) {
+    trains += `<section class="newer" aria-labelledby="newer-h">
+      <div class="section-head"><h3 id="newer-h">Newer trains</h3></div>
+      <ul>${v.newer
+        .map((n) => {
+          const facts = [daysLabel(n.days) || (n.perWeek ? (n.perWeek === 7 ? "Daily" : `${n.perWeek} days a week`) : ""), n.minutes ? fmtMins(n.minutes) : "", n.km ? `${fmtKm(n.km)} km` : ""].filter(Boolean);
+          const page = n.src.startsWith("wikipedia:") ? `https://en.wikipedia.org/wiki/${encodeURIComponent(n.src.slice(10).replace(/ /g, "_"))}` : null;
+          const name = page ? `<a href="${esc(page)}" target="_blank" rel="noopener">${esc(n.name)}</a>` : esc(n.name);
+          return `<li><b>${name}</b><span>${esc(n.numbers)}${facts.length ? ` · ${facts.join(" · ")}` : ""}</span></li>`;
+        })
+        .join("")}</ul>
+      <p>Introduced after our timetable was published, so their stops and times aren't on the map yet. Check <a href="https://enquiry.indianrail.gov.in/mntes/" target="_blank" rel="noopener">NTES</a> for times. Details from Wikipedia (CC BY-SA 4.0).</p>
+    </section>`;
   }
 
   const nearby = v.nearby.length
@@ -188,6 +209,12 @@ function creditsHtml(gv: GuideView | null, used: Photo[]) {
   </footer>`;
 }
 
+/** A prefilled GitHub issue: corrections come in as reviewable reports, like OpenStreetMap notes. */
+function reportUrl(t: Train) {
+  const q = new URLSearchParams({ template: "correction.yml", title: `Train ${t.no}: `, train: `${t.no} ${t.name}` });
+  return `https://github.com/nimb-ou/railgaddi/issues/new?${q}`;
+}
+
 export function trainHtml(net: Network, leg: Leg, destTitle: string) {
   const t = leg.train;
   const items: string[] = [];
@@ -219,8 +246,10 @@ export function trainHtml(net: Network, leg: Leg, destTitle: string) {
     <header class="tr-head">
       <span class="no">${esc(t.no)}</span><span class="tag ${FAST.has(t.type) ? "fast" : ""}">${esc(t.typeLabel)}</span>
       <h2 id="panel-title" tabindex="-1">${esc(t.name)}</h2>
-      <p>${esc(from.name)} <b>${fmtTime(t.dep[leg.from])}</b> → ${esc(to.name)} <b>${fmtTime(t.arr[leg.to])}</b> · ${fmtMins(leg.dur)} · ${fmtKm(leg.km)} km · ${plural(leg.halts, "halt")} on the way.
-      Running days aren't in this 2017 timetable, so check <a href="https://enquiry.indianrail.gov.in/mntes/" target="_blank" rel="noopener">NTES</a> before you plan.</p>
+      <p>${esc(from.name)} <b>${fmtTime(t.dep[leg.from])}</b> → ${esc(to.name)} <b>${fmtTime(t.arr[leg.to])}</b> · ${fmtMins(leg.dur)} · ${fmtKm(leg.km)} km · ${plural(leg.halts, "halt")} on the way.</p>
+      <p class="runs">${t.days ? `Leaves ${esc(from.name)}: <b>${daysAt(t, leg.from)}</b>` : "Running days not known"}</p>
+      <p>Times are from the ${esc(net.meta.snapshot.slice(0, 4))} timetable and may have changed: check <a href="https://enquiry.indianrail.gov.in/mntes/" target="_blank" rel="noopener">NTES</a> before you travel.
+      <a href="${esc(reportUrl(t))}" target="_blank" rel="noopener">Report a mistake</a></p>
     </header>
     <div>
       <div class="stop-head" aria-hidden="true"><span>Arr</span><span>Dep</span><span></span><span>Halt</span></div>

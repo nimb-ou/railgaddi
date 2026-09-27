@@ -9,12 +9,12 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { fmtKm, fmtMins, fmtTime, plural } from "../src/core/format";
+import { daysLabel, fmtKm, fmtMins, fmtTime, plural, shiftDays } from "../src/core/format";
 import { decodeNetwork, type MetaFile, type Place } from "../src/core/network";
 import { buildGuideIndex, type ArticleDetail, type GuideView, type PlacesIndex } from "../src/core/places";
 import { rankPlaces } from "../src/core/rank";
 import { buildSlugs, titleOf } from "../src/core/slugs";
-import { departures, type Leg } from "../src/core/trips";
+import { departures, newerBetween, type Leg } from "../src/core/trips";
 import { photoUrl } from "../src/ui/photos";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -106,16 +106,25 @@ function render(pg: Page) {
   writeFileSync(file, html);
 }
 
-const FOOT = `<p class="static-foot">Railgaddi shows the Indian Railways timetable (data.gov.in, 2017) with travel guides from
-  Wikivoyage and photos from Wikimedia Commons. It needs JavaScript for the map; check
-  <a href="https://enquiry.indianrail.gov.in/mntes/">NTES</a> before you travel.</p>`;
+const FOOT = `<p class="static-foot">Railgaddi shows the Indian Railways timetable (data.gov.in, 2017), with running days and
+  newer trains from Wikipedia, travel guides from Wikivoyage and photos from Wikimedia Commons. It needs JavaScript
+  for the map; check <a href="https://enquiry.indianrail.gov.in/mntes/">NTES</a> before you travel.</p>`;
 
 const byFastest = (a: [Place, { fastest: number }], b: [Place, { fastest: number }]) => a[1].fastest - b[1].fastest;
 const trainRows = (legs: Leg[]) =>
   [...legs]
     .sort((a, b) => a.dep - b.dep)
-    .map((l) => `<tr><td>${esc(l.train.no)}</td><td>${esc(l.train.name)}</td><td>${fmtTime(l.dep)}</td><td>${fmtMins(l.dur)}</td></tr>`)
+    .map((l) => {
+      const days = daysLabel(shiftDays(l.train.days, Math.floor(l.train.dep[l.from] / 1440)));
+      return `<tr><td>${esc(l.train.no)}</td><td>${esc(l.train.name)}</td><td>${fmtTime(l.dep)}</td><td>${fmtMins(l.dur)}</td><td>${days || "–"}</td></tr>`;
+    })
     .join("");
+const newerList = (a: Place, b: Place) => {
+  const list = newerBetween(net, a, b);
+  return list.length
+    ? `<h2>Newer trains</h2><ul>${list.map((n) => `<li>${esc(n.name)} (${esc(n.numbers)})${daysLabel(n.days) ? `: ${daysLabel(n.days)}` : ""}${n.minutes ? `, ${fmtMins(n.minutes)}` : ""}</li>`).join("")}</ul>`
+    : "";
+};
 const sightsList = (d: ArticleDetail | undefined) =>
   d?.sights.length
     ? `<h2>Places to visit</h2><ul>${d.sights.map((s) => `<li><b>${esc(s.n)}</b>${s.d ? `: ${esc(s.d)}` : ""}</li>`).join("")}</ul>`
@@ -209,7 +218,8 @@ for (const [o, list] of pairs) {
       imageAlt: name,
       body: `<h1>${esc(name)} by train from ${esc(from)}</h1>
         <p>${plural(dest.legs.length, "direct train")} · fastest ${fmtMins(dest.fastest)} · ${fmtKm(km)} km</p>
-        <table><thead><tr><th>No.</th><th>Train</th><th>Leaves ${esc(from)}</th><th>Takes</th></tr></thead><tbody>${trainRows(dest.legs)}</tbody></table>
+        <table><thead><tr><th>No.</th><th>Train</th><th>Leaves ${esc(from)}</th><th>Takes</th><th>Runs</th></tr></thead><tbody>${trainRows(dest.legs)}</tbody></table>
+        ${newerList(o, p)}
         ${d?.x ? `<h2>About ${esc(name)}</h2><p>${esc(d.x)}</p>` : ""}${sightsList(d)}
         <p>${link(path(o), `Everywhere else from ${from}`)} · ${placePages.has(p) ? link(path(undefined, p), `${name} from other cities`) : ""}</p>`,
     });

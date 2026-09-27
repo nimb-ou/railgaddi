@@ -49,6 +49,14 @@ GitHub Pages is live now at https://nimb-ou.github.io/railgaddi/ and redeploys o
 3. Add the repository variable `SITE_URL` = `https://railgaddi.in` (step 5 above); the workflow
    then builds for the domain root instead of `/railgaddi/`.
 
+## Monthly data refresh
+
+`.github/workflows/data-refresh.yml` re-reads Wikipedia on the 1st of each month and opens a pull
+request when running days or newer trains change. For it to open pull requests, allow it once:
+GitHub → the repo → *Settings* → *Actions* → *General* → *Workflow permissions* → tick
+*Allow GitHub Actions to create and approve pull requests* → Save. Review the diff, then merge;
+the site redeploys by itself.
+
 ## Optional, still free
 
 - **Analytics without cookies**: Cloudflare *Web Analytics*. If you turn on its automatic setup,

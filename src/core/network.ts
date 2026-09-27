@@ -47,6 +47,23 @@ export interface Train {
   dist: Int32Array; // official km from the origin
   km: Float32Array; // km along the drawn line, at each halt
   geom: Geom;
+  /** Days it leaves its origin: bit 0 = Monday … bit 6 = Sunday; 0 = not known. */
+  days: number;
+}
+
+/** A train we know runs (from Wikipedia) but whose halts and times we don't have yet. */
+export interface NewerTrain {
+  numbers: string; // "20703/20704"
+  name: string;
+  type: string;
+  from: number; // station index of one end
+  to: number; // and the other
+  days: number; // as Train.days, 0 = not known
+  perWeek: number; // 0 = not known
+  minutes: number; // end to end, 0 = not known
+  km: number;
+  stops: number; // intermediate stops, 0 = not known
+  src: string;
 }
 
 export interface MetaFile {
@@ -65,6 +82,7 @@ export interface MetaFile {
   };
   cities: { id: string; name: string; hi: string; local: string; aka: string[]; state: string; stations: number[] }[];
   trains: [string, string][];
+  newer?: [string, string, string, number, number, number, number, number, number, number, string][];
 }
 
 export interface Network {
@@ -74,6 +92,7 @@ export interface Network {
   places: Map<string, Place>;
   placeOf: Place[]; // per station index
   trainsAt: number[][]; // per station index: trains that halt there
+  newer: NewerTrain[];
   /** true once the route geometry (paths.bin) has been applied */
   detailed: boolean;
 }
@@ -124,7 +143,7 @@ function layLine(stations: Station[], t: Train, passes?: (h: number) => ArrayLik
 }
 
 export function decodeNetwork(meta: MetaFile, timetable: ArrayBuffer): Network {
-  checkMagic(timetable, "RGTT", 2);
+  checkMagic(timetable, "RGTT", 3);
   const dv = new DataView(timetable);
   const nT = dv.getUint32(8, true);
   const nH = dv.getUint32(12, true);
@@ -140,6 +159,8 @@ export function decodeNetwork(meta: MetaFile, timetable: ArrayBuffer): Network {
   const dDist = new Uint16Array(timetable, o, nH);
   o += 2 * nH;
   const tType = new Uint8Array(timetable, o, nT);
+  o += nT;
+  const tDays = new Uint8Array(timetable, o, nT);
 
   const S = meta.stations;
   const stations: Station[] = S.code.map((code, i) => ({
@@ -190,6 +211,7 @@ export function decodeNetwork(meta: MetaFile, timetable: ArrayBuffer): Network {
       dist: DIST.subarray(a0, a1),
       km: KM.subarray(a0, a1),
       geom: { st: new Int32Array(0), km: new Float32Array(0) },
+      days: tDays[t],
     };
     layLine(stations, train);
     trains[t] = train;
@@ -237,7 +259,10 @@ export function decodeNetwork(meta: MetaFile, timetable: ArrayBuffer): Network {
     placeOf[s.i] = p;
   }
 
-  return { meta: meta.meta, stations, trains, places, placeOf, trainsAt, detailed: false };
+  const newer: NewerTrain[] = (meta.newer ?? []).map(([numbers, name, type, from, to, days, perWeek, minutes, km, stops, src]) => ({
+    numbers, name, type, from, to, days, perWeek, minutes, km, stops, src,
+  }));
+  return { meta: meta.meta, stations, trains, places, placeOf, trainsAt, newer, detailed: false };
 }
 
 /** Add the stations each train passes between halts, so lines follow the track instead of chords. */
