@@ -278,8 +278,9 @@ export function trainHtml(net: Network, leg: Leg, destTitle: string) {
     const ride = j >= leg.from && j <= leg.to;
     const end = j === leg.from || j === leg.to;
     const cls = [ride ? "ride" : "", j === leg.from ? "board-at" : "", j === leg.to ? "alight-at" : ""].join(" ");
+    const est = t.approx[j] ? "~" : "";
     items.push(`<li class="${cls}" ${j === leg.from ? 'id="boarding"' : ""}>
-      <span class="t">${a >= 0 ? fmtTime(a) : "—"}</span><span class="t">${d >= 0 ? fmtTime(d) : "—"}</span>
+      <span class="t">${a >= 0 ? est + fmtTime(a) : "—"}</span><span class="t">${d >= 0 ? est + fmtTime(d) : "—"}</span>
       <span class="rail" aria-hidden="true"></span>
       <span class="nm">${end ? `<span>${esc(s.name)}</span>` : esc(s.name)}<code>${esc(s.code)}</code></span></li>`);
   }
@@ -301,6 +302,7 @@ export function trainHtml(net: Network, leg: Leg, destTitle: string) {
     <div>
       <div class="stop-head" aria-hidden="true"><span>Arr</span><span>Dep</span><span></span><span>Halt</span></div>
       <ol class="stops">${items.join("")}</ol>
+      ${t.approx.some((x) => x) ? `<p class="est-note">~ Estimated: a small stop the official timetable doesn't print, placed between its neighbours using the older timetable.</p>` : ""}
     </div>
   </div>`;
 }

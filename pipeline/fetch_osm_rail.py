@@ -31,26 +31,47 @@ for r in read_table("stations"):
     if r["lat"]:
         lat, lon = float(r["lat"]), float(r["lon"])
         tiles.add((int(lat // STEP) * STEP, int(lon // STEP) * STEP))
-todo = sorted(t for t in tiles if not (OUT / f"{t[0]}_{t[1]}.json").exists())
+
+
+def have(s, w):
+    if (OUT / f"{s}_{w}.json").exists() or (OUT / f"{s}_{w}_{STEP}.json").exists():
+        return True
+    half = STEP // 2
+    return all((OUT / f"{s + a}_{w + b}_{half}.json").exists() for a in (0, half) for b in (0, half))
+
+
+todo = sorted(t for t in tiles if not have(*t))
 print(f"{len(tiles)} tiles with stations; {len(todo)} to fetch")
 
-for s, w in todo:
-    body = urllib.parse.urlencode({"data": QUERY.format(s=s, w=w, n=s + STEP, e=w + STEP)}).encode()
-    for attempt in range(8):
+
+def fetch(s, w, step):
+    """One box; True when saved. Busy servers answer with an HTML page or time out."""
+    body = urllib.parse.urlencode({"data": QUERY.format(s=s, w=w, n=s + step, e=w + step)}).encode()
+    for attempt in range(4):
         url = MIRRORS[attempt % len(MIRRORS)]
         try:
             req = urllib.request.Request(url, data=body, headers={"User-Agent": UA})
             with urllib.request.urlopen(req, timeout=200) as r:
                 data = r.read()
-            json.loads(data)  # a busy server answers with an HTML error page
-            (OUT / f"{s}_{w}.json").write_bytes(data)
-            print(f"  {s},{w}: {len(data) / 1e6:.1f} MB")
+            json.loads(data)
+            (OUT / f"{s}_{w}_{step}.json").write_bytes(data)
+            print(f"  {s},{w} ({step}°): {len(data) / 1e6:.1f} MB")
             time.sleep(5)
-            break
-        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, ConnectionError) as e:
+            return True
+        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, ConnectionError, OSError) as e:
             wait = 20 * (attempt + 1)
-            print(f"  {s},{w}: {type(e).__name__} from {url.split('/')[2]}; retrying in {wait}s")
+            print(f"  {s},{w} ({step}°): {type(e).__name__} from {url.split('/')[2]}; retrying in {wait}s")
             time.sleep(wait)
-    else:
-        print(f"  {s},{w}: giving up for now (run again later)")
+    return False
+
+
+for s, w in todo:
+    if fetch(s, w, STEP):
+        continue
+    # a dense tile the servers can't answer in time: four smaller ones
+    half = STEP // 2
+    for ds in (0, half):
+        for dw in (0, half):
+            if not (OUT / f"{s + ds}_{w + dw}_{half}.json").exists() and not fetch(s + ds, w + dw, half):
+                print(f"  {s + ds},{w + dw} ({half}°): giving up for now (run again later)")
 print("done:", len(list(OUT.glob("*.json"))), "tiles cached")

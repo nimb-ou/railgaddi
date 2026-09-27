@@ -8,7 +8,7 @@ never calls an outside service, so no API outage can break it.
 |---|---|---|
 | `stations.csv` | station | `code`, `name`, `state`, `lat`, `lon`, `coord` (where the position came from), `hi` (Hindi name), `local` (name in the state's language) |
 | `trains.csv` | train | `number`, `name`, `type`, `days`, `days_src`, `src` |
-| `halts.csv` | stop of a train | `number`, `seq` (1, 2, 3…), `station`, `arr`, `dep`, `km` (official distance from the train's origin) |
+| `halts.csv` | stop of a train | `number`, `seq` (1, 2, 3…), `station`, `arr`, `dep`, `km` (official distance from the train's origin), `approx` (`1` = times estimated) |
 | `paths.csv` | stretch between two halts | `number`, `after` (halt `seq`), `via` (stations passed without stopping, for drawing the line) |
 | `newer_trains.csv` | train we know runs but have no halts for | `numbers`, `name`, `type`, `from`, `to`, `days`, `per_week`, `minutes`, `km`, `stops`, `src` |
 | `overrides.csv` | hand correction | `number`, `field` (`name`, `type` or `days`), `value`, `reason` |

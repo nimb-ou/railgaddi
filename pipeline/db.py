@@ -4,6 +4,7 @@ in a diff and to correct in a spreadsheet. Importers write to it; build_network.
 Conventions (see db/README.md):
   times   "HH:MM", with "+N" for N days after the day the train left its origin ("00:05+1")
   days    days the train leaves its origin: "Daily", "Mon,Thu", or "" when not known
+  approx  "1" on a halt whose times are estimated (a small stop kept from an older timetable)
 """
 import csv
 import os
@@ -17,7 +18,7 @@ DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 COLUMNS = {
     "stations": ["code", "name", "state", "lat", "lon", "coord", "hi", "local"],
     "trains": ["number", "name", "type", "days", "days_src", "src"],
-    "halts": ["number", "seq", "station", "arr", "dep", "km"],
+    "halts": ["number", "seq", "station", "arr", "dep", "km", "approx"],
     "paths": ["number", "after", "via"],
     "newer_trains": ["numbers", "name", "type", "from", "to", "days", "per_week", "minutes", "km", "stops", "src"],
     "overrides": ["number", "field", "value", "reason"],

@@ -64,11 +64,11 @@ with the same name keeps the plain one. Back and forward restore each view.
 
 Written by `pipeline/build_network.py`, read by `src/core/network.ts`. All integers little-endian.
 
-### `timetable.bin`: "RGTT" version 3
+### `timetable.bin`: "RGTT" version 4
 
 ```
 char[4]  "RGTT"
-u32      version = 3
+u32      version = 4
 u32      T  trains
 u32      H  halts (all trains)
 u32[T]   first halt of each train (index into the halt columns)
@@ -78,6 +78,7 @@ u16[H]   departure delta   minutes after this halt's arrival (first halt: absolu
 u16[H]   distance delta    official km since the previous halt (first halt: km from the origin)
 u8[T]    train type index (into meta.types)
 u8[T]    running days: days the train leaves its origin, bit 0 = Monday … bit 6 = Sunday; 0 = unknown
+u8[H]    per halt: bit 0 = times estimated (a small stop kept from an older timetable, shown with ~)
 ```
 
 Running days shift by one for each midnight a train passes before a halt, so "next train" and the

@@ -25,7 +25,7 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-from db import DB, days_mask, parse_time, read_table, write_table
+from db import DB, days_mask, fmt_time, parse_time, read_table, write_table
 
 RAW = Path(sys.argv[1])
 YEAR = sys.argv[2]
@@ -144,7 +144,72 @@ def track(a, b):
     return out[::-1]
 
 
+# ---------------------------------------------------------------- the track, from OpenStreetMap
+osm_track = None
+if (RAW / "osm-rail").exists() and any((RAW / "osm-rail").glob("*.json")):
+    from track import Track
+    osm_track = Track(RAW, pos)
+    print(f"OpenStreetMap track: {len(osm_track.adj)} junctions and stations, {len(osm_track.node_of)} stations on it")
+
+
+def line_between(a, b):
+    """Stations passed between two halts: along OpenStreetMap's track, else the network db/ knows."""
+    if osm_track:
+        r = osm_track.route(a, b)
+        if r is not None:
+            return r, "osm"
+    r = track(a, b)
+    return r, "db" if r else "none"
+
+
+# ---------------------------------------------------------------- small stops the book doesn't print
+def with_small_stops(no, hs):
+    """Trains at a Glance prints principal halts only. Where our older timetable ran the same
+    train along the same line, put its small stops back between the two printed halts around
+    them, at times scaled from where they fell in the older schedule, marked approximate."""
+    old = sorted(by_train.get(no, []), key=lambda h: int(h["seq"]))
+    if len(old) < 3:
+        return hs
+    oc = [code(h["station"]) for h in old]
+    at = {c: i for i, c in enumerate(oc)}
+    printed = [at.get(h["station"]) for h in hs]
+    known = [i for i in printed if i is not None]
+    # the same service: most printed halts are on the old list, and in the same order
+    if len(known) < max(2, 0.6 * len(hs)) or known != sorted(known):
+        stats["small stops: route changed"] += 1
+        return hs
+    ot = lambda h, k: parse_time(h[k])  # noqa: E731
+    out = []
+    for j, h in enumerate(hs):
+        out.append(dict(h, approx=""))
+        if j + 1 == len(hs):
+            break
+        ia, ib = printed[j], printed[j + 1]
+        if ia is None or ib is None or ib - ia < 2:
+            continue
+        a_old, b_old = ot(old[ia], "dep"), ot(old[ib], "arr")
+        a_new, b_new = parse_time(h["dep"]), parse_time(hs[j + 1]["arr"])
+        if None in (a_old, b_old, a_new, b_new) or b_old <= a_old or b_new <= a_new:
+            continue
+        scale = (b_new - a_new) / (b_old - a_old)
+        last = a_new
+        for k in range(ia + 1, ib):
+            x_arr, x_dep = ot(old[k], "arr"), ot(old[k], "dep")
+            if x_arr is None or x_dep is None:
+                continue
+            arr = max(last + 1, round(a_new + (x_arr - a_old) * scale))
+            dep = min(arr + max(0, min(5, x_dep - x_arr)), b_new - 1)
+            if dep < arr or arr >= b_new:
+                continue
+            out.append({"station": oc[k], "name": old[k]["station"], "arr": fmt_time(arr), "dep": fmt_time(dep),
+                        "page": None, "table_km": None, "approx": "1"})
+            last = dep
+            stats["small stops kept"] += 1
+    return out
+
+
 # ---------------------------------------------------------------- trains
+stats = defaultdict(int)
 trains = {r["number"]: r for r in read_table("trains")}
 new_halts = [dict(h, station=code(h["station"])) for h in halts if h["number"] not in good]
 new_paths = [dict(p, via=" ".join(code(c) for c in p["via"].split())) for p in paths if p["number"] not in good]
@@ -158,18 +223,21 @@ for no, t in sorted(good.items()):
         row["days"], row["days_src"] = t["days"], SRC
     row["src"] = SRC
     trains[no] = row
+    hs = with_small_stops(no, [dict(h, station=code(h["station"])) for h in t["halts"]])
     km = 0.0
-    hs = [dict(h, station=code(h["station"])) for h in t["halts"]]
     for j, h in enumerate(hs):
         if j:
             a, b = hs[j - 1], h
-            same_page = a["page"] == b["page"] and a["table_km"] is not None and b["table_km"] is not None
-            passed = track(a["station"], b["station"])
+            same_page = a["page"] is not None and a["page"] == b["page"] and a["table_km"] is not None and b["table_km"] is not None
+            passed, how = line_between(a["station"], b["station"])
+            stats[f"stretches: {how}"] += 1
             line = [a["station"], *passed, b["station"]]
             km += abs(b["table_km"] - a["table_km"]) if same_page else sum(hav(pos[x], pos[y]) for x, y in zip(line, line[1:]) if x in pos and y in pos)
             if passed:
                 new_paths.append({"number": no, "after": j, "via": " ".join(passed)})
-        new_halts.append({"number": no, "seq": j + 1, "station": h["station"], "arr": h["arr"], "dep": h["dep"], "km": f"{km:.0f}"})
+        new_halts.append({"number": no, "seq": j + 1, "station": h["station"], "arr": h["arr"], "dep": h["dep"],
+                          "km": f"{km:.0f}", "approx": h.get("approx", "")})
+print(dict(stats))
 
 have = set(trains)
 newer = [n for n in read_table("newer_trains") if not any(x in have for x in n["numbers"].split("/"))]

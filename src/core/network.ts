@@ -51,6 +51,8 @@ export interface Train {
   days: number;
   /** Where its times come from, e.g. "the 2017 timetable (data.gov.in)". */
   source: string;
+  /** Per halt: 1 where the times are estimated (a small stop kept from an older timetable). */
+  approx: Uint8Array;
 }
 
 /** A train we know runs (from Wikipedia) but whose halts and times we don't have yet. */
@@ -146,7 +148,7 @@ function layLine(stations: Station[], t: Train, passes?: (h: number) => ArrayLik
 }
 
 export function decodeNetwork(meta: MetaFile, timetable: ArrayBuffer): Network {
-  checkMagic(timetable, "RGTT", 3);
+  checkMagic(timetable, "RGTT", 4);
   const dv = new DataView(timetable);
   const nT = dv.getUint32(8, true);
   const nH = dv.getUint32(12, true);
@@ -164,6 +166,8 @@ export function decodeNetwork(meta: MetaFile, timetable: ArrayBuffer): Network {
   const tType = new Uint8Array(timetable, o, nT);
   o += nT;
   const tDays = new Uint8Array(timetable, o, nT);
+  o += nT;
+  const hFlags = new Uint8Array(timetable, o, nH);
 
   const S = meta.stations;
   const stations: Station[] = S.code.map((code, i) => ({
@@ -216,6 +220,7 @@ export function decodeNetwork(meta: MetaFile, timetable: ArrayBuffer): Network {
       geom: { st: new Int32Array(0), km: new Float32Array(0) },
       days: tDays[t],
       source: meta.sources?.[meta.trains[t][2] ?? 0]?.[1] ?? meta.meta.timetable,
+      approx: hFlags.subarray(a0, a1),
     };
     layLine(stations, train);
     trains[t] = train;

@@ -111,8 +111,10 @@ What to expect, measured on the 2026 edition (September 2026, on a copy of the d
   Aurangabad → Chhatrapati Sambhaji Nagar, Faizabad → Ayodhya Cantt…).
 - The other ~1,200 are held back with a reason (report.md) and keep their 2017 times until the
   importer reads them reliably.
-- Trade-off: *Trains at a Glance* prints principal halts only, so updated trains lose some small
-  stops (861 places reachable from Bengaluru become 783). Worth doing before switching: keep a
-  2017 minor halt when it lies on the same route between two 2026 halts, marked as approximate.
-- 63% of long stretches between halts follow known track; the rest draw straight until the
-  network gains the lines built since 2016 (OpenStreetMap has them).
+- Small stops: *Trains at a Glance* prints principal halts only. The merge puts back the 2017
+  small stops that lie on the same line between two printed halts, at times scaled from the older
+  schedule and marked "~ estimated" on the train page (9,558 kept; 100 trains skipped because
+  their route changed). Places reachable from Bengaluru: 861 on the 2017 data, 855 after the
+  merge (783 without this step).
+- Track: lines between halts follow OpenStreetMap's railway (`fetch_osm_rail.py`, `track.py`),
+  falling back to the network `db/` already knows.

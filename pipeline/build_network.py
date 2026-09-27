@@ -59,9 +59,9 @@ for no in sorted(train_rows):
             sys.exit(f"halts.csv: train {no} halts at unknown station {r['station']}")
         a, d = parse_time(r["arr"]), parse_time(r["dep"])
         km = float(r["km"]) if r["km"] else None
-        stops.append([r["station"], a, d, km])
+        stops.append([r["station"], a, d, km, 1 if r.get("approx") == "1" else 0])
         if i < len(rows) - 1:
-            stops += [[c, None, None, None] for c in via.get((no, int(r["seq"])), []) if c in stations]
+            stops += [[c, None, None, None, 0] for c in via.get((no, int(r["seq"])), []) if c in stations]
     # the checks the app relies on: first halt only departs, last only arrives, time runs forward
     times = [v for s in stops for v in s[1:3] if v is not None]
     if len(rows) < 2 or stops[0][1] is not None or stops[0][2] is None or stops[-1][2] is not None or stops[-1][1] is None:
@@ -82,7 +82,7 @@ cities = json.load(open(ROOT / "pipeline" / "cities.json"))
 # ---------- emit ----------
 halt_count = Counter()
 for t in trains:
-    for code, a, d, _ in t["stops"]:
+    for code, a, d, _, _ in t["stops"]:
         if a is not None or d is not None:
             halt_count[code] += 1
 used = sorted({s[0] for t in trains for s in t["stops"]} | {c for n in newer for c in (n["from"], n["to"]) if c in stations},
@@ -117,11 +117,11 @@ for c in cities:
 # ---------- write: meta.json (names), timetable.bin (halts), paths.bin (drawing geometry) ----------
 # Binary layouts are documented in ARCHITECTURE.md; the app reads them with zero parsing.
 NONE = 0xFFFF
-train_start, h_station, h_arr, h_dep, h_dist, t_type, t_days = [0], [], [], [], [], [], []
+train_start, h_station, h_arr, h_dep, h_dist, h_flags, t_type, t_days = [0], [], [], [], [], [], [], []
 pass_count, pass_station = [], []  # pass_count[h]: points passed between halt h and the next halt
 for t in trains:
     gap = []
-    for code, a, d, km in t["stops"]:
+    for code, a, d, km, approx in t["stops"]:
         if a is None and d is None:  # a point the train passes through: geometry only
             gap.append(idx[code])
             continue
@@ -135,6 +135,7 @@ for t in trains:
         h_arr.append(NONE if a is None else a)
         h_dep.append(NONE if d is None else d)
         h_dist.append(NONE if km is None else round(km))
+        h_flags.append(approx)  # bit 0: times estimated
         pass_count.append(0)
     train_start.append(len(h_station))
     t_type.append(tidx[t["type"]])
@@ -182,12 +183,13 @@ for t in range(n_trains):
     want = [(h_station[h], h_arr[h], h_dep[h], h_dist[h]) for h in range(train_start[t], train_start[t + 1])]
     assert decode(t) == want, f"timetable round-trip failed for {trains[t]['number']}"
 
-timetable = bytearray(b"RGTT") + struct.pack("<III", 3, n_trains, n_halts)
+timetable = bytearray(b"RGTT") + struct.pack("<III", 4, n_trains, n_halts)
 timetable += array("I", train_start).tobytes()
 for col_ in (h_station, d_arr, d_dep, d_dist):
     timetable += array("H", col_).tobytes()
 timetable += array("B", t_type).tobytes()
 timetable += array("B", t_days).tobytes()  # v3: days the train leaves its origin, bit 0 = Monday
+timetable += array("B", h_flags).tobytes()  # v4: per halt, bit 0 = times estimated
 paths = bytearray(b"RGTP") + struct.pack("<III", 1, n_halts, len(pass_station))
 paths += array("H", pass_count).tobytes() + array("H", pass_station).tobytes()
 
