@@ -20,8 +20,8 @@ RAW = Path(sys.argv[1])
 OUT = RAW / "osm-rail"
 OUT.mkdir(parents=True, exist_ok=True)
 UA = "Railgaddi/1.0 (https://github.com/nimb-ou/railgaddi; non-commercial train-discovery site)"
-MIRRORS = ["https://overpass.private.coffee/api/interpreter", "https://overpass-api.de/api/interpreter",
-           "https://overpass.kumi.systems/api/interpreter"]
+MIRRORS = ["https://maps.mail.ru/osm/tools/overpass/api/interpreter", "https://overpass-api.de/api/interpreter",
+           "https://overpass.private.coffee/api/interpreter", "https://overpass.kumi.systems/api/interpreter"]
 # running lines only: no yards, sidings or spurs; metre and narrow gauge included
 QUERY = '[out:json][timeout:170];way["railway"~"^(rail|narrow_gauge)$"]["service"!~"."]({s},{w},{n},{e});out skel geom qt;'
 
@@ -51,7 +51,7 @@ print(f"{len(cells)} boxes with stations; {len(todo)} to fetch")
 def fetch(s, w, step):
     """One box; True when saved. Busy servers answer with an HTML page or time out."""
     body = urllib.parse.urlencode({"data": QUERY.format(s=s, w=w, n=s + step, e=w + step)}).encode()
-    for attempt in range(4):
+    for attempt in range(8):
         url = MIRRORS[attempt % len(MIRRORS)]
         try:
             req = urllib.request.Request(url, data=body, headers={"User-Agent": UA})
