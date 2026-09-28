@@ -1,8 +1,9 @@
 """Merge a parsed *Trains at a Glance* timetable (RAW/tag<year>/parsed.json, from import_tag.py)
 into Railgaddi's database.
 
-Only with Indian Railways' written permission: it refuses to run unless the permission is
-recorded in docs/permissions/tag<year>.md (see docs/permission-requests.md). To try it without
+It refuses to run until a decision to use that edition is recorded in
+docs/permissions/tag<year>.md: Indian Railways' written permission, or the owner's decision to
+use it while that permission is requested (see docs/permission-requests.md). To try it without
 touching the real database, point it at a copy:
 
     cp -r db /tmp/db-try && RAILGADDI_DB=/tmp/db-try python3 pipeline/merge_tag.py raw 2026 --try
@@ -34,7 +35,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SRC = f"tag{YEAR}"
 
 if not (ROOT / "docs" / "permissions" / f"tag{YEAR}.md").exists() and not (TRY and DB != ROOT / "db"):
-    sys.exit(f"No permission recorded (docs/permissions/tag{YEAR}.md). Use --try with RAILGADDI_DB set to a copy of db/.")
+    sys.exit(f"No decision recorded (docs/permissions/tag{YEAR}.md). Use --try with RAILGADDI_DB set to a copy of db/.")
 
 parsed = json.loads((RAW / f"tag{YEAR}" / "parsed.json").read_text())
 good = {n: t for n, t in parsed.items() if t["ok"]}
@@ -71,8 +72,10 @@ for new in used_tag - set(stations):
         old = near[0] if len(near) == 1 else ""
     if old and old not in used_tag:
         alias[old] = new
+renames = {r["old"]: r for r in read_table("renames")}
 for old, new in alias.items():
     e, t = osm[new]
+    renames[old] = {"old": old, "new": new, "old_name": stations[old]["name"], "since": SRC}
     row = dict(stations.pop(old))
     row.update(code=new, name=re.sub(r"\s+(Junction|railway station)$", "", t.get("name:en") or t.get("name") or row["name"]),
                lat=f"{e['lat']:.5f}", lon=f"{e['lon']:.5f}", coord="osm")
@@ -239,6 +242,24 @@ for no, t in sorted(good.items()):
                           "km": f"{km:.0f}", "approx": h.get("approx", "")})
 print(dict(stats))
 
+# trains whose stops couldn't all be read still have their running days printed: take those when
+# the book's first and last halts it could place are the ends our timetable has for that number
+# (numbers get reused for other trains)
+days_only = 0
+for no, t in parsed.items():
+    if t["ok"] or no not in trains or not days_mask(t["days"]) or trains[no].get("days_src") == "override":
+        continue
+    ours = sorted(by_train.get(no, []), key=lambda h: int(h["seq"]))
+    placed = [code(h["station"]) for h in t["halts"] if h["station"]]
+    if len(ours) < 2 or len(placed) < 2:
+        continue
+    ends = [code(ours[0]["station"]), code(ours[-1]["station"])]
+    near = lambda a, b: a == b or (a in pos and b in pos and hav(pos[a], pos[b]) < 30)  # noqa: E731
+    if near(placed[0], ends[0]) and near(placed[-1], ends[1]):
+        trains[no]["days"], trains[no]["days_src"] = t["days"], SRC
+        days_only += 1
+print(f"running days only (stops not readable): {days_only}")
+
 have = set(trains)
 newer = [n for n in read_table("newer_trains") if not any(x in have for x in n["numbers"].split("/"))]
 newer = [dict(n, **{"from": code(n["from"]), "to": code(n["to"])}) for n in newer]
@@ -248,6 +269,7 @@ write_table("trains", sorted(trains.values(), key=lambda t: t["number"]))
 write_table("halts", sorted(new_halts, key=lambda h: (h["number"], int(h["seq"]))))
 write_table("paths", sorted(new_paths, key=lambda p: (p["number"], int(p["after"]))))
 write_table("newer_trains", newer)
+write_table("renames", sorted(renames.values(), key=lambda r: r["old"]))
 replaced = sum(1 for n in good if n in by_train)
 print(f"{DB}: {replaced} trains now on the {YEAR} timetable, {len(good) - replaced} added; "
       f"{len(trains) - len(good)} keep 2017 times; newer trains left: {len(newer)}")

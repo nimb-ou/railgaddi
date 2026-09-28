@@ -96,7 +96,8 @@ export function buildGuideIndex(ix: PlacesIndex, net: Network): Map<Place, Guide
     let primary: string | null = place.isCity && has(ix.cities[place.id]) ? ix.cities[place.id] : null;
     const near: string[] = [];
     for (const s of place.stations) {
-      const link = ix.stations[net.stations[s].code];
+      const st = net.stations[s];
+      const link = ix.stations[st.code] ?? (st.was && ix.stations[st.was[0]]); // guides matched before a rename
       if (!link) continue;
       if (!primary && has(link[0])) primary = link[0];
       for (const t of link[1]) if (has(t) && !near.includes(t)) near.push(t);

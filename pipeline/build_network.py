@@ -78,6 +78,18 @@ print(f"db/: {len(stations)} stations, {len(trains)} trains, {sum(len(v) for v i
 
 # ---------- cities ----------
 cities = json.load(open(ROOT / "pipeline" / "cities.json"))
+# stations renamed since cities.json was written keep their place in their city (Habibganj HBJ is
+# Bhopal's Rani Kamlapati RKMP); the app also finds them by their old name
+renames = {r["old"]: r for r in read_table("renames")}
+
+
+def current(c):
+    seen = set()
+    while c in renames and c not in seen:
+        seen.add(c)
+        c = renames[c]["new"]
+    return c
+
 
 # ---------- emit ----------
 halt_count = Counter()
@@ -107,10 +119,11 @@ for c in used:
 
 out_cities = []
 for c in cities:
-    missing = [k for k in c["codes"] if k not in idx]
+    codes = [current(k) for k in c["codes"]]
+    missing = [k for k in codes if k not in idx]
     if missing:
         print(f"  {c['id']}: not in timetable {missing}")
-    members = [idx[k] for k in c["codes"] if k in idx]
+    members = [idx[k] for k in codes if k in idx]
     if members:
         out_cities.append({k: c[k] for k in ("id", "name", "hi", "aka", "state")} | {"local": c.get("local", ""), "stations": members})
 
@@ -195,7 +208,8 @@ paths += array("H", pass_count).tobytes() + array("H", pass_station).tobytes()
 
 meta = {
     "meta": {
-        "timetable": "Indian Railways timetable on data.gov.in (Dec 2017), GODL-India",
+        "timetable": ("Indian Railways, Trains at a Glance 2026; other trains: the timetable on data.gov.in (Dec 2017), GODL-India"
+                      if "tag2026" in source_keys else "Indian Railways timetable on data.gov.in (Dec 2017), GODL-India"),
         "stations": "OpenStreetMap contributors (ODbL) + datameet (CC0)",
         "snapshot": "2026-01" if "tag2026" in source_keys else "2017-12",
     },
@@ -203,6 +217,8 @@ meta = {
     "states": states,
     "stations": col,
     "cities": out_cities,
+    # station code -> [its code and name before a rename]: guides and searches made with the old ones still find it
+    "renamed": {current(r["old"]): [r["old"], r["old_name"]] for r in renames.values() if current(r["old"]) in idx},
     # where each train's times come from: index into "sources"
     "sources": [[k, SOURCES.get(k, k)] for k in source_keys],
     "trains": [[t["number"], t["name"], source_keys.index(t["src"])] for t in trains],

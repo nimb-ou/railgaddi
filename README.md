@@ -51,8 +51,9 @@ test/                  vitest
 
 | What | Source | Licence |
 |---|---|---|
-| Timetable (halts, times, distances) | Indian Railways timetable on [data.gov.in](https://www.data.gov.in/catalog/indian-railways-train-time-table), Dec 2017. 6,746 trains after dropping suburban locals | GODL-India |
-| Running days, trains introduced since 2017 | [Wikipedia](https://en.wikipedia.org) train articles (~1,750), checked against our end stations | CC BY-SA 4.0 |
+| Timetable, 2,322 trains (halts, times, distances, running days) | Indian Railways, *Trains at a Glance* 2026 (Railway Board). Permission to be requested before launch: [docs/permissions/tag2026.md](docs/permissions/tag2026.md) | © Indian Railways |
+| Timetable, the other 5,176 trains (mostly passenger and local) | Indian Railways timetable on [data.gov.in](https://www.data.gov.in/catalog/indian-railways-train-time-table), Dec 2017 | GODL-India |
+| Running days (the rest), trains introduced since | [Wikipedia](https://en.wikipedia.org) train articles (~1,750), checked against our end stations | CC BY-SA 4.0 |
 | Train names, types, track path between halts | [datameet/railways](https://github.com/datameet/railways), Aug 2016 | CC0 |
 | Station positions, names in Indian scripts | OpenStreetMap via Overpass | ODbL |
 | India outline, state borders | [datameet/maps](https://github.com/datameet/maps) (Survey of India boundary) | CC0 |
@@ -75,9 +76,10 @@ python3 pipeline/fetch_osm_rail.py raw         # India's railway track from Open
 python3 pipeline/route_paths.py raw            # lines follow that track where db/ had straight stretches
 ```
 
-The official 2026 timetable can't be published without Indian Railways' permission, so its
-importer (`fetch_tag.sh`, `import_tag.py`, `merge_tag.py`) reads and checks it but only writes to
-`db/` once permission is on record: see [docs/permission-requests.md](docs/permission-requests.md).
+The official 2026 timetable is read from the Railway Board's PDFs (`fetch_tag.sh`,
+`import_tag.py`, which checks every train, then `merge_tag.py`). `merge_tag.py` only writes to
+`db/` once a decision to use that edition is on record in `docs/permissions/`; the 2026 one says
+how to undo it if permission is refused ([docs/permission-requests.md](docs/permission-requests.md)).
 
 ### Places and photos
 
@@ -92,18 +94,19 @@ Every Wikimedia response is cached in `raw/`, so re-runs only ask for what is ne
 
 ## Known limits
 
-- **The timetable is from December 2017.** Newer trains are missing (every Vande Bharat and
-  Amrit Bharat), as are renamed stations such as SMVT Bengaluru, and many times have changed.
-  The site says so and links to NTES.
-- **Running days** are known for ~1,000 trains (from Wikipedia); the rest are treated as daily.
-- **Trains introduced since 2017** (364 known, including every Vande Bharat) are listed between
-  their end stations but aren't on the map, because their halts and times aren't open data.
+- **2,322 trains are on the 2026 timetable; 5,176 still have 2017 times.** The book prints
+  principal halts only and about 1,000 of its trains couldn't be read with full confidence; those,
+  and the passenger and local trains it doesn't cover, keep their 2017 times. Small stops the book
+  leaves out are kept from 2017 at estimated times, marked "~". The site says where each train's
+  times come from and links to NTES.
+- **Running days** are known for 2,789 trains; the rest are treated as daily.
+- **176 trains** known from Wikipedia are listed between their end stations but aren't on the
+  map, because their halts and times aren't in either timetable.
 - About 160 stations have no known position; their trains list them, but they aren't drawn.
 
 ## Next
 
-1. A current timetable: with Indian Railways' permission (drafts in
-   [docs/permission-requests.md](docs/permission-requests.md)), import the official *Trains at a
-   Glance* each year into `db/`.
+1. Indian Railways' permission for *Trains at a Glance* (drafts in
+   [docs/permission-requests.md](docs/permission-requests.md)), then import it each year.
 2. Trips with one change, and "trains between two places".
 3. A detailed base map when zoomed in to a town.

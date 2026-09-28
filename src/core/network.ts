@@ -11,6 +11,7 @@ export interface Station {
   hi: string;
   local: string;
   halts: number; // how many trains stop here
+  was?: [string, string]; // code and name before a rename ("JHS", "Jhansi Jn")
 }
 
 export interface Place {
@@ -87,6 +88,7 @@ export interface MetaFile {
   cities: { id: string; name: string; hi: string; local: string; aka: string[]; state: string; stations: number[] }[];
   trains: [string, string, number?][];
   sources?: [string, string][];
+  renamed?: Record<string, [string, string]>;
   newer?: [string, string, string, number, number, number, number, number, number, number, string][];
 }
 
@@ -180,6 +182,7 @@ export function decodeNetwork(meta: MetaFile, timetable: ArrayBuffer): Network {
     hi: S.hi[i],
     local: S.local[i],
     halts: S.halts[i],
+    was: meta.renamed?.[code],
   }));
 
   // times and distances are stored as differences from the previous halt (mod 2^16)
@@ -237,7 +240,7 @@ export function decodeNetwork(meta: MetaFile, timetable: ArrayBuffer): Network {
       hi: c.hi ?? "",
       local: c.local ?? "",
       state: c.state,
-      aka: c.aka ?? [],
+      aka: [...(c.aka ?? []), ...c.stations.flatMap((m) => (stations[m].was ? [stations[m].was![1].replace(/\s+Jn\.?$/, "")] : []))],
       stations: c.stations,
       anchor,
       lat: stations[anchor].lat,
@@ -256,7 +259,7 @@ export function decodeNetwork(meta: MetaFile, timetable: ArrayBuffer): Network {
       hi: s.hi,
       local: s.local,
       state: s.state,
-      aka: [],
+      aka: s.was ? [s.was[1].replace(/\s+Jn\.?$/, "")] : [],
       stations: [s.i],
       anchor: s.i,
       lat: s.lat,

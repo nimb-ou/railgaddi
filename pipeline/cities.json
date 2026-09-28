@@ -1,5 +1,5 @@
 [
-  {"id": "bengaluru", "name": "Bengaluru", "hi": "बेंगलुरु", "local": "ಬೆಂಗಳೂರು", "aka": ["Bangalore"], "state": "Karnataka", "codes": ["SBC", "SMVT", "YPR", "BNC", "KJM", "BNCE", "BYPL", "BAND", "YNK"]},
+  {"id": "bengaluru", "name": "Bengaluru", "hi": "बेंगलुरु", "local": "ಬೆಂಗಳೂರು", "aka": ["Bangalore"], "state": "Karnataka", "codes": ["SBC", "SMVB", "YPR", "BNC", "KJM", "BNCE", "BYPL", "BAND", "YNK"]},
   {"id": "chennai", "name": "Chennai", "hi": "चेन्नई", "local": "சென்னை", "aka": ["Madras"], "state": "Tamil Nadu", "codes": ["MAS", "MS", "TBM", "PER", "MSB"]},
   {"id": "mumbai", "name": "Mumbai", "hi": "मुंबई", "local": "मुंबई", "aka": ["Bombay"], "state": "Maharashtra", "codes": ["CSMT", "CSTM", "BCT", "DR", "DDR", "LTT", "BDTS", "TNA", "KYN", "PNVL", "BVI"]},
   {"id": "delhi", "name": "Delhi", "hi": "दिल्ली", "aka": ["New Delhi"], "state": "Delhi", "codes": ["NDLS", "DLI", "NZM", "ANVT", "DEE", "DEC", "DSA"]},

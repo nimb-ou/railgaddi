@@ -248,13 +248,22 @@ def resolve_times(col):
 
 
 # ---------------------------------------------------------------- station names -> codes
+# spellings that differ between TAG, the 2017 timetable and OpenStreetMap
+SPELLING = {"BANGALORE": "BENGALURU", "CANT": "CANTT", "SUBHASH": "SUBHAS", "LAXMIBAI": "LAKSHMIBAI",
+            "VIRANGNA": "VIRANGANA", "VISHVESVARAYA": "VISVESVARAYA", "VISHWESHWARAIAH": "VISVESVARAYA",
+            "VISVESVARAIAH": "VISVESVARAYA", "PT": "", "PANDIT": "", "KM": ""}
+
+
 def norm(s):
     s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode().upper()
     s = s.split("/")[0]  # "Lucknow/ Lucknow Jn." -> the first name
-    s = s.replace("(T)", " TERMINUS ").replace("CANTONMENT", "CANTT").replace("CANTT", " CANTT ")
+    s = s.replace("(T)", " TERMINUS ").replace("(NR)", " LUCKNOW CHARBAGH ").replace("(NER)", " LUCKNOW JN ")
+    s = s.replace("CANTONMENT", "CANTT").replace("CANTT", " CANTT ")
     s = re.sub(r"\bTERMINAL\b", "TERMINUS", s)
     s = re.sub(r"\b(JN|JUNCTION|RLY|RAILWAY|STATION|HALT)\b|[^A-Z ]", " ", s)
-    return " ".join(s.split())
+    words = [("TERMINUS" if w == "T" and i else SPELLING.get(w, w)) for i, w in enumerate(s.split())]  # "… T. Bengaluru", not "T. Nagar"
+    words = [w for i, w in enumerate(words) if w and w not in words[:i]]  # "Lucknow (NR)" -> LUCKNOW CHARBAGH once
+    return " ".join(words)
 
 
 def station_index(stations, pos):
@@ -274,7 +283,7 @@ def station_index(stations, pos):
                 if not re.fullmatch(r"[A-Z]{1,5}", ref):
                     continue
                 pos.setdefault(ref, (e["lat"], e["lon"]))
-                for k in ("name", "name:en", "alt_name", "old_name", "official_name", "old_name:en"):
+                for k in ("name", "name:en", "alt_name", "old_name", "official_name", "old_name:en", "name:long"):
                     for n in t.get(k, "").split(";"):
                         if n and n.isascii():
                             idx[norm(n)].add(ref)
@@ -325,7 +334,12 @@ def resolve(name, idx, pos, near_to, rail_km=None, expected=()):
     def fits(c):
         return c in pos and (anchor is None or hav(anchor, pos[c]) <= reach)
 
-    for cands in (exact, loose):
+    # "Sir M Visvesvaraya Terminal Bengaluru": a known name (2+ words) inside the printed one
+    words = set(key.split())
+    inner = [(len(n.split()), c) for n, cs in idx.items() if len(n.split()) >= 2 and set(n.split()) <= words for c in cs]
+    longest = max((n for n, _ in inner), default=0)
+    inside = {c for n, c in inner if n == longest}
+    for cands in (exact, loose, inside):
         ok = [c for c in cands if fits(c)]
         if ok:
             known = [c for c in ok if c in expected]

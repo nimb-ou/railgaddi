@@ -106,8 +106,8 @@ function render(pg: Page) {
   writeFileSync(file, html);
 }
 
-const FOOT = `<p class="static-foot">Railgaddi shows the Indian Railways timetable (data.gov.in, 2017), with running days and
-  newer trains from Wikipedia, travel guides from Wikivoyage and photos from Wikimedia Commons. It needs JavaScript
+const FOOT = `<p class="static-foot">Railgaddi shows Indian Railways' timetable (Trains at a Glance 2026, and the 2017
+  timetable on data.gov.in for trains it doesn't cover), with running days and newer trains from Wikipedia, travel guides from Wikivoyage and photos from Wikimedia Commons. It needs JavaScript
   for the map; check <a href="https://enquiry.indianrail.gov.in/mntes/">NTES</a> before you travel.</p>`;
 
 const byFastest = (a: [Place, { fastest: number }], b: [Place, { fastest: number }]) => a[1].fastest - b[1].fastest;
