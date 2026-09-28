@@ -5,9 +5,11 @@ import type { Network, NewerTrain, Place, Train } from "../core/network";
 import type { ArticleDetail, GuideView, Photo } from "../core/places";
 import { titleOf } from "../core/slugs";
 import { bySoonest, waitFor, type Leg } from "../core/trips";
+import { flapHtml, landscapeHtml, ledHtml } from "./boards";
+import { esc } from "./esc";
 import { aspect, coverWidth, credit, photoSrcset, photoUrl } from "./photos";
 
-export const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+export { esc };
 const FAST = new Set(["Raj", "Shtb", "Drnt", "JShtb", "GR", "SF"]);
 const ICON = {
   close: `<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M5 5l10 10M15 5L5 15"/></svg>`,
@@ -121,17 +123,27 @@ export function placeHtml(v: PlaceView) {
     const km = Math.min(...legs.map((l) => l.km));
     const next = legs.find(v.passes) ?? legs[0];
     const when = dayWord(v.now, waitFor(next, v.now));
+    // the next train's halts on a strip between the two names, spaced by time
+    const span = next.train.arr[next.to] - next.train.dep[next.from] || 1;
+    const ticks = [];
+    for (let j = next.from + 1; j < next.to; j++) ticks.push(`<i style="--at:${((next.train.dep[j] - next.train.dep[next.from]) / span).toFixed(3)}"></i>`);
     ticket = `<div class="ticket">
-      <div class="ticket-route"><span>${esc(titleOf(origin, null))}</span><i>→</i><span>${esc(title)}</span>
-        <button class="tk-change" type="button" data-act="change-from">Change start</button></div>
+      <div class="ticket-route">
+        <span class="tk-a">${esc(titleOf(origin, null))}</span>
+        <span class="strip" aria-hidden="true">${ticks.join("")}</span>
+        <span class="tk-b">${esc(title)}</span>
+      </div>
       <dl class="ticket-facts">
         <div><dt>Fastest</dt><dd>${fmtMins(fastest)}</dd></div>
         <div><dt>Trains</dt><dd>${legs.length}</dd></div>
         <div><dt>Distance</dt><dd>${fmtKm(km)} km</dd></div>
       </dl>
-      <button class="ticket-next" type="button" data-act="leg" data-i="${legs.indexOf(next)}">
-        <i class="dot"></i><span>Next train <b>${when === "today" ? "" : `${when} `}${fmtTime(next.dep)}</b> · ${esc(next.train.name)}</span><span class="go" aria-hidden="true">→</span>
-      </button>
+      <div class="ticket-foot">
+        <button class="ticket-next" type="button" data-act="leg" data-i="${legs.indexOf(next)}">
+          <i class="dot"></i><span class="tn-label">Next train${when === "today" ? "" : ` ${when}`}</span>${flapHtml(fmtTime(next.dep), true)}<span class="tn-name">${esc(next.train.name)}</span><span class="go" aria-hidden="true">→</span>
+        </button>
+        <button class="tk-change" type="button" data-act="change-from">Change start</button>
+      </div>
     </div>`;
   }
 
@@ -141,7 +153,7 @@ export function placeHtml(v: PlaceView) {
   if (!gv) {
     intro = `<p class="intro muted">No travel guide for this stop yet. Small stations are often the best surprises.</p>`;
   } else if (v.detail === "loading") {
-    intro = `<div class="skeleton" aria-hidden="true"><i></i><i></i><i></i></div>`;
+    intro = `<div class="skeleton" role="status">${landscapeHtml("ls-strip")}<span>Opening the guide…</span></div>`;
   } else if (v.detail) {
     const { detail, photos } = v.detail;
     if (detail.x) intro = `<p class="intro">${esc(detail.x)}</p>`;
@@ -262,47 +274,103 @@ function reportUrl(t: Train) {
   return `https://github.com/nimb-ou/railgaddi/issues/new?${q}`;
 }
 
-export function trainHtml(net: Network, leg: Leg, destTitle: string) {
+export interface StopsOpen {
+  before: boolean; // the stops before you board, folded away until asked for
+  after: boolean;
+}
+
+const WEEK = ["M", "T", "W", "T", "F", "S", "S"];
+const WEEK_FULL = ["Mondays", "Tuesdays", "Wednesdays", "Thursdays", "Fridays", "Saturdays", "Sundays"];
+
+/** The seven days as a timetable prints them, the running ones inked. */
+function weekHtml(mask: number) {
+  return `<ol class="week" aria-hidden="true">${WEEK.map((d, i) => `<li class="${(mask >> i) & 1 ? "on" : ""}" title="${WEEK_FULL[i]}">${d}</li>`).join("")}</ol>`;
+}
+
+/**
+ * One train, as the route diagram printed inside a coach: a line with every halt on it. Your
+ * ride is the thick stretch; long runs without a stop take more room, so the rhythm of the
+ * journey shows; the stops before you board and after you get off fold away.
+ */
+export function trainHtml(net: Network, leg: Leg, fromTitle: string, destTitle: string, open: StopsOpen = { before: false, after: false }) {
   const t = leg.train;
-  const items: string[] = [];
-  let lastDay = 0;
-  for (let j = 0; j < t.st.length; j++) {
-    const a = t.arr[j];
-    const d = t.dep[j];
-    const day = Math.floor((d >= 0 ? d : a) / 1440) + 1;
-    if (day !== lastDay) {
-      if (lastDay) items.push(`<li class="dayrow"><span class="day">Day ${day}</span></li>`);
-      lastDay = day;
-    }
-    const s = net.stations[t.st[j]];
-    const ride = j >= leg.from && j <= leg.to;
+  const n = t.st.length;
+  const st = (j: number) => net.stations[t.st[j]];
+  const time = (j: number) => (t.dep[j] >= 0 ? t.dep[j] : t.arr[j]);
+  const est = (j: number) => (t.approx[j] ? "~" : "");
+  const rows: string[] = [];
+  // the line between two rows is your ride from boarding up to getting off
+  const ride = (j: number) => j >= leg.from && j < leg.to;
+  const stop = (j: number) => {
+    const s = st(j);
     const end = j === leg.from || j === leg.to;
-    const cls = [ride ? "ride" : "", j === leg.from ? "board-at" : "", j === leg.to ? "alight-at" : ""].join(" ");
-    const est = t.approx[j] ? "~" : "";
-    items.push(`<li class="${cls}" ${j === leg.from ? 'id="boarding"' : ""}>
-      <span class="t">${a >= 0 ? est + fmtTime(a) : "—"}</span><span class="t">${d >= 0 ? est + fmtTime(d) : "—"}</span>
-      <span class="rail" aria-hidden="true"></span>
-      <span class="nm">${end ? `<span>${esc(s.name)}</span>` : esc(s.name)}<code>${esc(s.code)}</code></span></li>`);
+    const dwell = t.arr[j] >= 0 && t.dep[j] >= 0 ? t.dep[j] - t.arr[j] : 0;
+    const major = end || j === 0 || j === n - 1 || dwell >= 5 || s.halts >= 90;
+    const main = j === leg.to || t.dep[j] < 0 ? t.arr[j] : t.dep[j];
+    const cls = ["stop", major ? "major" : "minor", ride(j - 1) ? "in" : "", ride(j) ? "out" : "", j === 0 ? "first" : "", j === n - 1 ? "last" : "",
+      j === leg.from ? "board-at" : "", j === leg.to ? "alight-at" : "", j < leg.from || j > leg.to ? "off" : ""].filter(Boolean).join(" ");
+    const note = j === leg.from ? "Board" : j === leg.to ? "Get off" : dwell >= 5 ? `${dwell}m halt` : "";
+    return `<li class="${cls}"${j === leg.from ? ' id="boarding"' : ""}>
+      <span class="t"><b>${est(j)}${fmtTime(main)}</b>${note ? `<small>${note}</small>` : ""}</span>
+      <span class="node" aria-hidden="true"></span>
+      <span class="nm">${end ? `<span class="plate">${esc(s.name)}</span>` : esc(s.name)}<code>${esc(s.code)}</code></span>
+    </li>`;
+  };
+  const gap = (j: number) => {
+    // the run from halt j to j+1: long ones get room and a label, like a time map
+    const mins = t.arr[j + 1] - t.dep[j];
+    const km = t.dist[j + 1] - t.dist[j];
+    const day = Math.floor(time(j + 1) / 1440) !== Math.floor(time(j) / 1440) ? Math.floor(time(j + 1) / 1440) + 1 : 0;
+    const cls = ride(j) ? "ride" : "";
+    if (mins >= 40) {
+      const h = Math.round(Math.min(64, 10 + mins * 0.14));
+      rows.push(`<li class="run ${cls}" style="--h:${h}px" aria-hidden="true"><span>${fmtMins(mins)}${km > 0 ? ` · ${fmtKm(km)} km` : ""}</span></li>`);
+    }
+    if (day) rows.push(`<li class="dayrow ${cls}"><span>Day ${day}</span></li>`);
+  };
+  const fold = (side: "before" | "after", count: number, at: string) =>
+    rows.push(`<li class="more"><button type="button" data-act="stops" data-side="${side}" aria-expanded="false" aria-label="Show ${plural(count, "stop")} ${side} ${esc(at)}">${plural(count, side === "before" ? "earlier stop" : "later stop")}</button></li>`);
+
+  const foldBefore = !open.before && leg.from > 2;
+  const foldAfter = !open.after && n - 1 - leg.to > 2;
+  for (let j = 0; j < n; j++) {
+    if (foldBefore && j > 0 && j < leg.from) {
+      if (j === 1) fold("before", leg.from - 1, st(leg.from).name);
+      continue;
+    }
+    if (foldAfter && j > leg.to && j < n - 1) {
+      if (j === leg.to + 1) fold("after", n - 2 - leg.to, st(leg.to).name);
+      continue;
+    }
+    rows.push(stop(j));
+    const next = foldBefore && j === 0 ? -1 : foldAfter && j === leg.to ? -1 : j + 1;
+    if (next > 0 && next < n) gap(j);
   }
-  const from = net.stations[t.st[leg.from]];
-  const to = net.stations[t.st[leg.to]];
+
+  const from = st(leg.from);
+  const origin = st(0);
+  const terminus = st(n - 1);
+  const hiRoute = origin.hi && terminus.hi ? `${origin.hi} → ${terminus.hi}` : "";
+  const plusDay = Math.floor(t.arr[leg.to] / 1440) - Math.floor(t.dep[leg.from] / 1440);
+  const runs = shiftDays(t.days, Math.floor(t.dep[leg.from] / 1440));
   return `<div class="panel-scroll">
     <div class="train-top">
       <button class="back" type="button" data-act="back">← ${esc(destTitle)}</button>
       <button class="round" type="button" data-act="close" aria-label="Close">${ICON.close}</button>
     </div>
     <header class="tr-head">
-      <span class="no">${esc(t.no)}</span><span class="tag ${FAST.has(t.type) ? "fast" : ""}">${esc(t.typeLabel)}</span>
-      <h2 id="panel-title" tabindex="-1">${esc(t.name)}</h2>
-      <p>${esc(from.name)} <b>${fmtTime(t.dep[leg.from])}</b> → ${esc(to.name)} <b>${fmtTime(t.arr[leg.to])}</b> · ${fmtMins(leg.dur)} · ${fmtKm(leg.km)} km · ${plural(leg.halts, "halt")} on the way.</p>
-      <p class="runs">${t.days ? `Leaves ${esc(from.name)}: <b>${daysAt(t, leg.from)}</b>` : "Running days not known"}</p>
-      <p>Times are from ${esc(t.source)} and may have changed: check <a href="https://enquiry.indianrail.gov.in/mntes/" target="_blank" rel="noopener">NTES</a> before you travel.
-      <a href="${esc(reportUrl(t))}" target="_blank" rel="noopener">Report a mistake</a></p>
+      <h2 id="panel-title" class="vh" tabindex="-1">${esc(t.no)} ${esc(t.name)}</h2>
+      ${ledHtml(t.no, t.name, `${origin.name} → ${terminus.name}`, hiRoute)}
+      <p class="tr-kind"><span class="tag ${FAST.has(t.type) ? "fast" : ""}">${esc(t.typeLabel)}</span>${n - 2 > 0 ? `${plural(n - 2, "halt")} between ${esc(origin.name)} and ${esc(terminus.name)}` : ""}</p>
+      <div class="tr-ride">
+        <div><small>Departs ${esc(fromTitle)}</small>${flapHtml(fmtTime(t.dep[leg.from]), true)}</div>
+        <i class="tr-line" aria-hidden="true"><span>${fmtMins(leg.dur)} · ${fmtKm(leg.km)} km</span></i>
+        <div><small>Arrives ${esc(destTitle)}</small>${flapHtml(fmtTime(t.arr[leg.to]), true)}${plusDay > 0 ? `<sup>${plusDay > 1 ? `${plusDay} days later` : "next day"}</sup>` : ""}</div>
+      </div>
+      <div class="tr-days">${t.days ? `${runs === 127 ? "" : weekHtml(runs)}<span>Leaves ${esc(from.name)} <b>${runs === 127 ? "every day" : /^Except/.test(daysLabel(runs)) ? daysLabel(runs).replace("Except", "every day except") : `on ${daysLabel(runs)}`}</b></span>` : `<span>Running days not known: check before you go</span>`}</div>
     </header>
-    <div>
-      <div class="stop-head" aria-hidden="true"><span>Arr</span><span>Dep</span><span></span><span>Halt</span></div>
-      <ol class="stops">${items.join("")}</ol>
-      ${t.approx.some((x) => x) ? `<p class="est-note">~ Estimated: a small stop the official timetable doesn't print, placed between its neighbours using the older timetable.</p>` : ""}
-    </div>
+    <ol class="line" aria-label="Stops" tabindex="-1">${rows.join("")}</ol>
+    ${t.approx.some((x) => x) ? `<p class="est-note">~ Estimated: a small stop the official timetable doesn't print, placed between its neighbours using the older timetable.</p>` : ""}
+    <p class="tr-src">Times from ${esc(t.source)}. They may have changed: check <a href="https://enquiry.indianrail.gov.in/mntes/" target="_blank" rel="noopener">NTES</a> before you travel. <a href="${esc(reportUrl(t))}" target="_blank" rel="noopener">Report a mistake</a></p>
   </div>`;
 }

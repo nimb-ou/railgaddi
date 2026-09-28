@@ -30,6 +30,17 @@ describe("place guides", () => {
     expect(searchPlaces(net, guides, "मैसूरु")).toContain(place("mysuru"));
   });
 
+  it("keeps renamed stations' guides, cities and old names", () => {
+    const at = (code: string) => net.placeOf[net.stations.findIndex((s) => s.code === code)];
+    expect(at("VGLJ").aka).toContain("Jhansi"); // Jhansi Jn -> Virangana Lakshmibai Jhansi (VGLJ)
+    expect(guides.get(at("VGLJ"))?.title).toBe("Jhansi"); // its guide was matched under JHS
+    expect(searchPlaces(net, guides, "jhansi")[0]).toBe(at("VGLJ"));
+    expect(at("RKMP")).toBe(place("bhopal")); // Habibganj -> Rani Kamlapati, still Bhopal
+    expect(searchPlaces(net, guides, "habibganj")[0]).toBe(place("bhopal"));
+    const varanasi = place("varanasi").stations.map((s) => net.stations[s].code);
+    expect(new Set(varanasi).size).toBe(varanasi.length); // Manduadih became BSBS, which it had
+  });
+
   it("serves photos from resizable Commons thumbnails, never larger than the original", () => {
     for (const [key, raw] of Object.entries(index.photos).slice(0, 200)) {
       expect(raw.t.startsWith("http"), key).toBe(false); // prefix restored by the app

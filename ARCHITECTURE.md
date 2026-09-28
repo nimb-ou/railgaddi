@@ -22,10 +22,10 @@ real track.
 
 | File | Raw | Brotli | When |
 |---|---|---|---|
-| `meta.json`: stations, cities, train names, newer trains | 791 kB | 191 kB | first paint |
-| `timetable.bin`: every halt of every train | 1.1 MB | 296 kB | first paint |
+| `meta.json`: stations, cities, train names, renamed stations, newer trains | 826 kB | 188 kB | first paint |
+| `timetable.bin`: every halt of every train | 1.3 MB | 329 kB | first paint |
 | `places/index.json`: which place has a guide, its photos | 373 kB | 76 kB | first paint |
-| `paths.bin`: stations passed between halts | 763 kB | 80 kB | after first paint |
+| `paths.bin`: stations passed between halts | 848 kB | 121 kB | after first paint |
 | `places/NN.json` ×32: intros and sights | ~40 kB | ~10 kB | when a place opens |
 
 Every file name carries a content hash, so the CDN and browsers can cache it for a year and a new
@@ -43,6 +43,9 @@ of it after the first visit, so the whole country works offline; photos are cach
 - **`ui/`**: HTML templates and small widgets. Templates are pure functions returning strings with
   every value escaped; interaction is event delegation on `[data-act]`, so there are no inline
   handlers (compatible with a strict Content Security Policy).
+  `boards.ts` has the station's moving parts (flap tiles, LED boards, the landscape passing a
+  window); `poster.ts` draws the share poster on a canvas, in the browser. DESIGN.md says what
+  each object is for.
 - **`app/`**: the controller holds the state (origin, filters, what's open), keeps the address bar
   in sync (`router.ts`), and moves focus for keyboard and screen-reader users.
 

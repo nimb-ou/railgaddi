@@ -43,6 +43,19 @@
   /* signals, for state only */
   --go: #2e7d32;
   --caution: #c98a00;
+  /* the station's boards that change: split-flap tiles, the LED board on a coach, the window */
+  --flap: #242d42;
+  --flap-2: #1b2334;
+  --flap-ink: #f6eed8;
+  --led-ink: #ffb33c;
+  --led-hot: #ff7446;
+  --frame: #2b3242;
+  --sky-1: #c4dde6;
+  --sky-2: #f4e7c9;
+  --hill: #a8c0b1;
+  --tree: #6f9a7c;
+  --field: #cfae6f;
+  --pole: #3a3530;
 }
 
 :root[data-theme="night"] {
@@ -78,6 +91,18 @@
   --shadow: 0 16px 40px -18px rgba(0, 0, 0, 0.7);
   --go: #5fd07a;
   --caution: #ffc24a;
+  --flap: #1d2847;
+  --flap-2: #152039;
+  --flap-ink: #ffd27a;
+  --led-ink: #ffb33c;
+  --led-hot: #ff7446;
+  --frame: #070b17;
+  --sky-1: #0b1533;
+  --sky-2: #2a3a6a;
+  --hill: #1f2d57;
+  --tree: #18244a;
+  --field: #121b39;
+  --pole: #060a16;
 }
 
 :root {
@@ -398,7 +423,6 @@ a { color: inherit; }
   animation: chip-in 0.6s var(--ease) both;
 }
 @keyframes chip-in { from { opacity: 0; transform: translateY(-10px) scale(0.97); } }
-.chip-board { display: grid; padding: 9px 4px 9px 16px; }
 /* the ticket: two ends, each a button that opens its own search */
 .tk-end {
   display: grid;
@@ -622,30 +646,33 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 }
 @keyframes panel-in { from { transform: translateX(28px); opacity: 0; } }
 .sheet-grip { display: none; }
-.panel-scroll { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; display: grid; grid-auto-rows: max-content; gap: 20px; align-content: start; padding-bottom: 26px; }
+.panel-scroll { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; display: grid; grid-template-columns: minmax(0, 1fr); grid-auto-rows: max-content; gap: 20px; align-content: start; padding-bottom: 26px; }
 .panel-scroll > :not(.cover) { margin: 0 20px; }
 .panel-scroll::-webkit-scrollbar { width: 8px; }
 .panel-scroll::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
 
 .cover { position: relative; margin: 0; }
-.cover .shot { position: relative; height: 200px; background: var(--paper-2); overflow: hidden; }
-.cover .shot img { display: block; width: 100%; height: 100%; object-fit: cover; }
+/* the photo is the view from a train window: rounded, inset, and it glides to a stop as you
+   arrive; as the panel scrolls it drifts slower than the page, like distant things do */
+.cover .shot { position: relative; height: 212px; margin: 10px 10px 0; border-radius: 16px; background: var(--paper-2); overflow: hidden; isolation: isolate; }
+.cover .shot img { display: block; width: 100%; height: calc(100% + 36px); margin-top: -18px; object-fit: cover; transform: translateY(var(--drift, 0px)); }
+.cover .shot::before { content: ""; position: absolute; inset: 0; z-index: 1; border-radius: inherit; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22), inset 0 14px 22px -16px rgba(0, 0, 0, 0.45); pointer-events: none; }
 /* a slow scrim at the foot of the cover, so the board plate sits on the picture cleanly */
 .cover .shot::after { content: ""; position: absolute; inset: auto 0 0; height: 40%; background: linear-gradient(transparent, rgba(0, 0, 0, 0.18)); pointer-events: none; }
 .panel img { opacity: 0; transition: opacity 0.5s ease, transform 0.35s var(--ease), box-shadow 0.3s; }
 .panel img.in { opacity: 1; }
-.cover .shot img.in { animation: settle 1.2s var(--ease) both; }
-@keyframes settle { from { transform: scale(1.04); } }
+.cover .shot img.in { animation: arrive 1.5s cubic-bezier(0.16, 0.84, 0.24, 1) both; }
+@keyframes arrive { from { translate: 7% 0; scale: 1.08; filter: blur(1.5px); } 60% { filter: none; } }
 .panel img.broken { visibility: hidden; }
 .panel .shot:has(img.broken) { height: 56px; }
 .cover.bare { padding-top: 56px; }
 /* the place's own station board, hung just below the photo */
-.cover-text { position: relative; padding: 0 20px; margin-top: -26px; display: grid; justify-items: start; gap: 8px; }
+.cover-text { position: relative; z-index: 1; padding: 0 20px; margin-top: -26px; display: grid; justify-items: start; gap: 8px; }
 .cover.bare .cover-text { margin-top: 0; }
 .cover-text .board-plate .name { font-size: 28px; }
 .cover-text .where { margin: 0; font-size: 12.5px; color: var(--muted); }
 .cover-text .where b { color: var(--text); font-weight: 700; }
-.panel-tools { position: absolute; z-index: 2; top: 12px; right: 12px; display: flex; gap: 8px; }
+.panel-tools { position: absolute; z-index: 2; top: 20px; right: 20px; display: flex; gap: 8px; }
 .round {
   width: 34px;
   height: 34px;
@@ -682,19 +709,36 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   -webkit-mask: var(--notch);
   mask: var(--notch);
 }
-.ticket-route { display: flex; align-items: baseline; gap: 10px; font-size: 11px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
-.ticket-route i { font-style: normal; color: var(--accent); letter-spacing: 0; }
-.tk-change { margin-left: auto; border: 0; background: none; padding: 2px 0; font: 700 11.5px/1 var(--f-sans); letter-spacing: 0; text-transform: none; color: var(--accent); }
+/* from -> to, with the next train's halts on a strip between them, spaced by time */
+.ticket-route { display: flex; align-items: center; gap: 10px; font-size: 11px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.ticket-route .tk-a, .ticket-route .tk-b { flex: none; max-width: 38%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ticket-route .tk-b { color: var(--ink); }
+.strip { position: relative; flex: 1; min-width: 48px; height: 12px; }
+.strip::before { content: ""; position: absolute; left: 5px; right: 5px; top: 5px; height: 2px; border-radius: 2px; background: var(--livery); transform-origin: left; animation: strip-draw 0.9s 0.15s var(--ease) both; }
+.strip::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 5px 6px, var(--ticket) 2px, var(--livery) 2.6px 4.4px, transparent 5px),
+    radial-gradient(circle at calc(100% - 5px) 6px, var(--ticket) 2px, var(--livery) 2.6px 4.4px, transparent 5px);
+}
+.strip i { position: absolute; top: 3px; left: calc(5px + var(--at) * (100% - 10px)); width: 1.5px; height: 6px; border-radius: 1px; background: var(--livery); animation: tick-in 0.3s calc(0.3s + var(--at) * 0.7s) both; }
+@keyframes strip-draw { from { transform: scaleX(0); } }
+@keyframes tick-in { from { opacity: 0; transform: scaleY(0.2); } }
+.tk-change { flex: none; border: 0; background: none; padding: 2px 0; font: 700 11.5px/1 var(--f-sans); letter-spacing: 0; text-transform: none; color: var(--accent); }
 .tk-change:hover { text-decoration: underline; text-underline-offset: 3px; }
 .ticket-facts { display: grid; grid-template-columns: repeat(3, 1fr); margin: 8px 0 0; padding: 0 0 12px; border-bottom: 1.5px dashed var(--rule); }
 .ticket-facts div + div { padding-left: 12px; border-left: 1px solid var(--line); }
 .ticket-facts dt { font-size: 10.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
 .ticket-facts dd { margin: 2px 0 0; font-size: 19px; font-weight: 800; letter-spacing: -0.01em; color: var(--ink); }
+.ticket-foot { display: flex; align-items: center; gap: 12px; }
 .ticket-next {
   display: flex;
   align-items: center;
-  gap: 9px;
-  width: 100%;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
   border: 0;
   background: none;
   text-align: left;
@@ -702,24 +746,17 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   font-size: 13px;
   color: var(--muted);
 }
-.ticket-next b { color: var(--text); font-weight: 800; }
+.ticket-next .flap { font-size: 13.5px; }
+.ticket-next .tn-label { white-space: nowrap; }
+.ticket-next .tn-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ticket-next .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--go); box-shadow: 0 0 0 3px color-mix(in srgb, var(--go) 22%, transparent); flex: none; }
-.ticket-next .go { margin-left: auto; color: var(--ink); font-weight: 800; }
-.ticket-next:hover b { text-decoration: underline; text-underline-offset: 3px; }
+.ticket-next .go { margin-left: auto; color: var(--ink); font-weight: 800; transition: transform 0.2s var(--ease); }
+.ticket-next:hover .tn-name { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+.ticket-next:hover .go { transform: translateX(3px); }
 
 .intro { margin: 0; font-size: 14.5px; line-height: 1.62; color: var(--text); text-wrap: pretty; }
 .intro.muted { color: var(--muted); font-size: 13.5px; }
-.skeleton { display: grid; gap: 9px; padding: 4px 0; }
-.skeleton i {
-  display: block;
-  height: 11px;
-  border-radius: 3px;
-  background: linear-gradient(90deg, var(--paper-2) 0%, var(--line) 40%, var(--paper-2) 80%) 0 0 / 300% 100%;
-  animation: shimmer 1.4s linear infinite;
-}
-.skeleton i:nth-child(2) { width: 92%; }
-.skeleton i:nth-child(3) { width: 64%; }
-@keyframes shimmer { to { background-position: -150% 0; } }
+.skeleton { display: grid; gap: 8px; font-size: 12px; color: var(--muted); }
 .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-bottom: 8px; margin-bottom: 12px; border-bottom: 1.5px solid var(--ink); }
 .section-head h3 { margin: 0; font-size: 12px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink); }
 .link-btn { border: 0; background: none; padding: 0; font-size: 12.5px; font-weight: 700; color: var(--accent); }
@@ -784,7 +821,6 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 .newer li b a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .newer li span { font-size: 12px; color: var(--muted); }
 .newer p { margin: 10px 0 0; font-size: 12px; line-height: 1.5; color: var(--muted); }
-.tr-head .runs { margin-top: 6px; color: var(--text); }
 .tag {
   display: inline-block;
   margin-left: 6px;
@@ -802,57 +838,11 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 .tag.fast { border-color: var(--accent); color: var(--accent); }
 .show-all { justify-self: start; margin-top: 8px; }
 
-.cta { display: grid; gap: 10px; padding: 16px; border-radius: 8px; background: var(--ticket); }
-.cta p { margin: 0; font-size: 13.5px; color: var(--muted); }
-.cta button { justify-self: start; border: 0; border-radius: 6px; padding: 9px 16px; background: var(--ink); color: var(--paper); font-weight: 800; font-size: 13px; }
 
 .credits-foot { font-size: 11px; line-height: 1.55; color: var(--muted); padding-top: 10px; border-top: 1px solid var(--line); }
 .credits-foot summary { cursor: pointer; font-weight: 600; }
 .credits-foot ul { margin: 6px 0 0; padding-left: 16px; }
 .credits-foot a { color: inherit; }
-
-/* one train's stops, as the route strip printed inside a coach */
-.train-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 14px; }
-.back { border: 0; background: none; padding: 6px 0; font-size: 13px; font-weight: 700; color: var(--muted); text-align: left; }
-.back:hover { color: var(--text); }
-.tr-head .no { font-size: 13px; font-weight: 800; color: var(--accent); letter-spacing: 0.04em; }
-.tr-head h2 { margin: 6px 0 0; font-size: 24px; font-weight: 800; line-height: 1.15; letter-spacing: -0.02em; color: var(--ink); text-wrap: balance; }
-.tr-head p { margin: 10px 0 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
-.stop-head, .stops li { display: grid; grid-template-columns: 44px 44px 22px 1fr; gap: 6px; }
-.stop-head { padding-bottom: 8px; margin-bottom: 4px; border-bottom: 1.5px solid var(--ink); font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
-.stops { list-style: none; margin: 0; padding: 0; }
-.stops li { font-size: 13px; color: var(--muted); }
-.stops li.ride { color: var(--text); }
-.stops .t { font-size: 12.5px; line-height: 22px; }
-.stops .rail { position: relative; align-self: stretch; }
-.stops .rail::before { content: ""; position: absolute; left: 9px; top: 0; bottom: 0; width: 4px; background: var(--line); }
-.stops li.ride .rail::before { background: var(--livery); }
-.stops li.board-at .rail::before { top: 11px; }
-.stops li.alight-at .rail::before { bottom: calc(100% - 11px); }
-.stops li:first-child .rail::before { top: 11px; }
-.stops li:last-child .rail::before { bottom: calc(100% - 11px); }
-.stops .rail::after { content: ""; position: absolute; left: 5px; top: 5px; width: 12px; height: 12px; border-radius: 50%; background: var(--paper); border: 2.5px solid var(--rule); box-sizing: border-box; }
-.stops li.ride .rail::after { border-color: var(--livery); }
-.stops .nm { padding: 2px 0 9px; line-height: 1.35; }
-.est-note { margin: 12px 0 0; font-size: 12px; line-height: 1.5; color: var(--muted); }
-.stops .nm code { font: 600 10.5px/1 var(--f-sans); margin-left: 5px; opacity: 0.7; letter-spacing: 0.04em; }
-/* where you get on and off: station boards */
-.stops li.board-at .nm span, .stops li.alight-at .nm span {
-  display: inline-block;
-  background: var(--board);
-  color: var(--board-ink);
-  padding: 2px 7px 3px;
-  border-radius: 3px;
-  box-shadow: inset 0 0 0 1.5px var(--board), inset 0 0 0 2.5px var(--board-ink);
-  font-weight: 800;
-  font-stretch: 75%;
-  font-variation-settings: "wdth" 75;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-.stops li.board-at .rail::after, .stops li.alight-at .rail::after { background: var(--board); border-color: var(--board-ink); }
-.stops li.dayrow { display: block; }
-.stops .day { display: block; font-size: 10px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); padding: 6px 0 10px 100px; }
 
 /* the ways into a place: pick where you start */
 .get-here { display: grid; gap: 12px; }
@@ -877,9 +867,8 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 .gh-here { justify-self: start; }
 
 /* the same places as a list, nearest first: a departures board you can scroll */
-.list-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-top: 20px; }
-.list-head .eyebrow { margin: 0 0 6px; }
-.list-head h2 { margin: 0; font-size: 22px; font-weight: 800; line-height: 1.15; letter-spacing: -0.015em; color: var(--ink); }
+.list-head { display: flex; align-items: center; gap: 12px; padding-top: 18px; }
+.list-head .led { flex: 1; min-width: 0; }
 .list-filter { justify-self: start; }
 .dest-list { list-style: none; margin: 0; padding: 0; border-top: 1.5px solid var(--ink); }
 .dest-list li + li { border-top: 1px solid var(--line); }
@@ -901,6 +890,169 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 .dl-time { text-align: right; }
 .dl-time b { font-size: 14px; font-weight: 800; color: var(--ink); }
 
+/* ---------------------------------------------------------------- the station's moving parts */
+/* split-flap tiles: times on a departures board. Always dark, like the real ones */
+.flap { display: inline-flex; vertical-align: -0.12em; font-weight: 800; line-height: 1; }
+.flap > span, .flap:not(:has(> span)) { display: inline-flex; gap: 0.12em; }
+.flap i {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 0.84em;
+  height: 1.3em;
+  border-radius: 0.2em;
+  background: linear-gradient(var(--flap) 0 50%, var(--flap-2) 50%);
+  color: var(--flap-ink);
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  backface-visibility: hidden;
+}
+.flap i::after { content: ""; position: absolute; left: 0; right: 0; top: calc(50% - 0.5px); height: 1px; background: rgba(0, 0, 0, 0.5); }
+.flap i.sep { width: 0.34em; background: none; box-shadow: none; color: var(--muted); }
+.flap i.sep::after { display: none; }
+.flap i.spin { animation: flap-fold 0.11s ease-in; }
+@keyframes flap-fold { 50% { transform: perspective(4em) rotateX(-72deg); filter: brightness(0.8); } }
+
+/* the LED board on a coach's side: which train this is */
+.led {
+  position: relative;
+  overflow: hidden;
+  padding: 12px 15px 11px;
+  border-radius: 9px;
+  background: #0c0e13;
+  color: var(--led-ink);
+  font: 800 18px/1.2 var(--f-sans);
+  font-stretch: 78%;
+  font-variation-settings: "wdth" 78;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  text-shadow: 0 0 7px color-mix(in srgb, var(--led-ink) 55%, transparent);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06), inset 0 3px 12px rgba(0, 0, 0, 0.7), 0 12px 26px -16px rgba(0, 0, 0, 0.7);
+}
+/* the dot matrix */
+.led::after { content: ""; position: absolute; inset: 0; background: radial-gradient(circle, transparent 0.85px, rgba(12, 14, 19, 0.5) 1.25px) 0 0 / 3px 3px; pointer-events: none; }
+.led-line { display: flex; gap: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.led-line b { color: var(--led-hot); font-weight: 900; text-shadow: 0 0 7px color-mix(in srgb, var(--led-hot) 55%, transparent); }
+.led-line span { overflow: hidden; text-overflow: ellipsis; }
+.led-sub { position: relative; height: 1.35em; margin-top: 4px; font-size: 13.5px; opacity: 0.88; }
+.led-sub > span { position: absolute; left: 0; right: 0; }
+/* English and Hindi take turns, as boards on Indian coaches do */
+.led-sub:has(.led-hi) > span { animation: led-swap 9s infinite; }
+.led-sub .led-hi { animation-delay: -4.5s !important; font-family: var(--f-indic); font-weight: 700; text-transform: none; letter-spacing: 0.02em; }
+@keyframes led-swap { 0%, 44% { opacity: 1; } 50%, 94% { opacity: 0; } }
+
+/* the view from a train window, passing while something loads */
+.landscape { position: relative; overflow: hidden; }
+.ls-sky { position: absolute; inset: 0; background: linear-gradient(var(--sky-1), var(--sky-2) 78%); }
+.ls-layer { position: absolute; left: 0; bottom: 0; display: flex; width: 200%; height: 100%; animation: ls-pass linear infinite; }
+.ls-layer svg { flex: none; display: block; width: 50%; height: 100%; }
+.ls-hills { animation-duration: 40s; fill: var(--hill); }
+.ls-trees { animation-duration: 15s; fill: var(--tree); }
+.ls-field { animation-duration: 6s; fill: var(--field); }
+.ls-poles { animation-duration: 2.2s; }
+.ls-poles .pole { fill: var(--pole); }
+.ls-poles .wire { stroke: var(--pole); stroke-width: 0.7; }
+@keyframes ls-pass { to { transform: translateX(-50%); } }
+.ls-window { width: 232px; height: 138px; border-radius: 28px; box-shadow: 0 0 0 9px var(--frame), 0 0 0 10px rgba(0, 0, 0, 0.18), 0 26px 40px -22px rgba(0, 0, 0, 0.55); margin: 14px 0 10px; }
+.ls-strip { height: 46px; border-radius: 10px; }
+
+/* ---------------------------------------------------------------- one train, as the route diagram inside a coach */
+.vh { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.train-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 14px; }
+.back { border: 0; background: none; padding: 6px 0; font-size: 13px; font-weight: 700; color: var(--muted); text-align: left; }
+.back:hover { color: var(--text); }
+.tr-head { display: grid; gap: 12px; }
+.tr-kind { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); }
+.tr-kind .tag { margin-left: 0; }
+.tr-ride { display: grid; grid-template-columns: auto 1fr auto; align-items: end; gap: 14px; padding: 12px 16px 14px; border-radius: 8px; background: var(--ticket); }
+.tr-ride small { display: block; max-width: 140px; margin-bottom: 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.tr-ride .flap { font-size: 21px; }
+.tr-ride > div:last-child { text-align: right; }
+.tr-ride sup { display: block; margin-top: 5px; font-size: 10.5px; font-weight: 700; color: var(--accent); }
+.tr-line { position: relative; align-self: center; height: 2px; margin-top: 18px; border-radius: 2px; background: var(--livery); }
+.tr-line::before, .tr-line::after { content: ""; position: absolute; top: -3px; width: 8px; height: 8px; border-radius: 50%; background: var(--ticket); border: 2px solid var(--livery); box-sizing: border-box; }
+.tr-line::before { left: -4px; }
+.tr-line::after { right: -4px; }
+.tr-line span { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); white-space: nowrap; font-size: 11.5px; font-weight: 700; font-style: normal; color: var(--text); }
+.tr-days { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; font-size: 12.5px; color: var(--muted); }
+.tr-days b { color: var(--text); }
+.week { display: flex; gap: 3px; margin: 0; padding: 0; list-style: none; }
+.week li { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 4px; font-size: 10.5px; font-weight: 800; color: var(--muted); opacity: 0.45; }
+.week li.on { opacity: 1; color: var(--ink); background: color-mix(in srgb, var(--livery) 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--livery) 45%, transparent); }
+.tr-src { margin: 0; font-size: 12px; line-height: 1.55; color: var(--muted); }
+.est-note { margin: 0; font-size: 12px; line-height: 1.5; color: var(--muted); }
+
+/* the line: your ride thick in livery, the rest of the train's run thin; long runs take room */
+.line { --lx: 72px; list-style: none; margin: 0; padding: 4px 0 0; border-top: 1.5px solid var(--ink); }
+.line:focus { outline: none; }
+.line li { position: relative; }
+.line li::before, .line li::after { content: ""; position: absolute; left: calc(var(--lx) - 1.5px); width: 3px; background: var(--rule); }
+.line .stop { display: grid; grid-template-columns: 52px 24px 1fr; column-gap: 8px; align-items: start; min-height: 30px; }
+.line .stop::before { top: 0; height: 12px; }
+.line .stop::after { top: 12px; bottom: 0; }
+.line .stop.first::before, .line .stop.last::after { display: none; }
+.line .stop.in::before, .line .stop.out::after, .line .ride::before { left: calc(var(--lx) - 2.5px); width: 5px; background: var(--livery); }
+.line .t { display: grid; justify-items: end; padding-top: 4px; line-height: 1.15; }
+.line .t b { font-size: 12.5px; font-weight: 700; color: var(--text); }
+.line .t small { margin-top: 2px; font-size: 10px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.line .node { position: relative; z-index: 1; justify-self: center; margin-top: 6px; width: 12px; height: 12px; border-radius: 50%; background: var(--paper); border: 2.5px solid var(--rule); box-sizing: border-box; }
+/* small stops are ticks off the line, as on a line diagram */
+.line .minor .node { justify-self: start; margin: 11px 0 0 12px; width: 7px; height: 2.5px; border: 0; border-radius: 0 2px 2px 0; background: var(--rule); }
+.line .stop.in .node, .line .stop.out .node { border-color: var(--livery); }
+.line .minor.in .node, .line .minor.out .node { background: var(--livery); }
+.line .board-at .node, .line .alight-at .node { width: 17px; height: 17px; margin-top: 3.5px; border: 3px solid var(--board-ink); background: var(--board); }
+.line .nm { padding: 4px 0 10px; font-size: 13px; line-height: 1.35; color: var(--text); }
+.line .minor .nm { font-size: 12.5px; color: var(--muted); }
+.line .off .nm, .line .off .t b { color: var(--muted); }
+.line .nm code { margin-left: 6px; font: 600 10.5px/1 var(--f-sans); letter-spacing: 0.04em; opacity: 0.65; }
+/* where you get on and off: station boards */
+.line .plate {
+  display: inline-block;
+  padding: 2px 7px 3px;
+  border-radius: 3px;
+  background: var(--board);
+  color: var(--board-ink);
+  box-shadow: inset 0 0 0 1.5px var(--board), inset 0 0 0 2.5px var(--board-ink);
+  font-weight: 800;
+  font-stretch: 75%;
+  font-variation-settings: "wdth" 75;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.line .run { height: var(--h); }
+.line .run::before, .line .dayrow::before, .line .more::before { top: 0; bottom: 0; }
+.line .run span { position: absolute; top: 50%; left: calc(var(--lx) + 20px); transform: translateY(-50%); font-size: 11px; font-style: italic; color: var(--muted); white-space: nowrap; }
+.line .dayrow { height: 30px; }
+.line .dayrow span { position: absolute; left: calc(var(--lx) + 20px); right: 0; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 10px; font-size: 10px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
+.line .dayrow span::after { content: ""; flex: 1; border-top: 1px dashed var(--rule); }
+.line .more { padding: 6px 0 12px calc(var(--lx) + 20px); }
+.line .more::before { background: repeating-linear-gradient(var(--rule) 0 3px, transparent 3px 7px); }
+.line .more button { border: 0; background: none; padding: 2px 0; font-size: 12.5px; font-weight: 700; color: var(--accent); }
+.line .more button::before { content: "＋ "; font-weight: 800; }
+.line .more button:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+/* ---------------------------------------------------------------- sharing: a travel poster */
+.poster-sheet { position: fixed; inset: 0; z-index: 45; display: grid; place-items: center; padding: 16px; background: rgba(8, 12, 22, 0.5); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); animation: fade-in 0.25s ease both; }
+.poster-sheet.closing { animation: fade-out 0.22s ease both; }
+@keyframes fade-in { from { opacity: 0; } }
+@keyframes fade-out { to { opacity: 0; } }
+.ps-card { position: relative; display: grid; grid-template-columns: minmax(0, 344px) 240px; align-items: center; gap: 26px; max-width: 100%; padding: 22px; border-radius: 14px; background: var(--paper); box-shadow: var(--shadow); animation: ps-rise 0.4s var(--ease) both; }
+@keyframes ps-rise { from { transform: translateY(18px) scale(0.98); } }
+.ps-art { display: grid; place-items: center; aspect-ratio: 4 / 5; border-radius: 3px; overflow: hidden; background: var(--paper-2); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15), 0 18px 34px -18px rgba(0, 0, 0, 0.55); }
+.ps-art img { display: block; width: 100%; height: 100%; animation: develop 0.9s ease both; }
+@keyframes develop { from { opacity: 0; filter: saturate(0.2) brightness(1.25); } }
+.ps-wait { font-size: 12.5px; color: var(--muted); }
+.ps-text h2 { margin: 0 0 6px; font-size: 20px; font-weight: 800; line-height: 1.2; letter-spacing: -0.01em; color: var(--ink); }
+.ps-text p { margin: 0 0 18px; font-size: 13px; color: var(--muted); }
+.ps-actions { display: grid; gap: 8px; }
+.ps-actions button { padding: 10px 14px; border: 1px solid var(--rule); border-radius: 8px; background: none; font-size: 13.5px; font-weight: 700; color: var(--text); text-align: left; transition: background 0.2s; }
+.ps-actions button:hover:not(:disabled) { background: var(--paper-2); }
+.ps-actions button:disabled { opacity: 0.45; cursor: default; }
+.ps-actions .ps-main { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.ps-actions .ps-main:hover:not(:disabled) { background: var(--ink); opacity: 0.9; }
+.ps-close { position: absolute; top: 12px; right: 12px; }
+
 /* ---------------------------------------------------------------- clock, info, loading */
 .clock {
   position: fixed;
@@ -915,7 +1067,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 }
 .clock button { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--line); background: var(--paper); }
 .clock button path { fill: currentColor; }
-.clock-time { font-size: 14px; font-weight: 800; color: var(--ink); }
+.clock-time { font-size: 13px; }
 
 .info {
   position: fixed;
@@ -961,9 +1113,8 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
-.loading span { width: 120px; height: 4px; border-radius: 2px; background: repeating-linear-gradient(90deg, var(--ink) 0 10px, transparent 10px 16px); background-size: 32px 100%; animation: load 0.8s linear infinite; opacity: 0.6; }
-@keyframes load { to { background-position: 32px 0; } }
 .loading.done { opacity: 0; pointer-events: none; }
+.loading .ls-window { margin: 6px 0 8px; }
 
 /* the dock is centred: on mid-size screens lift the clock clear of it */
 @media (max-width: 1240px) and (min-width: 721px) {
@@ -1040,7 +1191,16 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   }
   .sheet-grip::before { content: ""; position: absolute; top: 8px; left: 28px; width: 40px; height: 4px; border-radius: 4px; background: rgba(255, 255, 255, 0.85); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12); }
   .panel[data-view="list"] .sheet-grip::before, .panel[data-view="train"] .sheet-grip::before, .panel .cover.bare ~ .sheet-grip::before { background: var(--rule); box-shadow: none; }
-  .cover .shot { height: 170px; }
+  .cover .shot { height: 180px; margin: 8px 8px 0; border-radius: 14px; }
+  .panel-tools { top: 16px; right: 16px; }
+  .ps-card { grid-template-columns: 1fr; gap: 16px; width: min(420px, 100%); padding: 16px; }
+  .ps-art { justify-self: center; height: min(50vh, calc((100vw - 64px) * 1.25)); width: auto; aspect-ratio: 4 / 5; }
+  .ticket-foot { flex-wrap: wrap; column-gap: 12px; }
+  .ticket-next { flex-basis: 100%; padding-bottom: 4px; }
+  .tk-change { margin: 0 0 12px auto; }
+  .ps-actions { grid-template-columns: 1fr 1fr; }
+  .ps-actions .ps-main { grid-column: 1 / -1; }
+  .ps-text p { margin-bottom: 12px; }
   .cover-text .board-plate .name { font-size: 24px; }
   .panel-scroll { padding-bottom: calc(26px + env(safe-area-inset-bottom, 0px)); }
   .info { right: 16px; }

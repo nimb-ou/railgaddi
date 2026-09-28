@@ -77,7 +77,7 @@ for old, new in alias.items():
     e, t = osm[new]
     renames[old] = {"old": old, "new": new, "old_name": stations[old]["name"], "since": SRC}
     row = dict(stations.pop(old))
-    row.update(code=new, name=re.sub(r"\s+(Junction|railway station)$", "", t.get("name:en") or t.get("name") or row["name"]),
+    row.update(code=new, name=re.sub(r"\s+(Junction|railway station)$", "", t.get("name:en") or t.get("name") or row["name"], flags=re.I),
                lat=f"{e['lat']:.5f}", lon=f"{e['lon']:.5f}", coord="osm")
     stations[new] = row
     pos[new] = (e["lat"], e["lon"])

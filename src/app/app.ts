@@ -9,7 +9,9 @@ import { ANY, arrivals, bySoonest, departures, legPasses, newerBetween, reachabl
 import type { RailMap, SightPin } from "../map/map";
 import { Dock } from "../ui/dock";
 import { listHtml, type ListItem } from "../ui/list";
-import { esc, placeHtml, scriptLine, trainHtml, type GetHere } from "../ui/panel";
+import { settleFlaps } from "../ui/boards";
+import { esc, placeHtml, scriptLine, trainHtml, type GetHere, type StopsOpen } from "../ui/panel";
+import { openPosterSheet } from "../ui/poster";
 import { SearchBox } from "../ui/search";
 import { filtersOf, go, href, parse, type Route } from "./router";
 
@@ -22,7 +24,7 @@ const LAST = "railgaddi.last"; // the station you started from last time (on thi
 type Detail = { detail: ArticleDetail; photos: Map<string, Photo> };
 type Open =
   | { kind: "place"; place: Place; showAll: boolean; sight: number; legs: Leg[]; allFrom?: boolean; choosing?: boolean }
-  | { kind: "train"; place: Place; leg: Leg }
+  | { kind: "train"; place: Place; leg: Leg; stops: StopsOpen }
   | { kind: "list"; showAll: boolean; withGuides: boolean };
 
 export class App {
@@ -471,7 +473,7 @@ export class App {
     if (this.open?.kind !== "place" && this.open?.kind !== "train") return;
     if (this.open.kind === "place") this.placeScroll = this.panel.querySelector(".panel-scroll")?.scrollTop ?? 0;
     this.trainPushed = o.push;
-    this.open = { kind: "train", place: this.open.place, leg };
+    this.open = { kind: "train", place: this.open.place, leg, stops: { before: false, after: false } };
     this.map.selectTrain(leg);
     this.map.showSights([]);
     this.transition(() => this.renderPanel(true));
@@ -561,11 +563,12 @@ export class App {
     const keep = fresh ? 0 : scroller()?.scrollTop ?? 0;
     if (o.kind === "train") {
       const gv = this.guides.get(o.place) ?? null;
-      this.panel.innerHTML = trainHtml(this.net, o.leg, titleOf(o.place, gv));
+      const boards = this.net.placeOf[o.leg.train.st[o.leg.from]];
+      this.panel.innerHTML = trainHtml(this.net, o.leg, titleOf(this.origin ?? boards, null), titleOf(o.place, gv), o.stops);
       this.panel.dataset.view = "train";
     } else if (o.kind === "list") {
       this.panel.dataset.view = "list";
-      this.panel.innerHTML = listHtml(titleOf(this.origin!, null), this.listItems(o.withGuides), o.showAll, o.withGuides);
+      this.panel.innerHTML = listHtml(titleOf(this.origin!, null), this.origin!.hi, this.listItems(o.withGuides), o.showAll, o.withGuides);
     } else {
       const now = istWeekMinute();
       const gv = this.guides.get(o.place) ?? null;
@@ -600,6 +603,8 @@ export class App {
       }
     }
     this.addGrip();
+    settleFlaps(this.panel);
+    this.parallax();
     const s = scroller();
     if (s && !fresh) s.scrollTop = keep;
     else if (s && scrollTo) s.scrollTop = scrollTo;
@@ -712,7 +717,16 @@ export class App {
         this.closePanel({ push: o.kind !== "list" });
         break;
       case "share":
-        this.share();
+        if (o.kind === "place") this.sharePoster(o.place);
+        else this.share();
+        break;
+      case "stops":
+        if (o.kind === "train") {
+          const side = el.dataset.side as "before" | "after";
+          o.stops[side] = true;
+          this.renderPanel(false);
+          this.panel.querySelector<HTMLElement>(".line")?.focus({ preventScroll: true }); // the button that had focus is gone
+        }
         break;
       case "back":
         this.back();
@@ -823,6 +837,51 @@ export class App {
     const r = this.tip.getBoundingClientRect();
     this.tip.style.left = `${Math.min(x + 16, window.innerWidth - r.width - 8)}px`;
     this.tip.style.top = `${y + 18 + r.height > window.innerHeight ? y - r.height - 12 : y + 18}px`;
+  }
+
+  /** Sharing a place: its travel poster, with the link. */
+  private sharePoster(p: Place) {
+    const gv = this.guides.get(p) ?? null;
+    const d = this.dests.get(p);
+    const title = this.name(p);
+    const line = this.origin && d
+      ? `${fmtMins(d.fastest)} from ${titleOf(this.origin, null)}`
+      : `direct from ${plural(this.arrivalsTo(p).size, "place")}`;
+    openPosterSheet(
+      {
+        title,
+        script: gv?.featured ? "" : scriptLine(p).split("  ·  ").pop() ?? "",
+        state: p.state,
+        line,
+        photo: (gv?.icon && (gv.icon.w ?? 0) >= 800 ? gv.icon : gv?.banner ?? gv?.icon) ?? null,
+        url: location.href,
+      },
+      (t) => this.toast(t),
+    );
+  }
+
+  /**
+   * The cover photo is the view from a train window: as the panel scrolls, it moves more slowly
+   * than the page, the way far things do from a moving train.
+   */
+  private parallax() {
+    const s = this.panel.querySelector<HTMLElement>(".panel-scroll");
+    const img = this.panel.querySelector<HTMLElement>(".cover .shot");
+    if (!s || !img || reducedMotion()) return;
+    let queued = false;
+    s.addEventListener(
+      "scroll",
+      () => {
+        if (queued) return;
+        queued = true;
+        requestAnimationFrame(() => {
+          queued = false;
+          const y = Math.min(s.scrollTop, 260);
+          img.style.setProperty("--drift", `${(y * 0.38).toFixed(1)}px`);
+        });
+      },
+      { passive: true },
+    );
   }
 
   private async share() {

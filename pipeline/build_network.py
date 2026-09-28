@@ -119,7 +119,7 @@ for c in used:
 
 out_cities = []
 for c in cities:
-    codes = [current(k) for k in c["codes"]]
+    codes = list(dict.fromkeys(current(k) for k in c["codes"]))  # a renamed station can be listed already under its new code
     missing = [k for k in codes if k not in idx]
     if missing:
         print(f"  {c['id']}: not in timetable {missing}")

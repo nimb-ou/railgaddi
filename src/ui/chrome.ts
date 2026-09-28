@@ -2,6 +2,7 @@
 // button (moving content needs one: WCAG 2.2.2).
 import { fmtTime } from "../core/format";
 import type { RailMap } from "../map/map";
+import { FlapClock } from "./boards";
 import { THEMES, applyTheme, savedTheme, type ThemeId } from "./theme";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -66,9 +67,10 @@ export function setupChrome(map: RailMap, onTheme: () => void) {
   toggle.addEventListener("click", () => setPlaying(!map.playing));
   setPlaying(!window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   let shown = -1;
+  const flaps = new FlapClock($("clock-time"));
   map.onClock = (m) => {
     if (Math.floor(m) === shown) return;
     shown = Math.floor(m);
-    $("clock-time").textContent = fmtTime(shown);
+    flaps.set(fmtTime(shown));
   };
 }
