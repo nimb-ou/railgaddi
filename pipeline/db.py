@@ -24,6 +24,8 @@ COLUMNS = {
     "overrides": ["number", "field", "value", "reason"],
     "renames": ["old", "new", "old_name", "since"],
     "station_overrides": ["code", "field", "value", "reason"],
+    "retired": ["number", "name", "status", "reason"],
+    "renumbered": ["old", "new", "name", "since"],
 }
 
 

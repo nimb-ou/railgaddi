@@ -51,8 +51,8 @@ test/                  vitest
 
 | What | Source | Licence |
 |---|---|---|
-| Timetable, 2,718 trains (halts, times, distances, running days) | Indian Railways, *Trains at a Glance* 2026 (Railway Board). Permission to be requested before launch: [docs/permissions/tag2026.md](docs/permissions/tag2026.md) | © Indian Railways |
-| Timetable, the other 4,933 trains (mostly passenger and local) | Indian Railways timetable on [data.gov.in](https://www.data.gov.in/catalog/indian-railways-train-time-table), Dec 2017 | GODL-India |
+| Timetable, 2,729 trains (halts, times, distances, running days) | Indian Railways, *Trains at a Glance* 2026 (Railway Board). Permission to be requested before launch: [docs/permissions/tag2026.md](docs/permissions/tag2026.md) | © Indian Railways |
+| Timetable, the other 4,545 trains (mostly passenger and local) | Indian Railways timetable on [data.gov.in](https://www.data.gov.in/catalog/indian-railways-train-time-table), Dec 2017 | GODL-India |
 | Running days (the rest), trains introduced since | [Wikipedia](https://en.wikipedia.org) train articles (~1,750), checked against our end stations | CC BY-SA 4.0 |
 | Train names, types, track path between halts | [datameet/railways](https://github.com/datameet/railways), Aug 2016 | CC0 |
 | Station positions, names in Indian scripts | OpenStreetMap via Overpass | ODbL |
@@ -94,13 +94,17 @@ Every Wikimedia response is cached in `raw/`, so re-runs only ask for what is ne
 
 ## Known limits
 
-- **2,718 trains are on the 2026 timetable; 4,933 still have 2017 times.** The book prints
+- **2,729 trains are on the 2026 timetable; 4,545 still have 2017 times.** The book prints
   principal halts only and about 600 of its trains couldn't be read with full confidence; those,
   and the passenger and local trains it doesn't cover, keep their 2017 times. Small stops the book
   leaves out are kept from 2017 at estimated times, marked "~". The site says where each train's
   times come from and links to NTES.
-- **Running days** are known for 3,018 trains; the rest are treated as daily.
-- **141 trains** known from Wikipedia are listed between their end stations but aren't on the
+- **Running days** are known for 3,014 trains; the rest are treated as daily.
+- **Trains the 2026 book doesn't list.** 110 trains of the older timetable were renumbered and
+  appear under their new number, so the old copies are left out; 13 more were renumbered
+  without readable 2026 times and keep their 2017 stops under the new number. 271 match nothing
+  in the book (withdrawn, or rerouted too much to tell): they stay, and their page says so.
+- **136 trains** known from Wikipedia are listed between their end stations but aren't on the
   map, because their halts and times aren't in either timetable.
 - About 160 stations have no known position; their trains list them, but they aren't drawn.
 

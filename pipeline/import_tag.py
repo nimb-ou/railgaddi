@@ -708,6 +708,59 @@ for no, segs in segments.items():
                   "halts": [{"station": h["code"], "name": h["name"], "arr": fmt_time(h["arr"]), "dep": fmt_time(h["dep"]),
                              "page": h.get("page"), "table_km": h["km"]} for h in halts]}
 
+def name_index():
+    """The book's Train Name Index: every Mail/Express train by name, its numbers ("20111/20112",
+    the first running From -> To) and its end stations. Two sets of five columns per page; long
+    names and station names wrap onto the next line."""
+    entries = []
+    path = SRC / "Train_Name_Index.pdf"
+    if not path.exists():
+        return entries
+    for page in fitz.open(path):
+        ws = page.get_text("words")
+        heads = sorted(w[0] for w in ws if w[4] == "Train" and w[1] < 60)
+        for k in range(0, len(heads) - 1, 2):  # (name, number) header pairs, one per column set
+            h1, h2 = heads[k], heads[k + 1]
+            others = sorted(w[0] for w in ws if w[1] < 60 and w[4] in ("From", "To", "Table") and w[0] > h2)[:3]
+            if len(others) < 3:
+                continue
+            h3, h4, h5 = others
+            cols = [(h1 - 25, h2 - 12), (h2 - 12, h3 - 20), (h3 - 20, h4 - 22), (h4 - 22, h5 - 10)]
+            lines = defaultdict(lambda: [[], [], [], []])
+            for w in ws:
+                if w[1] < 52:
+                    continue
+                for c, (x0, x1) in enumerate(cols):
+                    if x0 <= w[0] < x1:
+                        lines[round(w[1])][c].append(w[4])
+            cur = None
+            for y in sorted(lines):
+                name, num, frm, to = (" ".join(x) for x in lines[y])
+                to = re.sub(r"(\s+[\dA,]+)+$", "", to)  # table numbers that spill into the To column
+                nums = re.findall(r"\d{5}", num)
+                if nums:
+                    cur = {"name": name, "numbers": nums, "from": frm, "to": to}
+                    entries.append(cur)
+                elif cur:
+                    for key, v in (("name", name), ("from", frm), ("to", to)):
+                        if v:
+                            cur[key] = f"{cur[key]} {v}".strip()
+    for e in entries:
+        e["from_code"] = resolve(e["from"], names, pos, None, None, ())
+        e["to_code"] = resolve(e["to"], names, pos, None, None, ())
+    return entries
+
+
+INDEX = name_index()
+(SRC / "index.json").write_text(json.dumps(INDEX, ensure_ascii=False, indent=0))
+print(f"name index: {len(INDEX)} trains, ends placed for {sum(1 for e in INDEX if e['from_code'] and e['to_code'])}")
+
+# every train number the book lists (its Train Name Index, and every table read): a 2017 train
+# whose number isn't here has been renumbered or withdrawn since
+book = set(trains) | {n for e in INDEX for n in e["numbers"]}
+(SRC / "numbers.json").write_text(json.dumps(sorted(book)))
+print(f"train numbers in the book: {len(book)}")
+
 out = SRC / "parsed.json"
 out.write_text(json.dumps(trains, ensure_ascii=False, indent=1))
 print(dict(report))

@@ -80,11 +80,14 @@ def seasonal_2017(no, t):
     return t["src"] == "ogd2017" and (t["type"] == "Spl" or no[0] == "0" or no.startswith("82"))
 
 
-skipped = [no for no, t in train_rows.items() if seasonal_2017(no, t)]
+retired_rows = read_table("retired")
+retired = {r["number"] for r in retired_rows if r["status"] == "duplicate"}  # renumbered: the new number has newer times
+unlisted = {r["number"] for r in retired_rows if r["status"] == "unlisted"}  # the newer book doesn't list the number
+skipped = [no for no, t in train_rows.items() if seasonal_2017(no, t) or no in retired]
 trains = []
 for no in sorted(train_rows):
     t = train_rows[no]
-    if seasonal_2017(no, t):
+    if seasonal_2017(no, t) or no in retired:
         continue
     rows = sorted(halts[no], key=lambda r: int(r["seq"]))
     stops = []
@@ -102,12 +105,17 @@ for no in sorted(train_rows):
         sys.exit(f"train {no}: needs a departure at its first halt and an arrival at its last")
     if any(b < a for a, b in zip(times, times[1:])):
         sys.exit(f"train {no}: times go backwards (use +1, +2 for later days)")
-    trains.append(dict(number=no, name=display_name(t["name"]), type=t["type"], days=days_mask(t["days"]), src=t["src"], stops=stops))
+    src = f"{t['src']}-unlisted" if no in unlisted else t["src"]
+    trains.append(dict(number=no, name=display_name(t["name"]), type=t["type"], days=days_mask(t["days"]), src=src, stops=stops))
 
 newer = read_table("newer_trains")
-SOURCES = {"ogd2017": "the 2017 timetable (data.gov.in)", "tag2026": "Indian Railways' 2026 timetable (Trains at a Glance)"}
+SOURCES = {
+    "ogd2017": "the 2017 timetable (data.gov.in)",
+    "ogd2017-unlisted": "the 2017 timetable (data.gov.in). The 2026 timetable doesn't list this train number: it may have been renumbered, changed or withdrawn",
+    "tag2026": "Indian Railways' 2026 timetable (Trains at a Glance)",
+}
 source_keys = sorted({t["src"] for t in trains})
-print(f"left out: {len(skipped)} seasonal specials from the 2017 timetable")
+print(f"left out: {len(skipped)} seasonal specials and retired trains from the 2017 timetable")
 print(f"db/: {len(stations)} stations, {len(trains)} trains, {sum(len(v) for v in halts.values())} halts, "
       f"{sum(1 for t in trains if t['days'])} with running days, {len(newer)} newer trains")
 

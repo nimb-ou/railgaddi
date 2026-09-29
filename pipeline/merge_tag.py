@@ -277,6 +277,73 @@ write_table("halts", sorted(new_halts, key=lambda h: (h["number"], int(h["seq"])
 write_table("paths", sorted(new_paths, key=lambda p: (p["number"], int(p["after"]))))
 write_table("newer_trains", newer)
 write_table("renames", sorted(renames.values(), key=lambda r: r["old"]))
+
+# Mail/Express trains of the older timetable that the book doesn't list under their old number:
+# renumbered since, or withdrawn. The book's Train Name Index says which: the same end stations
+# under a new number is the same service. If the new number has 2026 times, the old one is a
+# duplicate and goes; if not, the old halts stay under the new number and name (times still
+# 2017's). No match at all: withdrawn, or changed too much to tell; kept, and flagged on the
+# site. (The book covers Mail/Express trains;
+# passenger and local trains aren't in it and stay as they are.)
+EXPRESS = {"Exp", "SF", "Mail", "Raj", "Shtb", "Drnt", "GR", "SKr", "JShtb", "VB", "AB"}
+numbers_file = RAW / f"tag{YEAR}" / "numbers.json"
+index_file = RAW / f"tag{YEAR}" / "index.json"
+retired, renumbered = [], []
+if numbers_file.exists():
+    in_book = set(json.loads(numbers_file.read_text()))
+    index = json.loads(index_file.read_text()) if index_file.exists() else []
+    halts_of = defaultdict(list)
+    for h in new_halts:
+        halts_of[h["number"]].append(h)
+    near = lambda a, b: bool(a and b) and (a == b or (a in pos and b in pos and hav(pos[a], pos[b]) < 30))  # noqa: E731
+    words = lambda n: set(re.findall(r"[a-z]{4,}", (n or "").lower())) - {"express", "superfast", "mail", "exp", "special"}  # noqa: E731
+    taken = set(trains)
+    for no, t in sorted(trains.items()):
+        if t.get("src") != "ogd2017" or t.get("type") not in EXPRESS or no in in_book or no[0] == "0":
+            continue
+        hs = sorted(halts_of.get(no, []), key=lambda h: int(h["seq"]))
+        a, b = (code(hs[0]["station"]), code(hs[-1]["station"])) if hs else ("", "")
+        cands = []
+        for e in index:
+            f, to = code(e["from_code"]), code(e["to_code"])
+            if near(a, f) and near(b, to):
+                cands.append((e, e["numbers"][0]))
+            elif len(e["numbers"]) > 1 and near(a, to) and near(b, f):
+                cands.append((e, e["numbers"][1]))
+        if len(cands) > 1:  # several trains between the same ends: the one whose name matches
+            named = [c for c in cands if words(c[0]["name"]) & words(t["name"])]
+            cands = named if len(named) == 1 else []
+        if len(cands) == 1:
+            e, new = cands[0]
+            if new in trains or new in taken:
+                retired.append({"number": no, "name": t["name"], "status": "duplicate", "reason": f"renumbered {new}, which has {YEAR} times"})
+            else:
+                name = re.sub(r"\bExp\.?$", "Express", e["name"]).strip()
+                renumbered.append({"old": no, "new": new, "name": name, "since": SRC})
+                taken.add(new)
+            continue
+        # kept (a train may still run under a number whose ends have changed) but flagged on the site
+        retired.append({"number": no, "name": t["name"], "status": "unlisted", "reason": f"not in Trains at a Glance {YEAR} under this number"})
+    # the renumbered keep their 2017 halts, under the number and name they run with now
+    for r in renumbered:
+        row = trains.pop(r["old"])
+        trains[r["new"]] = dict(row, number=r["new"], name=r["name"])
+        for h in new_halts:
+            if h["number"] == r["old"]:
+                h["number"] = r["new"]
+        for pth in new_paths:
+            if pth["number"] == r["old"]:
+                pth["number"] = r["new"]
+    write_table("trains", sorted(trains.values(), key=lambda t: t["number"]))
+    write_table("halts", sorted(new_halts, key=lambda h: (h["number"], int(h["seq"]))))
+    write_table("paths", sorted(new_paths, key=lambda p: (p["number"], int(p["after"]))))
+    newer = [n for n in newer if not any(x in trains for x in n["numbers"].split("/"))]  # now with halts
+    write_table("newer_trains", newer)
+    write_table("retired", retired)
+    write_table("renumbered", renumbered)
+    print(f"renumbered since 2017, kept under the new number: {len(renumbered)}")
+    print(f"2017 trains the book doesn't list: {sum(r['status'] == 'duplicate' for r in retired)} duplicates of renumbered trains (left out), "
+          f"{sum(r['status'] == 'unlisted' for r in retired)} unmatched (kept, flagged)")
 replaced = sum(1 for n in good if n in by_train)
 print(f"{DB}: {replaced} trains now on the {YEAR} timetable, {len(good) - replaced} added; "
       f"{len(trains) - len(good)} keep 2017 times; newer trains left: {len(newer)}")

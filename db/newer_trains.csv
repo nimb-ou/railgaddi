@@ -105,7 +105,6 @@ numbers,name,type,from,to,days,per_week,minutes,km,stops,src
 20821/20822,Santragachi–Pune Humsafar Express,,SRC,PUNE,,1,1940,2058,15,wikipedia:Santragachi–Pune Humsafar Express
 20836/20835,Puri–Rourkela Vande Bharat Express,VB,PURI,ROU,"Mon,Wed,Thu,Fri,Sat,Sun",6,465,505,9,wikipedia:Puri–Rourkela Vande Bharat Express
 20837/20838,Bhubaneswar–Junagarh Express,,BBS,JNRD,Daily,7,695,655,17,wikipedia:Bhubaneswar–Junagarh Express
-20937/20938,Porbandar–Delhi Sarai Rohilla Superfast Express,,PBR,DEE,,2,1430,1375,25,wikipedia:Porbandar–Delhi Sarai Rohilla Superfast Express
 20955/20956,Surat–Mahuva Superfast Express,,ST,MHV,,5,670,631,14,wikipedia:Surat–Mahuva Superfast Express
 20973/20974,Firozpur–Rameswaram Humsafar Express,,FZR,RMM,,1,3600,3544,41,wikipedia:Firozpur–Rameswaram Humsafar Express
 20987/20988,Udaipur City–Asarva (Ahmedabad) Intercity Superfast Express,,UDZ,ASV,Daily,7,325,296,16,wikipedia:Udaipur City–Asarva (Ahmedabad) Intercity Superfast Express
@@ -119,7 +118,6 @@ numbers,name,type,from,to,days,per_week,minutes,km,stops,src
 22470/22469,Hazrat Nizamuddin–Khajuraho Vande Bharat Express,VB,NZM,KURJ,"Tue,Wed,Thu,Fri,Sat,Sun",6,500,660,,wikipedia:Hazrat Nizamuddin–Khajuraho Vande Bharat Express
 22490/22489,Meerut City–Varanasi Vande Bharat Express,VB,MTC,BSB,"Mon,Wed,Thu,Fri,Sat,Sun",6,715,782,5,wikipedia:Meerut City–Varanasi Vande Bharat Express
 22701/22702,Visakhapatnam–Guntur Uday Express,,VSKP,GNT,,5,460,384,8,wikipedia:Visakhapatnam–Guntur Uday Express
-22715/22716,Kacheguda–Madurai Weekly Express,,KCG,MDU,,1,1385,1289,21,wikipedia:Kacheguda–Madurai Weekly Express
 22723/22724,Hazur Sahib Nanded–Shri Ganganagar Weekly Express,,NED,SGNR,,1,2170,1992,33,wikipedia:Hazur Sahib Nanded–Shri Ganganagar Weekly Express
 22997/22998,Jhalawar City–Shri Ganganagar Superfast Express,,JLWC,SGNR,,3,1110,1015,29,wikipedia:Jhalawar City–Shri Ganganagar Superfast Express
 25909/25910,Jivachh Link Express,,DBG,NTSK,Daily,7,2035,1434,43,wikipedia:Jivachh Link Express

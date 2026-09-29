@@ -13,6 +13,8 @@ never calls an outside service, so no API outage can break it.
 | `newer_trains.csv` | train we know runs but have no halts for | `numbers`, `name`, `type`, `from`, `to`, `days`, `per_week`, `minutes`, `km`, `stops`, `src` |
 | `overrides.csv` | hand correction | `number`, `field` (`name`, `type` or `days`), `value`, `reason` |
 | `station_overrides.csv` | hand correction to a station | `code`, `field` (`name`, `hi`, `local` or `state`), `value`, `reason` |
+| `retired.csv` | older-timetable train the newer book doesn't list under its number | `number`, `name`, `status` (`duplicate`: renumbered, the new number has newer times, left out; `unlisted`: no match, kept and flagged), `reason` |
+| `renumbered.csv` | older-timetable train renumbered since, kept under the new number | `old`, `new`, `name`, `since` |
 | `renames.csv` | station renamed since an older source | `old` code, `new` code, `old_name`, `since` (the source that brought the new code) |
 
 **Times** are `HH:MM`, with `+N` for N days after the train left its origin: `23:55`, `00:05+1`.
