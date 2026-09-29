@@ -12,6 +12,9 @@ import { listHtml, type ListItem } from "../ui/list";
 import { settleFlaps } from "../ui/boards";
 import { esc, journeyHtml, placeHtml, scriptLine, trainHtml, type GetHere, type StopsOpen } from "../ui/panel";
 import { openPosterSheet } from "../ui/poster";
+import { savedHtml, type SavedPlace, type SavedRoute } from "../ui/saved";
+import { placeKey, routeKey, type PlaceSave, type RouteSave } from "../core/saves";
+import { Saves } from "./saves";
 import { SearchBox } from "../ui/search";
 import { filtersOf, go, href, parse, type Route } from "./router";
 
@@ -27,6 +30,7 @@ type Open =
   | { kind: "place"; place: Place; showAll: boolean; sight: number; legs: Leg[]; allFrom?: boolean; choosing?: boolean }
   | { kind: "train"; place: Place; leg: Leg; stops: StopsOpen; journey?: Connection }
   | { kind: "journey"; place: Place; conn: Connection }
+  | { kind: "saved" }
   | { kind: "list"; showAll: boolean; withGuides: boolean };
 
 export class App {
@@ -55,6 +59,7 @@ export class App {
   private depCache = new Map<Place, Map<Place, Destination>>();
   private arrCache = new Map<Place, Map<Place, Destination>>();
   private changeCache = new Map<string, Connection[]>();
+  readonly saves = new Saves();
 
   constructor(
     private net: Network,
@@ -110,6 +115,10 @@ export class App {
     };
 
     this.panel.addEventListener("click", (e) => this.onPanelClick(e));
+    $("saved-btn").addEventListener("click", () => (this.open?.kind === "saved" ? this.closePanel({ push: false }) : this.openSaved()));
+    this.saves.on(() => this.savesChanged());
+    this.savesChanged();
+    this.saves.init();
     // photos fade in once loaded; broken ones step aside (no inline handlers, CSP-friendly)
     this.panel.addEventListener("load", (e) => (e.target as HTMLElement).tagName === "IMG" && (e.target as HTMLElement).classList.add("in"), true);
     this.panel.addEventListener("error", (e) => (e.target as HTMLElement).tagName === "IMG" && (e.target as HTMLElement).classList.add("broken"), true);
@@ -140,7 +149,7 @@ export class App {
     if (origin !== this.origin) this.setOrigin(origin, { push: false, fly: !place, animate: true });
     else this.refresh(false);
     const o = this.open;
-    const here = !!(place && o && o.kind !== "list" && o.place === place);
+    const here = !!(place && o && "place" in o && o.place === place);
     if (place && place !== origin) {
       const conn = r.journey ? this.changesShown(place).find((c) => journeyKey(c) === r.journey) : undefined;
       if (here && !r.train && !r.journey && o!.kind !== "place") {
@@ -158,7 +167,7 @@ export class App {
           if (leg) this.openTrain(leg, { push: false });
         }
       }
-    } else if (this.open && this.open.kind !== "list") {
+    } else if (this.open && "place" in this.open) {
       this.closePanel({ push: false, refit: !first });
     }
     if (first) this.settle();
@@ -245,12 +254,12 @@ export class App {
 
   /** The place whose ways in the map shows: open, with no start picked. */
   private target(): Place | null {
-    return !this.origin && this.open && this.open.kind !== "list" ? this.open.place : null;
+    return this.origin ? null : this.destination();
   }
 
   /** The place you're looking at, with or without a start. */
   private destination(): Place | null {
-    return this.open && this.open.kind !== "list" ? this.open.place : null;
+    return this.open && "place" in this.open ? this.open.place : null;
   }
 
   private departuresFrom(p: Place) {
@@ -510,7 +519,7 @@ export class App {
   }
 
   private openTrain(leg: Leg, o: { push: boolean }, journey?: Connection) {
-    if (!this.open || this.open.kind === "list") return;
+    if (!this.open || !("place" in this.open)) return;
     if (this.open.kind === "place") this.placeScroll = this.panel.querySelector(".panel-scroll")?.scrollTop ?? 0;
     this.trainPushed = o.push;
     this.open = { kind: "train", place: this.open.place, leg, stops: { before: false, after: false }, journey };
@@ -524,7 +533,7 @@ export class App {
 
   /** One journey with a change: both trains, the change between them, drawn on the map. */
   private openJourney(conn: Connection, o: { push: boolean }) {
-    if (!this.open || this.open.kind === "list") return;
+    if (!this.open || !("place" in this.open)) return;
     if (this.open.kind === "place") this.placeScroll = this.panel.querySelector(".panel-scroll")?.scrollTop ?? 0;
     this.trainPushed = o.push;
     this.open = { kind: "journey", place: this.open.place, conn };
@@ -565,6 +574,74 @@ export class App {
     this.describe();
   }
 
+  /** Your trips: the bucket list and saved routes, and the account that keeps them. */
+  private openSaved() {
+    if (!this.open) this.returnFocus = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
+    this.open = { kind: "saved" };
+    this.map.select(null);
+    this.map.selectTrain(null);
+    this.map.showSights([]);
+    this.transition(() => this.renderPanel(true));
+    this.setPanelOpen(true);
+    this.syncChrome();
+  }
+
+  private savedView() {
+    const places: SavedPlace[] = this.saves.live("place").map((s) => {
+      const d = s.data as PlaceSave;
+      const p = this.slugs.find(d.slug);
+      const gv = p ? this.guides.get(p) : undefined;
+      const reach = p && this.origin ? this.departuresFrom(this.origin).get(p) : undefined;
+      return {
+        key: s.key,
+        slug: d.slug,
+        title: p ? this.name(p) : d.title,
+        state: p?.state ?? d.state ?? "",
+        photo: gv?.icon ?? null,
+        href: p ? href({ origin: this.origin ? this.slugs.of(this.origin) : undefined, place: d.slug }) : null,
+        note: reach ? `${fmtMins(reach.fastest)} from ${titleOf(this.origin!, null)}` : "",
+      };
+    });
+    const routes: SavedRoute[] = this.saves.live("route").map((s) => {
+      const d = s.data as RouteSave;
+      const a = this.slugs.find(d.from);
+      const b = this.slugs.find(d.to);
+      const direct = a && b ? this.departuresFrom(a).get(b) : undefined;
+      const note = d.journey
+        ? `With one change · trains ${d.journey.replace("-", " and ")}`
+        : direct
+          ? `${fmtMins(direct.fastest)} · ${plural(new Set(direct.legs.map((l) => l.train)).size, "direct train")}`
+          : "No direct train: open for ways with a change";
+      return { key: s.key, from: a ? titleOf(a, null) : d.fromTitle, to: b ? this.name(b) : d.toTitle, note, href: a && b ? href({ origin: d.from, place: d.to, journey: d.journey }) : null };
+    });
+    return { places, routes, account: this.saves.account, canSignIn: !!this.saves.clientId };
+  }
+
+  /** The save for the route from where you start to `place` (and the journey, if it's one). */
+  private routeSave(place: Place, conn?: Connection): { key: string; kind: "route"; data: RouteSave } {
+    const data: RouteSave = {
+      from: this.slugs.of(this.origin!),
+      to: this.slugs.of(place),
+      fromTitle: titleOf(this.origin!, null),
+      toTitle: this.name(place),
+      ...(conn ? { journey: journeyKey(conn) } : {}),
+    };
+    return { key: routeKey(data), kind: "route", data };
+  }
+
+  /** Saves changed (here, in another tab, or from the account): the heart's count, and the panel. */
+  private savesChanged() {
+    const n = this.saves.live().length;
+    const count = $("saved-count");
+    count.hidden = !n;
+    count.textContent = n > 99 ? "99+" : String(n);
+    const btn = $("saved-btn");
+    btn.classList.toggle("has", n > 0);
+    btn.setAttribute("aria-label", n ? `Your trips: ${plural(n, "saved item")}` : "Your trips");
+    const k = this.open?.kind;
+    if (k === "saved" || k === "place" || k === "journey") this.renderPanel(false);
+  }
+
   private openList() {
     if (!this.origin) return;
     this.open = { kind: "list", showAll: false, withGuides: true };
@@ -587,7 +664,7 @@ export class App {
     this.map.showSights([]);
     if (wasTarget) this.refresh(false); // leaving the ways into a place: back to the whole country
     else this.syncChrome();
-    if (o.refit !== false && was && was.kind !== "list") {
+    if (o.refit !== false && was && "place" in was) {
       if (this.origin) this.map.fitRoutes();
       else this.map.fitIndia();
     }
@@ -637,8 +714,12 @@ export class App {
         : trainHtml(this.net, o.leg, titleOf(this.origin ?? boards, null), titleOf(o.place, gv), o.stops);
     } else if (o.kind === "journey") {
       this.panel.dataset.view = "train";
-      this.panel.innerHTML = journeyHtml(this.net, o.conn, titleOf(this.origin!, null), this.name(o.place), this.name(o.conn.via));
-      this.panel.dataset.view = "train";
+      this.panel.innerHTML = journeyHtml(this.net, o.conn, titleOf(this.origin!, null), this.name(o.place), this.name(o.conn.via), this.saves.has(this.routeSave(o.place, o.conn).key));
+    } else if (o.kind === "saved") {
+      this.panel.dataset.view = "saved";
+      this.panel.innerHTML = savedHtml(this.savedView());
+      const gsi = this.panel.querySelector<HTMLElement>("#gsi-button");
+      if (gsi) this.saves.renderSignIn(gsi, document.documentElement.dataset.theme === "night", (m) => this.toast(m));
     } else if (o.kind === "list") {
       this.panel.dataset.view = "list";
       this.panel.innerHTML = listHtml(titleOf(this.origin!, null), this.origin!.hi, this.listItems(o.withGuides), o.showAll, o.withGuides);
@@ -668,6 +749,7 @@ export class App {
         getHere: this.getHere(o.place, !!o.allFrom, !!o.choosing),
         changes: this.origin ? this.changesShown(o.place) : [],
         name: (p) => this.name(p),
+        saved: { place: this.saves.has(placeKey(this.slugs.of(o.place))), route: !!this.origin && this.saves.has(this.routeSave(o.place).key) },
       });
       const gh = this.panel.querySelector<HTMLInputElement>("#gh-input");
       if (gh) {
@@ -776,7 +858,13 @@ export class App {
       e.preventDefault();
       const r = parse(new URL((el as HTMLAnchorElement).href));
       const p = r.place ? this.slugs.find(r.place) : null;
-      if (p) this.openPlace(p, { push: true });
+      if (!p) return;
+      const from = r.origin ? this.slugs.find(r.origin) : this.origin;
+      if (from !== this.origin || r.journey) {
+        // a saved route: its start, its place, its journey
+        this.applyRoute({ ...r, within: this.filters.within, leave: this.filters.leave }, false);
+        this.sync("push");
+      } else this.openPlace(p, { push: true });
       return;
     }
     if (act === "from") {
@@ -789,11 +877,36 @@ export class App {
     }
     switch (act) {
       case "close":
-        this.closePanel({ push: o.kind !== "list" });
+        this.closePanel({ push: "place" in o });
         break;
       case "share":
         if (o.kind === "place") this.sharePoster(o.place);
         else this.share();
+        break;
+      case "save-place":
+        if (o.kind === "place") {
+          const on = this.saves.toggle({ key: placeKey(this.slugs.of(o.place)), kind: "place", data: { slug: this.slugs.of(o.place), title: this.name(o.place), state: o.place.state } });
+          this.toast(on ? `${this.name(o.place)} is on your bucket list` : `Removed from your bucket list`, 2400, on ? { label: "See it", run: () => this.openSaved() } : undefined);
+        }
+        break;
+      case "save-route":
+        if ((o.kind === "place" || o.kind === "journey") && this.origin) {
+          const on = this.saves.toggle(this.routeSave(o.place, o.kind === "journey" ? o.conn : undefined));
+          this.toast(on ? "Route saved" : "Route removed", 2400, on ? { label: "Your trips", run: () => this.openSaved() } : undefined);
+        }
+        break;
+      case "unsave": {
+        const item = this.saves.live().find((x) => x.key === el.dataset.key);
+        if (item) this.saves.toggle(item);
+        break;
+      }
+      case "sign-out":
+        this.saves.signOut().then(() => this.toast("Signed out. Your trips stay on this device."));
+        break;
+      case "delete-account":
+        if (confirm("Delete your Railgaddi account and everything saved in it? This device keeps its own copy.")) {
+          this.saves.deleteAccount().then((ok) => this.toast(ok ? "Account deleted" : "Couldn't delete it just now. Try again."));
+        }
         break;
       case "journey":
         if (o.kind === "place") {
@@ -1041,7 +1154,7 @@ export class App {
 
   private sync(mode: "push" | "replace") {
     const o = this.open;
-    const place = o && o.kind !== "list" ? o.place : null;
+    const place = o && "place" in o ? o.place : null;
     go(
       {
         origin: this.origin ? this.slugs.of(this.origin) : undefined,

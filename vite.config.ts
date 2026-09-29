@@ -40,7 +40,7 @@ export default defineConfig({
         globIgnores: ["**/og.jpg", "**/noto-sans-*.woff2", "**/*-vietnamese-*.woff2"],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         navigateFallback: `${base}index.html`,
-        navigateFallbackDenylist: [/\/[^/?]+\.[^/]+$/], // real files, not app routes
+        navigateFallbackDenylist: [/\/[^/?]+\.[^/]+$/, /\/api\//], // real files and the API, not app routes
         cleanupOutdatedCaches: true,
         runtimeCaching: [
           {

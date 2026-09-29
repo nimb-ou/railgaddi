@@ -14,7 +14,7 @@ seat, line diagram, travel poster) all live here, each as one of those objects, 
 | On the journey | Its one job in Railgaddi | Where |
 |---|---|---|
 | **Station name board**: yellow, black keyline, bold condensed capitals, local scripts above English | **Names of places**. Nothing else is ever yellow. | Logo, the From/To ticket, map labels, place header, where you board and get off |
-| **Split-flap tiles** from a departures board: dark tiles, a hairline split, digits that fold over | **Clock times of departures** | The timetable clock, "Next train" on the ticket, a train's departure and arrival |
+| **Split-flap tiles** from a departures board: dark tiles, a hairline split, digits that fold over | **Clock times of departures** | "Next train" on the ticket, a train's or a journey's departure and arrival |
 | **LED board** on a coach's side or over a platform: amber dots, English and Hindi taking turns | **What's departing**: which train this is, or everything leaving a station | A train's header, the list of places from where you start |
 | **Coach livery**: ICF blue (lamp yellow at night) | Railway lines, ink, structure | Routes, text, selected tabs |
 | **Rajdhani red** | **You, and what you picked**. Used sparingly. | Selected place ring, your train on the map, links, "Day 2" |
@@ -58,13 +58,12 @@ Motion is the train's, and it's slow:
 
 - things **arrive** (a cover photo glides in and stops, like a platform sliding into view),
   **depart**, and **spread outward** from where you are (the map's lines);
-- flap tiles **fold** once when a time is shown, then stay still; the clock's fastest digit
-  never folds, so the board stays calm;
+- flap tiles **fold** once when a time is shown, then stay still;
 - the window's landscape **passes** only while you wait, with far hills slow and poles fast;
 - the ticket's route strip **draws** from where you start to where you're going.
 
-Nothing loops for attention. Everything stops for `prefers-reduced-motion`, and moving trains
-have a pause button.
+Nothing loops for attention. Everything stops for `prefers-reduced-motion`, and the trains
+moving on the map (by the timetable, three minutes a second) have a pause button.
 
 ## Rules
 

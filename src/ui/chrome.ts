@@ -1,8 +1,6 @@
-// The frame around the map: Day/Night switch, the About dialog, and the timetable clock's pause
-// button (moving content needs one: WCAG 2.2.2).
-import { fmtTime } from "../core/format";
+// The frame around the map: Day/Night switch, the About dialog, and the pause button for the
+// moving trains (moving content needs one: WCAG 2.2.2).
 import type { RailMap } from "../map/map";
-import { FlapClock } from "./boards";
 import { THEMES, applyTheme, savedTheme, type ThemeId } from "./theme";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -55,22 +53,17 @@ export function setupChrome(map: RailMap, onTheme: () => void) {
     }
   });
 
-  // the timetable clock
+  // the moving trains: a pause button (anything that moves on its own must be pausable)
   const toggle = $("clock-toggle");
   const icon = $("clock-icon");
   const setPlaying = (on: boolean) => {
     map.playing = on;
     toggle.setAttribute("aria-pressed", String(on));
-    toggle.setAttribute("aria-label", on ? "Pause the moving trains" : "Play the moving trains");
+    const label = on ? "Pause the moving trains" : "Play the moving trains";
+    toggle.setAttribute("aria-label", label);
+    toggle.title = label;
     icon.setAttribute("d", on ? "M4 3h3v10H4zM9 3h3v10H9z" : "M5 3l8 5-8 5z");
   };
   toggle.addEventListener("click", () => setPlaying(!map.playing));
   setPlaying(!window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-  let shown = -1;
-  const flaps = new FlapClock($("clock-time"));
-  map.onClock = (m) => {
-    if (Math.floor(m) === shown) return;
-    shown = Math.floor(m);
-    flaps.set(fmtTime(shown));
-  };
 }

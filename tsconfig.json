@@ -23,6 +23,7 @@
     "src",
     "scripts/*.ts",
     "test",
+    "worker",
     "vite.config.ts"
   ]
 }

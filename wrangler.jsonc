@@ -1,12 +1,25 @@
-// Cloudflare Workers static assets: `npx wrangler deploy` after `npm run build`.
-// Free plan: unlimited static requests and bandwidth. See DEPLOY.md.
+// Cloudflare Workers: the site's static files, plus worker/ for accounts (/api/*).
+// `npm run build` then `npx wrangler deploy`. Free plan: unlimited static requests and bandwidth;
+// the API fits the free Workers and D1 limits many times over. See DEPLOY.md, docs/accounts.md.
 {
   "name": "railgaddi",
+  "main": "worker/index.ts",
   "compatibility_date": "2026-09-01",
   "assets": {
     "directory": "./dist",
+    "binding": "ASSETS",
+    // only the API runs code; every other request is a static file, served as before
+    "run_worker_first": ["/api/*"],
     // any address the build didn't prerender still opens the app (with a 200, not a 404)
     "not_found_handling": "single-page-application",
     "html_handling": "auto-trailing-slash"
+  },
+  // Accounts (optional). Until these are set, the site keeps saves on each device only.
+  //   1. npx wrangler d1 create railgaddi        -> paste the database_id below, uncomment
+  //   2. npx wrangler d1 execute railgaddi --remote --file worker/schema.sql
+  //   3. set GOOGLE_CLIENT_ID below, and: npx wrangler secret put SESSION_SECRET
+  // "d1_databases": [{ "binding": "DB", "database_name": "railgaddi", "database_id": "" }],
+  "vars": {
+    "GOOGLE_CLIENT_ID": ""
   }
 }

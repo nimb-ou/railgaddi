@@ -242,6 +242,30 @@ a { color: inherit; }
 }
 .themes button svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
 .themes button[aria-checked="true"] { background: var(--ink); color: var(--paper); }
+/* Discover, and your trips: quiet paper buttons, like the theme switch */
+.tb-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  box-shadow: var(--shadow);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text);
+  transition: background 0.2s, border-color 0.2s;
+}
+.tb-btn:hover { background: var(--paper-2); }
+.tb-btn svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.tb-btn[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.tb-saved { width: 32px; padding: 0; justify-content: center; }
+.tb-saved.has svg { fill: var(--accent); stroke: var(--accent); }
+.tb-saved[aria-pressed="true"].has svg { fill: var(--paper); stroke: var(--paper); }
+.tb-count { position: absolute; top: -5px; right: -6px; min-width: 17px; height: 17px; padding: 0 4px; display: grid; place-items: center; border-radius: 999px; background: var(--accent); color: #fff; font-size: 10px; font-weight: 800; box-shadow: 0 0 0 2px var(--paper); }
 .icon-btn {
   width: 32px;
   height: 32px;
@@ -1104,6 +1128,52 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 .line .change .nm b { font-weight: 800; color: var(--ink); }
 .line .change .nm small { font-size: 11.5px; line-height: 1.4; color: var(--muted); }
 
+/* ---------------------------------------------------------------- saving: your trips */
+.round svg path { transition: fill 0.2s; }
+.save-place[aria-pressed="true"] svg { fill: var(--accent); stroke: var(--accent); }
+.cover:not(.bare) .save-place[aria-pressed="true"] svg { fill: #ff6f5e; stroke: #ff6f5e; }
+.save-place[aria-pressed="true"] { animation: beat 0.4s var(--ease); }
+@keyframes beat { 40% { transform: scale(1.18); } }
+.tk-save { flex: none; display: grid; place-items: center; width: 28px; height: 28px; margin: -6px -8px -6px 0; border: 0; border-radius: 50%; background: none; color: var(--muted); }
+.tk-save:hover { color: var(--ink); background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.tk-save svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+.tk-save[aria-pressed="true"] { color: var(--accent); }
+.tk-save[aria-pressed="true"] svg { fill: currentColor; }
+.round.tk-save { margin: 0; width: 34px; height: 34px; border: 1px solid var(--line); background: var(--paper); }
+.top-tools { display: flex; gap: 8px; }
+.saved-title { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.015em; color: var(--ink); flex: 1; }
+.section-head .count { font-size: 12px; font-weight: 700; color: var(--muted); }
+.empty { margin: 0; font-size: 13px; line-height: 1.55; color: var(--muted); }
+.empty svg { width: 14px; height: 14px; vertical-align: -2px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+.acct { display: grid; gap: 12px; padding: 14px 16px; border-radius: 8px; background: var(--ticket); }
+.acct:has(.acct-pic) { grid-template-columns: auto 1fr; align-items: center; }
+.acct-pic { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: var(--paper-2); display: block; }
+.acct-text { display: grid; gap: 3px; }
+.acct-text b { font-size: 14px; font-weight: 800; color: var(--ink); }
+.acct-text span { font-size: 12.5px; line-height: 1.5; color: var(--muted); }
+.acct-actions { grid-column: 1 / -1; display: flex; gap: 18px; }
+.link-btn.quiet { color: var(--muted); font-weight: 600; }
+.acct-note { margin: 0; font-size: 12.5px; color: var(--muted); }
+.gsi { min-height: 44px; }
+.gsi-wait { font-size: 12px; color: var(--muted); }
+.bucket { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 12px; }
+.bucket-card { position: relative; }
+.bucket-card .sight { text-decoration: none; color: inherit; }
+.bucket-card .ph-none { display: grid; place-items: center; width: 100%; height: 100%; font: 900 32px/1 var(--f-sans); color: var(--muted); background: var(--paper-2); font-style: normal; }
+.unsave { position: absolute; top: 9px; right: 9px; width: 24px; height: 24px; display: grid; place-items: center; border: 0; border-radius: 50%; background: rgba(12, 16, 28, 0.55); color: #fff; opacity: 0; transition: opacity 0.2s; }
+.unsave svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.bucket-card:hover .unsave, .unsave:focus-visible, .saved-routes li:hover .unsave { opacity: 1; }
+@media (hover: none) { .unsave { opacity: 1; } }
+.saved-routes { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.saved-routes li { position: relative; }
+.saved-route { display: grid; gap: 4px; padding: 11px 44px 12px 14px; border-radius: 8px; background: var(--ticket); text-decoration: none; transition: filter 0.2s; }
+.saved-route:hover { filter: brightness(0.98); }
+.sr-ends { display: flex; align-items: baseline; gap: 8px; min-width: 0; font-size: 11.5px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink); }
+.sr-ends b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sr-ends i { font-style: normal; color: var(--accent); }
+.sr-note { font-size: 12px; color: var(--muted); }
+.saved-routes .unsave { top: 50%; right: 12px; transform: translateY(-50%); background: color-mix(in srgb, var(--ink) 55%, transparent); }
+
 /* ---------------------------------------------------------------- sharing: a travel poster */
 .poster-sheet { position: fixed; inset: 0; z-index: 45; display: grid; place-items: center; padding: 16px; background: rgba(8, 12, 22, 0.5); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); animation: fade-in 0.25s ease both; }
 .poster-sheet.closing { animation: fade-out 0.22s ease both; }
@@ -1125,7 +1195,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 .ps-actions .ps-main:hover:not(:disabled) { background: var(--ink); opacity: 0.9; }
 .ps-close { position: absolute; top: 12px; right: 12px; }
 
-/* ---------------------------------------------------------------- clock, info, loading */
+/* ---------------------------------------------------------------- pause, info, loading */
 .clock {
   position: fixed;
   z-index: 6;
@@ -1137,9 +1207,9 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   color: var(--muted);
   font-size: 11px;
 }
-.clock button { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--line); background: var(--paper); }
+.clock button { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--line); background: var(--paper); color: var(--muted); box-shadow: var(--shadow); opacity: 0.8; transition: opacity 0.2s, color 0.2s; }
+.clock button:hover, .clock button:focus-visible { opacity: 1; color: var(--text); }
 .clock button path { fill: currentColor; }
-.clock-time { font-size: 13px; }
 
 .info {
   position: fixed;
@@ -1188,7 +1258,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 .loading.done { opacity: 0; pointer-events: none; }
 .loading .ls-window { margin: 6px 0 8px; }
 
-/* the dock is centred: on mid-size screens lift the clock clear of it */
+/* the dock is centred: on mid-size screens lift the pause button clear of it */
 @media (max-width: 1240px) and (min-width: 721px) {
   body:has(#dock:not([hidden])):not(.panel-open) .clock { bottom: calc(112px + env(safe-area-inset-bottom, 0px)); }
 }
@@ -1198,6 +1268,9 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   :root { --panel-w: 100vw; }
   .topbar { left: 16px; right: 16px; }
   .themes button span { display: none; }
+  .topbar-tools { gap: 6px; }
+  #discover-btn span { display: none; }
+  #discover-btn { width: 32px; padding: 0; justify-content: center; }
   .hero { left: 16px; right: 16px; width: auto; top: calc(62px + env(safe-area-inset-top, 0px)); transform: none; gap: 12px; }
   .hero.leaving { transform: translateY(-16px); }
   .hero h1 { font-size: 34px; }
@@ -1232,7 +1305,9 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   .seg button { flex: none; padding: 6px 11px; }
   .toast { top: auto; bottom: calc(150px + env(safe-area-inset-bottom, 0px)); }
   body.panel-open .toast { bottom: calc(74vh + 12px); }
-  .clock, body.panel-open .origin-box { display: none; }
+  body.panel-open .clock, body.panel-open .origin-box { display: none; }
+  .clock { left: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+  body:has(#dock:not([hidden])) .clock { bottom: calc(124px + env(safe-area-inset-bottom, 0px)); }
   .panel {
     top: auto;
     left: 0;
@@ -1262,7 +1337,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
     cursor: grab;
   }
   .sheet-grip::before { content: ""; position: absolute; top: 8px; left: 28px; width: 40px; height: 4px; border-radius: 4px; background: rgba(255, 255, 255, 0.85); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12); }
-  .panel[data-view="list"] .sheet-grip::before, .panel[data-view="train"] .sheet-grip::before, .panel .cover.bare ~ .sheet-grip::before { background: var(--rule); box-shadow: none; }
+  .panel:not([data-view="place"]) .sheet-grip::before, .panel .cover.bare ~ .sheet-grip::before { background: var(--rule); box-shadow: none; }
   .cover .shot { height: 180px; margin: 8px 8px 0; border-radius: 14px; }
   .panel-tools { top: 16px; right: 16px; }
   .ps-card { grid-template-columns: 1fr; gap: 16px; width: min(420px, 100%); padding: 16px; }

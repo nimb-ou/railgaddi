@@ -38,32 +38,6 @@ export function settleFlaps(root: ParentNode) {
 }
 
 /**
- * Flap tiles that follow a changing value (the timetable clock). A tile folds over only when its
- * character changes, and the fastest-changing one never folds, so the board stays calm.
- */
-export class FlapClock {
-  private tiles: HTMLElement[] = [];
-  constructor(private el: HTMLElement) {}
-
-  set(text: string) {
-    if (this.tiles.length !== text.length) {
-      this.el.innerHTML = [...text].map((c) => (c === ":" ? `<i class="sep">:</i>` : `<i>${esc(c)}</i>`)).join("");
-      this.tiles = [...this.el.querySelectorAll<HTMLElement>("i")];
-      return;
-    }
-    [...text].forEach((c, k) => {
-      const tile = this.tiles[k];
-      if (tile.textContent === c) return;
-      tile.textContent = c;
-      if (k === text.length - 1 || reduced()) return;
-      tile.classList.remove("spin");
-      void tile.offsetWidth;
-      tile.classList.add("spin");
-    });
-  }
-}
-
-/**
  * An LED board, as on a coach's side or over a platform: what's departing. `lead` glows hotter
  * (a train's number). Where the Hindi is known, the second line alternates with it, as real
  * boards do.

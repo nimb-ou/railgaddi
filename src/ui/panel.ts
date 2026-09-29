@@ -6,6 +6,7 @@ import type { ArticleDetail, GuideView, Photo } from "../core/places";
 import { titleOf } from "../core/slugs";
 import { bySoonest, CHANGE_ACROSS_TOWN, CHANGE_SAME_STATION, waitFor, type Connection, type Leg } from "../core/trips";
 import { flapHtml, landscapeHtml, ledHtml } from "./boards";
+import { BOOKMARK, HEART } from "./saved";
 import { esc } from "./esc";
 import { aspect, coverWidth, credit, photoSrcset, photoUrl } from "./photos";
 
@@ -56,6 +57,7 @@ export interface PlaceView {
   /** Ways with one change from where you start (when there's no direct train, or they're much quicker). */
   changes: Connection[];
   name: (p: Place) => string;
+  saved: { place: boolean; route: boolean };
 }
 
 export interface GetHereItem {
@@ -137,6 +139,7 @@ export function placeHtml(v: PlaceView) {
         <span class="tk-a">${esc(titleOf(origin, null))}</span>
         <span class="strip" aria-hidden="true">${ticks.join("")}</span>
         <span class="tk-b">${esc(title)}</span>
+        <button class="tk-save" type="button" data-act="save-route" aria-pressed="${v.saved.route}" aria-label="${v.saved.route ? "Saved: remove this route" : "Save this route"}" title="${v.saved.route ? "Saved route" : "Save this route"}">${BOOKMARK}</button>
       </div>
       <dl class="ticket-facts">
         <div><dt>Fastest</dt><dd>${fmtMins(fastest)}</dd></div>
@@ -238,6 +241,7 @@ export function placeHtml(v: PlaceView) {
       <p class="where">${where}</p>
     </div>`;
   const tools = `<div class="panel-tools">
+      <button class="round save-place" type="button" data-act="save-place" aria-pressed="${v.saved.place}" aria-label="${v.saved.place ? `On your bucket list: remove ${esc(title)}` : `Add ${esc(title)} to your bucket list`}" title="${v.saved.place ? "On your bucket list" : "Add to bucket list"}">${HEART}</button>
       <button class="round" type="button" data-act="share" aria-label="Share ${esc(title)}">${ICON.share}</button>
       <button class="round" type="button" data-act="close" aria-label="Close">${ICON.close}</button>
     </div>`;
@@ -459,7 +463,7 @@ export function changesHtml(list: Connection[], fromTitle: string, title: string
 }
 
 /** One journey with a change: both trains on one line, the change between them. */
-export function journeyHtml(net: Network, c: Connection, fromTitle: string, destTitle: string, via: string) {
+export function journeyHtml(net: Network, c: Connection, fromTitle: string, destTitle: string, via: string, saved = false) {
   const [a, b] = c.legs;
   const arrive = a.dep + c.total;
   const later = dayOf(arrive);
@@ -483,7 +487,10 @@ export function journeyHtml(net: Network, c: Connection, fromTitle: string, dest
   return `<div class="panel-scroll">
     <div class="train-top">
       <button class="back" type="button" data-act="back">← ${esc(destTitle)}</button>
-      <button class="round" type="button" data-act="close" aria-label="Close">${ICON.close}</button>
+      <span class="top-tools">
+        <button class="round tk-save" type="button" data-act="save-route" aria-pressed="${saved}" aria-label="${saved ? "Saved: remove this journey" : "Save this journey"}" title="${saved ? "Saved journey" : "Save this journey"}">${BOOKMARK}</button>
+        <button class="round" type="button" data-act="close" aria-label="Close">${ICON.close}</button>
+      </span>
     </div>
     <header class="tr-head">
       <h2 id="panel-title" class="vh" tabindex="-1">${esc(fromTitle)} to ${esc(destTitle)}, changing at ${esc(via)}</h2>
