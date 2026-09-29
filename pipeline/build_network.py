@@ -54,9 +54,18 @@ for r in read_table("halts"):
     halts[r["number"]].append(r)
 via = {(r["number"], int(r["after"])): r["via"].split() for r in read_table("paths")}
 
+def seasonal_2017(no, t):
+    """A special from the 2017 timetable (numbers 0xxxx, Suvidha 82xxx): it ran for a season in
+    2017, so drawing it today would promise a train that isn't there."""
+    return t["src"] == "ogd2017" and (t["type"] == "Spl" or no[0] == "0" or no.startswith("82"))
+
+
+skipped = [no for no, t in train_rows.items() if seasonal_2017(no, t)]
 trains = []
 for no in sorted(train_rows):
     t = train_rows[no]
+    if seasonal_2017(no, t):
+        continue
     rows = sorted(halts[no], key=lambda r: int(r["seq"]))
     stops = []
     for i, r in enumerate(rows):
@@ -78,6 +87,7 @@ for no in sorted(train_rows):
 newer = read_table("newer_trains")
 SOURCES = {"ogd2017": "the 2017 timetable (data.gov.in)", "tag2026": "Indian Railways' 2026 timetable (Trains at a Glance)"}
 source_keys = sorted({t["src"] for t in trains})
+print(f"left out: {len(skipped)} seasonal specials from the 2017 timetable")
 print(f"db/: {len(stations)} stations, {len(trains)} trains, {sum(len(v) for v in halts.values())} halts, "
       f"{sum(1 for t in trains if t['days'])} with running days, {len(newer)} newer trains")
 

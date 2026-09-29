@@ -18,6 +18,9 @@ never calls an outside service, so no API outage can break it.
 **Times** are `HH:MM`, with `+N` for N days after the train left its origin: `23:55`, `00:05+1`.
 The first halt has only a departure, the last only an arrival, and times never go backwards.
 
+**Seasonal specials** from the 2017 timetable (numbers starting `0`, Suvidha `82…`) stay in
+`trains.csv` for the record but aren't built into the site: they ran for a season in 2017.
+
 **Days** are the days a train leaves its origin: `Daily`, or a comma list such as `Mon,Thu`. Empty
 means not known. The site shifts them for halts reached after midnight.
 
