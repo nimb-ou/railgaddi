@@ -257,6 +257,7 @@ SPELLING = {"BANGALORE": "BENGALURU", "CANT": "CANTT", "SUBHASH": "SUBHAS", "LAX
 def norm(s):
     s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode().upper()
     s = s.split("/")[0]  # "Lucknow/ Lucknow Jn." -> the first name
+    s = re.sub(r"\bSRI NAGAR\b", "SRINAGAR", s)  # "Sri Nagar" is Srinagar, not Sri Krishna Nagar
     s = s.replace("(T)", " TERMINUS ").replace("(NR)", " LUCKNOW CHARBAGH ").replace("(NER)", " LUCKNOW JN ")
     s = s.replace("CANTONMENT", "CANTT").replace("CANTT", " CANTT ")
     s = re.sub(r"\bTERMINAL\b", "TERMINUS", s)
@@ -612,6 +613,62 @@ def repair(halts):
     return hs, ", ".join(([f"{dropped} row{'s' * (dropped > 1)} dropped"] if dropped else []) + (["day fixed"] if fixes else []))
 
 
+def vande_bharat_ends():
+    """Start and end times of every Vande Bharat, from the book's own summary pages
+    (VandeBharatTrains.pdf): per pair of trains, "A (Dep) t, B (Dep) t, B (Arr) t, A (Arr) t".
+    The main tables sometimes print a Vande Bharat's first or last time in a column the page
+    reader misses; these fill the gap."""
+    path = SRC / "VandeBharatTrains.pdf"
+    ends = {}
+    if not path.exists():
+        return ends
+    lines = [l.strip() for page in fitz.open(path) for l in page.get_text().splitlines() if l.strip()]
+    nums = [i for i, l in enumerate(lines) if re.fullmatch(r"\d{5}", l)]
+    for i, j in zip(nums, nums[1:]):
+        if j - i > 4:  # not a pair
+            continue
+        a, b = lines[i], lines[j]
+        k = j + 1
+        stamps = []
+        while k < len(lines) and len(stamps) < 4 and not re.fullmatch(r"\d{5}", lines[k]):
+            m = re.fullmatch(r"(\d{1,2})[.:](\d{2})", lines[k])
+            if m and k and re.search(r"\((Dep|Arr)\)", lines[k - 1]):
+                stamps.append((lines[k - 1].endswith("(Dep)"), int(m.group(1)) * 60 + int(m.group(2))))
+            k += 1
+        if [d for d, _ in stamps] == [True, True, False, False]:
+            ends[a] = (stamps[0][1], stamps[2][1])
+            ends[b] = (stamps[1][1], stamps[3][1])
+    return ends
+
+
+VB_ENDS = vande_bharat_ends()
+print(f"Vande Bharat start and end times from the summary pages: {len(VB_ENDS)} trains")
+
+
+def fill_ends(no, halts):
+    """A missing first departure or last arrival, from the summary pages, placed on the day that
+    keeps time running forward."""
+    if no not in VB_ENDS:
+        return False
+    dep, arr = VB_ENDS[no]
+    filled = False
+    if halts[0]["dep"] is None:
+        first = next((v for h in halts[1:] for v in (h["arr"], h["dep"]) if v is not None), None)
+        if first is not None:
+            while dep > first:
+                dep -= 1440
+            halts[0]["dep"] = dep
+            filled = True
+    if halts[-1]["arr"] is None:
+        last = next((v for h in reversed(halts[:-1]) for v in (h["dep"], h["arr"]) if v is not None), None)
+        if last is not None:
+            while arr < last:
+                arr += 1440
+            halts[-1]["arr"] = arr
+            filled = True
+    return filled
+
+
 for no, segs in segments.items():
     expected = set(ours.get(no, []))
     for seg in segs:
@@ -626,6 +683,8 @@ for no, segs in segments.items():
         h["dep"] = h["dep"] if h["dep"] is not None else h["arr"]
     halts[0]["arr"] = None
     halts[-1]["dep"] = None
+    if (halts[0]["dep"] is None or halts[-1]["arr"] is None) and fill_ends(no, halts):
+        report["Vande Bharat ends filled from the summary pages"] += 1
     base = (halts[0]["dep"] // 1440) * 1440 if halts[0]["dep"] is not None else 0
     for h in halts:
         for k in ("arr", "dep"):

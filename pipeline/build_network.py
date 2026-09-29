@@ -8,6 +8,7 @@ in CI and gives the same bytes every time.
 Binary layouts are documented in ARCHITECTURE.md.
 """
 import json
+import re
 import struct
 import sys
 import tempfile
@@ -54,6 +55,25 @@ for r in read_table("halts"):
     halts[r["number"]].append(r)
 via = {(r["number"], int(r["after"])): r["via"].split() for r in read_table("paths")}
 
+KEEP_CAPS = {"MEMU", "DEMU", "CSMT", "SMVT", "SMVB", "LOKMANYA"} - {"LOKMANYA"}
+
+
+def display_name(n):
+    """How a train's name is shown: the older timetable abbreviates and shouts ("VASCO-DA-GAMA -
+    Howrah Amaravati Exp"); db/ keeps the names as sourced."""
+    n = re.sub(r"\bS/?F\.?\s+Exp(ress)?\.?(?=$|\s)", "Superfast Express", n)
+    n = re.sub(r"\bExp\.?(?=$|\s)", "Express", n)
+    n = re.sub(r"\bSpl\.?(?=$|\s)", "Special", n)
+    n = re.sub(r"\bPass\.?$", "Passenger", n)
+    words = []
+    for w in n.split():
+        letters = re.sub(r"[^A-Za-z]", "", w)
+        if letters.isupper() and len(letters) >= 5 and w not in KEEP_CAPS:
+            w = "-".join(part.capitalize() for part in w.split("-"))
+        words.append(w)
+    return re.sub(r"\s+", " ", " ".join(words)).strip()
+
+
 def seasonal_2017(no, t):
     """A special from the 2017 timetable (numbers 0xxxx, Suvidha 82xxx): it ran for a season in
     2017, so drawing it today would promise a train that isn't there."""
@@ -82,7 +102,7 @@ for no in sorted(train_rows):
         sys.exit(f"train {no}: needs a departure at its first halt and an arrival at its last")
     if any(b < a for a, b in zip(times, times[1:])):
         sys.exit(f"train {no}: times go backwards (use +1, +2 for later days)")
-    trains.append(dict(number=no, name=t["name"], type=t["type"], days=days_mask(t["days"]), src=t["src"], stops=stops))
+    trains.append(dict(number=no, name=display_name(t["name"]), type=t["type"], days=days_mask(t["days"]), src=t["src"], stops=stops))
 
 newer = read_table("newer_trains")
 SOURCES = {"ogd2017": "the 2017 timetable (data.gov.in)", "tag2026": "Indian Railways' 2026 timetable (Trains at a Glance)"}

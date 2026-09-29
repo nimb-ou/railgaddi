@@ -107,7 +107,11 @@ export function buildGuideIndex(ix: PlacesIndex, net: Network): Map<Place, Guide
     const star = nearby.filter((t) => ix.articles[t].icon).sort((a, b) => appeal(b) - appeal(a))[0];
     let title = primary;
     let featured = false;
-    if (!place.isCity && star && appeal(star) >= 12 && appeal(star) > appeal(primary) * 1.8 + 4) {
+    // ...but a town's own station keeps its own name unless the sight is far better known
+    // (Kalka stays Kalka, not nearby Kasauli)
+    const ownTown = !!primary && place.name.toLowerCase().includes(primary.toLowerCase());
+    const margin = ownTown ? appeal(primary) * 3.5 + 10 : appeal(primary) * 1.8 + 4;
+    if (!place.isCity && star && appeal(star) >= 12 && appeal(star) > margin) {
       title = star;
       featured = !!primary || !place.name.toLowerCase().includes(star.toLowerCase());
     }

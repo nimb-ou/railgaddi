@@ -114,7 +114,6 @@ numbers,name,type,from,to,days,per_week,minutes,km,stops,src
 22075/22076,Charlapalli–Gorakhpur Amrit Bharat Express,AB,CHZ,GKP,,1,1960,1811,21,wikipedia:Charlapalli–Gorakhpur Amrit Bharat Express
 22173/22174,Jabalpur–Chanda Fort Intercity Superfast Special,,JBP,CAF,,3,510,475,5,wikipedia:Jabalpur–Chanda Fort Intercity Superfast Special
 22211/22212,Ajmer–Hazrat Nizamuddin Duronto Express,,AII,NZM,,2,405,1346,,wikipedia:Ajmer–Hazrat Nizamuddin Duronto Express
-22345/22346,Patna–Gomti Nagar (Lucknow) Vande Bharat Express,VB,PNBE,GTNR,"Mon,Tue,Wed,Thu,Sat,Sun",6,505,545,5,wikipedia:Patna–Gomti Nagar (Lucknow) Vande Bharat Express
 22363/22364,Dhanbad–Coimbatore Amrit Bharat Express,AB,DHN,CBE,,1,3020,2976,41,wikipedia:Dhanbad–Coimbatore Amrit Bharat Express
 22449/22450,Poorvottar Sampark Kranti Express,,GHY,NDLS,,2,1935,1900,13,wikipedia:Poorvottar Sampark Kranti Express
 22470/22469,Hazrat Nizamuddin–Khajuraho Vande Bharat Express,VB,NZM,KURJ,"Tue,Wed,Thu,Fri,Sat,Sun",6,500,660,,wikipedia:Hazrat Nizamuddin–Khajuraho Vande Bharat Express
@@ -125,8 +124,6 @@ numbers,name,type,from,to,days,per_week,minutes,km,stops,src
 22997/22998,Jhalawar City–Shri Ganganagar Superfast Express,,JLWC,SGNR,,3,1110,1015,29,wikipedia:Jhalawar City–Shri Ganganagar Superfast Express
 25909/25910,Jivachh Link Express,,DBG,NTSK,Daily,7,2035,1434,43,wikipedia:Jivachh Link Express
 26102/26101,Ajni (Nagpur)–Pune Vande Bharat Express,VB,AJNI,PUNE,,6,720,882,10,wikipedia:Ajni (Nagpur)–Pune Vande Bharat Express
-26401/26402,Jammu Tawi–Srinagar Vande Bharat Express,VB,JAT,SINA,"Mon,Wed,Thu,Fri,Sat,Sun",6,290,269,4,wikipedia:Jammu Tawi–Srinagar Vande Bharat Express
-26404/26403,Srinagar–Jammu Tawi Vande Bharat Express,VB,SINA,JAT,"Mon,Tue,Thu,Fri,Sat,Sun",6,285,269,3,wikipedia:Srinagar–Jammu Tawi Vande Bharat Express
 26903/26904,Surat – Udaipur City Vande Bharat Express,VB,ST,UDZ,"Mon,Wed,Thu,Fri,Sat,Sun",6,470,690,9,wikipedia:Surat – Udaipur City Vande Bharat Express
 27575/27576,Kamakhya–Howrah Vande Bharat Sleeper Express,VB,HWH,KYQ,,6,840,968,13,wikipedia:Kamakhya–Howrah Vande Bharat Sleeper Express
 28011/28012,Visakhapatnam–Hazur Sahib Nanded Superfast Express,,NED,VSKP,,3,1020,861,11,wikipedia:Visakhapatnam–Hazur Sahib Nanded Superfast Express

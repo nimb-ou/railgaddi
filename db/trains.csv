@@ -3112,6 +3112,7 @@ number,name,type,days,days_src,src
 20172,Nizamuddin Rani Kamalapati Vande Bharat Express,VB,"Mon,Tue,Wed,Thu,Fri,Sun",tag2026,tag2026
 20173,Rani Kamalapati Rewa Vande Bharat Express,VB,"Mon,Wed,Thu,Fri,Sat,Sun",tag2026,tag2026
 20174,Rewa Rani Kamalapati Vande Bharat Express,VB,"Mon,Wed,Thu,Fri,Sat,Sun",tag2026,tag2026
+20175,Banaras Agra Cantt. Vande Bharat Express,VB,"Mon,Tue,Wed,Thu,Sat,Sun",tag2026,tag2026
 20401,Varanasi Lucknow Varuna Express,SF,Daily,tag2026,tag2026
 20402,Lucknow Varanasi SF Express,SF,Daily,tag2026,tag2026
 20404,Lalgarh Prayagraj Express,SF,"Mon,Thu,Sat",tag2026,tag2026
@@ -3169,6 +3170,7 @@ number,name,type,days,days_src,src
 20631,Mangalore Central Thiru vananthapuram Central Vande Bharat Express,VB,"Mon,Tue,Thu,Fri,Sat,Sun",tag2026,tag2026
 20632,Thiruvanantha puram Central Mangalore Central Vande Bharat Express,VB,"Mon,Tue,Thu,Fri,Sat,Sun",tag2026,tag2026
 20633,Kasaragod Thiruvananthapuram Vande Bharat Express,VB,"Mon,Tue,Wed,Fri,Sat,Sun",tag2026,tag2026
+20634,Thiruvananthapu ram Kasaragod Vande Bharat Express,VB,"Mon,Tue,Wed,Fri,Sat,Sun",tag2026,tag2026
 20635,Chennai Egmore Kollam Ananthapuri Express,SF,Daily,tag2026,tag2026
 20636,Kollam Chennai Egmore Ananthapuri Express,SF,Daily,tag2026,tag2026
 20641,Bengaluru Cantt Coimbatore Vande Bharat Express,VB,"Mon,Tue,Wed,Fri,Sat,Sun",tag2026,tag2026
@@ -3278,6 +3280,7 @@ number,name,type,days,days_src,src
 20889,Howrah Tirupati Humsafar Express,SF,Sat,tag2026,tag2026
 20890,Tirupati Howrah Humsafar Express,SF,Sun,tag2026,tag2026
 20891,Tata Nagar Jn Brahmapur Vande Bharat Express,VB,"Mon,Wed,Thu,Fri,Sat,Sun",tag2026,tag2026
+20892,Brahmapur Tatanagar Jn Vande Bharat Express,VB,"Mon,Wed,Thu,Fri,Sat,Sun",tag2026,tag2026
 20893,Tatanagar Patna Vande Bharat Express Via Bokoro,VB,"Wed,Thu,Fri,Sat",tag2026,tag2026
 20894,Patna Tatanagar Vande Bharat Express Via Bokoro,VB,"Wed,Thu,Fri,Sat",tag2026,tag2026
 20897,Howrah Ranchi Vande Bharat Express,VB,"Mon,Wed,Thu,Fri,Sat,Sun",tag2026,tag2026
@@ -3460,6 +3463,7 @@ number,name,type,days,days_src,src
 22221,Mumbai CSMT Nizamudin Rajdhani Express,Raj,Daily,tag2026,tag2026
 22222,Nizamudin Mumbai CSMT Rajdhani Express,Raj,Daily,tag2026,tag2026
 22223,Mumbai CSMT - Shirdi Vande Bharat Express,VB,"Mon,Wed,Thu,Fri,Sat,Sun",tag2026,tag2026
+22224,Shirdi Mumbai CSMT Vande Bharat Express,VB,"Mon,Wed,Thu,Fri,Sat,Sun",tag2026,tag2026
 22225,Mumbai CSMT Solapur Vande Bharat Express,VB,"Mon,Tue,Thu,Fri,Sat,Sun",tag2026,tag2026
 22226,Solapur Mumbai CSMT Vande Bharat Express,VB,"Mon,Tue,Wed,Fri,Sat,Sun",tag2026,tag2026
 22227,New Jalpaiguri Guwahati Vande Bharat Express,VB,"Mon,Wed,Thu,Fri,Sat,Sun",tag2026,tag2026
@@ -3487,6 +3491,8 @@ number,name,type,days,days_src,src
 22324,Ghazipur City – Kolkata Superfast Express,SF,Fri,tag2026,tag2026
 22329,Haldia Asansol SF Express,SF,"Mon,Tue,Wed,Thu,Fri,Sat",tag2026,tag2026
 22330,Asansol Haldia SF Express,SF,"Mon,Tue,Wed,Thu,Fri,Sat",tag2026,tag2026
+22345,Patna Gomtinagar Vande Bharat Express,VB,"Mon,Tue,Wed,Thu,Sat,Sun",tag2026,tag2026
+22346,Gomtinagar Patna Vande Bharat,VB,"Mon,Tue,Wed,Thu,Sat,Sun",tag2026,tag2026
 22347,Howrah Patna Vande Bharat Express,VB,"Mon,Tue,Thu,Fri,Sat,Sun",tag2026,tag2026
 22348,Patna Howrah Vande Bharat Express,VB,"Mon,Tue,Thu,Fri,Sat,Sun",tag2026,tag2026
 22349,Patna Ranchi Vande Bharat Express,VB,,,tag2026
@@ -3932,6 +3938,10 @@ number,name,type,days,days_src,src
 25657,Sealdah – Bhasha Shahid Express,Exp,,,ogd2017
 25658,Bhasha Shahid – Sealdah Express,Exp,,,ogd2017
 26302,Danapur Jogbani Vande Bharat Express,VB,,,tag2026
+26401,SVDK- Sri Nagar Vande Bharat Express,VB,"Mon,Wed,Thu,Fri,Sat,Sun",tag2026,tag2026
+26402,Sri Nagar- SVDK Vande Bharat Express,VB,"Mon,Wed,Thu,Fri,Sat,Sun",tag2026,tag2026
+26403,SVDK- Sri Nagar Vande Bharat Express,VB,"Mon,Tue,Thu,Fri,Sat,Sun",tag2026,tag2026
+26404,Sri Nagar- SVDK Vande Bharat Express,VB,"Mon,Tue,Thu,Fri,Sat,Sun",tag2026,tag2026
 26405,Amritsar Shri Mata Vaishno Devi Katra Vande Bharat Express,VB,,,tag2026
 26406,Shri Mata Vaishno Devi Katra-Amritsar Vande Bharat Express,VB,,,tag2026
 26461,Delhi Firozpur Cantt. Vande Bharat Express,VB,,,tag2026
@@ -3943,6 +3953,7 @@ number,name,type,days,days_src,src
 26502,Gorakhpur Patliputra Vande Bharat Express,VB,,,tag2026
 26504,Gomti Nagar Saharanpur Vande Bharat,VB,"Tue,Wed,Thu,Fri,Sat,Sun",tag2026,tag2026
 26505,Khajuraho- Banaras Vande Bharat Express,VB,"Mon,Tue,Wed,Fri,Sat,Sun",tag2026,tag2026
+26506,Banaras- Khajuraho Vande Bharat Express,VB,"Mon,Tue,Wed,Fri,Sat,Sun",tag2026,tag2026
 26651,KSR Bengalu ru-Ernaku lam Vande Bharat,VB,,,tag2026
 26652,Ernakulam KSR Bengaluru Vande Bharat Express,VB,"Mon,Tue,Thu,Fri,Sat,Sun",tag2026,tag2026
 26751,Belgavi-KSR Bengaluru Vande Bharat,VB,,,tag2026
