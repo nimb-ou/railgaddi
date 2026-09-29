@@ -514,7 +514,8 @@ def merge(segs):
 def check(halts):
     """Why this train can't be trusted as read, or "" if it passes: every halt placed, a departure
     at the start and an arrival at the end, time never running backwards, and no stretch that
-    would need a train faster than 160 km/h or slower than 12 hours for under 400 km."""
+    would need a train faster than 160 km/h or slower than 12 hours for under 400 km, and no halt
+    longer than 6 hours (a day read twice)."""
     if not all(h["code"] for h in halts):
         return "station not identified"
     if halts[0]["dep"] is None or halts[-1]["arr"] is None:
@@ -522,6 +523,8 @@ def check(halts):
     times = [v for h in halts for v in (h["arr"], h["dep"]) if v is not None]
     if any(b < a for a, b in zip(times, times[1:])):
         return "time runs backwards"
+    if any(h["arr"] is not None and h["dep"] is not None and h["dep"] - h["arr"] > 360 for h in halts):
+        return "halt of more than 6 hours"
     for a, b in zip(halts, halts[1:]):
         if a["code"] == b["code"]:
             return "same station twice"
@@ -533,6 +536,80 @@ def check(halts):
             if mins > 720 and km < 400:
                 return "long gap"
     return ""
+
+
+def fault(halts):
+    """The first stretch (index of its later halt) that breaks a rule check() applies, or None.
+    A halt that's too long comes back as ("halt", index)."""
+    for j, h in enumerate(halts):
+        if h["arr"] is not None and h["dep"] is not None and h["dep"] - h["arr"] > 360:
+            return ("halt", j)
+    last = None
+    for j, h in enumerate(halts):
+        for k in ("arr", "dep"):
+            if h[k] is not None:
+                if last is not None and h[k] < last:
+                    return j
+                last = h[k]
+    for j in range(1, len(halts)):
+        a, b = halts[j - 1], halts[j]
+        if a["code"] == b["code"]:
+            return j
+        if a["code"] in pos and b["code"] in pos and a["dep"] is not None and b["arr"] is not None:
+            km = hav(pos[a["code"]], pos[b["code"]])
+            mins = b["arr"] - a["dep"]
+            if mins <= 0 or km / (mins / 60) > 160 or (mins > 720 and km < 400):
+                return j
+    return None
+
+
+def repair(halts):
+    """A train that fails only because of a few misread rows (a route label read as a station, a
+    junction row from another page, a day rolled over twice) is worth keeping. Drop unplaced
+    middle rows; then, one at a time, drop the middle row at a broken stretch or undo a spurious
+    extra day, and re-check. Never touches the first or last halt, never drops more than two
+    rows or a sixth of them. Returns (halts, what was changed) or (None, "")."""
+    if not halts[0]["code"] or not halts[-1]["code"] or halts[0]["dep"] is None or halts[-1]["arr"] is None:
+        return None, ""
+    hs = [dict(h) for h in halts if h["code"] or h is halts[0] or h is halts[-1]]
+    dropped = len(halts) - len(hs)
+    budget = max(2, len(halts) // 6)
+    fixes = []
+    for _ in range(6):
+        j = fault(hs)
+        if j is None:
+            break
+        if isinstance(j, tuple):
+            # a whole extra day inside one halt: the clock rolled over twice
+            _, j = j
+            if hs[j]["dep"] - hs[j]["arr"] < 1440 - 360:
+                return None, ""
+            hs[j]["dep"] -= 1440
+            for h in hs[j + 1:]:
+                for k in ("arr", "dep"):
+                    if h[k] is not None:
+                        h[k] -= 1440
+            fixes.append("day")
+            continue
+        a, b = hs[j - 1], hs[j]
+        # a whole extra day between two halts that are close: the page merge rolled the clock twice
+        gap = (b["arr"] if b["arr"] is not None else b["dep"]) - (a["dep"] if a["dep"] is not None else a["arr"])
+        if gap > 720 and a["code"] in pos and b["code"] in pos and hav(pos[a["code"]], pos[b["code"]]) < 400:
+            for h in hs[j:]:
+                for k in ("arr", "dep"):
+                    if h[k] is not None:
+                        h[k] -= 1440
+            fixes.append("day")
+            continue
+        # otherwise drop the middle one of the two, preferring the later
+        k = j if j < len(hs) - 1 else j - 1
+        if k == 0 or dropped >= budget:
+            return None, ""
+        del hs[k]
+        dropped += 1
+    if dropped > budget or check(hs):
+        return None, ""
+    return hs, ", ".join(([f"{dropped} row{'s' * (dropped > 1)} dropped"] if dropped else []) + (["day fixed"] if fixes else []))
 
 
 for no, segs in segments.items():
@@ -557,12 +634,18 @@ for no, segs in segments.items():
         report["halts"] += 1
         report["halts without a code"] += not h["code"]
     problem = check(halts)
+    repaired = ""
+    if problem:
+        fixed, repaired = repair(halts)
+        if fixed:
+            halts, problem = fixed, ""
+            report["repaired (misread rows dropped or day fixed)"] += 1
     report[f"rejected: {problem}" if problem else "trains that pass every check"] += 1
     ok = not problem
     days = next((s["days"] for s in segs if s["days"]), 0)
     report["with running days"] += bool(days)
     trains[no] = {"number": no, "name": next((s["name"] for s in segs if s.get("name")), ""), "days": days_text(days),
-                  "tables": sorted({s["table"] for s in segs}), "ok": ok, "problem": problem,
+                  "tables": sorted({s["table"] for s in segs}), "ok": ok, "problem": problem, "repaired": repaired,
                   "halts": [{"station": h["code"], "name": h["name"], "arr": fmt_time(h["arr"]), "dep": fmt_time(h["dep"]),
                              "page": h.get("page"), "table_km": h["km"]} for h in halts]}
 

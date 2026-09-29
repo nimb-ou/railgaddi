@@ -23,6 +23,7 @@ COLUMNS = {
     "newer_trains": ["numbers", "name", "type", "from", "to", "days", "per_week", "minutes", "km", "stops", "src"],
     "overrides": ["number", "field", "value", "reason"],
     "renames": ["old", "new", "old_name", "since"],
+    "station_overrides": ["code", "field", "value", "reason"],
 }
 
 

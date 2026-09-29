@@ -34,6 +34,11 @@ for r in read_table("stations"):
     stations[r["code"]] = dict(code=r["code"], name=r["name"], state=r["state"], hi=r["hi"] or None, local=r["local"] or None,
                                lat=float(r["lat"]) if r["lat"] else None, lon=float(r["lon"]) if r["lon"] else None)
 
+for o in read_table("station_overrides"):  # hand corrections to stations, like overrides.csv for trains
+    if o["code"] not in stations or o["field"] not in ("name", "hi", "local", "state"):
+        sys.exit(f"station_overrides.csv: can't set {o['field']!r} on {o['code']!r}")
+    stations[o["code"]][o["field"]] = o["value"]
+
 train_rows = {r["number"]: r for r in read_table("trains")}
 for o in read_table("overrides"):  # hand corrections win over every importer
     if o["number"] not in train_rows:

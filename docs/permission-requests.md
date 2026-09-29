@@ -23,7 +23,7 @@ follow-up, and consider a letter to the same office (addresses below).
 > train goes, with photos, what to see there, and the trains that run. It sells nothing, has no
 > advertising, and sends people to NTES and IRCTC for live information and booking.
 >
-> While building the site I have used timings from *Trains at a Glance 2026* for about 2,300
+> While building the site I have used timings from *Trains at a Glance 2026* for about 2,700
 > Mail/Express and premium trains, alongside the 2017 timetable published on data.gov.in for the
 > rest. The book notes that timings may not be reproduced without written permission, so I am
 > writing to request that permission. If you would prefer that I not use them, I will remove
@@ -109,19 +109,22 @@ python3 pipeline/build_network.py && npm test
 
 What the 2026 merge did (September 2026):
 
-- 3,323 trains read from 421 pages; 2,322 pass every check (all stations placed, times running
-  forward, no impossible speeds) and replace or join the 2017 timetable: 1,570 updated, 752 new.
-  Another 246 trains whose stops couldn't all be read take the book's running days, when its
-  first and last halts match ours. Running days are now known for 2,789 trains.
-- 14 stations renamed since 2017 take their new codes (Jhansi → Virangana Lakshmibai Jhansi,
+- 3,323 trains read from 421 pages; 2,718 pass every check (all stations placed, times running
+  forward, no impossible speeds, no halt over six hours) and replace or join the 2017 timetable:
+  1,813 updated, 905 new. 401 of them pass only after a repair the importer reports: a misread
+  row dropped (a route label read as a station, a junction row from another page; at most two,
+  or a sixth of the train) or a day that was counted twice undone. Another 109 trains whose
+  stops couldn't all be read take the book's running days, when its first and last halts match
+  ours. Running days are now known for 3,018 trains.
+- 13 stations renamed since 2017 take their new codes (Jhansi → Virangana Lakshmibai Jhansi,
   Habibganj → Rani Kamlapati, Mughal Sarai → Deen Dayal Upadhyaya…), listed in
   `db/renames.csv`; they stay in their city, keep their guide, and are found by the old name.
-- The other ~1,000 are held back with a reason (`raw/tag2026/report.md`) and keep their 2017
+- The other ~600 are held back with a reason (`raw/tag2026/report.md`) and keep their 2017
   times until the importer reads them reliably.
 - Small stops: *Trains at a Glance* prints principal halts only. The merge puts back the 2017
   small stops that lie on the same line between two printed halts, at times scaled from the older
-  schedule and marked "~ estimated" on the train page (10,995 kept; 106 trains skipped because
-  their route changed). Places reachable from Bengaluru: 861 on the 2017 data, 840 now.
+  schedule and marked "~ estimated" on the train page (13,230 kept; 140 trains skipped because
+  their route changed).
 - Track: lines between halts follow OpenStreetMap's railway (`fetch_osm_rail.py`, `track.py`),
-  falling back to the network `db/` already knows: 93% of stretches over 25 km follow the real
+  falling back to the network `db/` already knows: 92% of stretches over 25 km follow the real
   line.
