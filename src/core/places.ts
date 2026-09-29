@@ -92,7 +92,7 @@ export function buildGuideIndex(ix: PlacesIndex, net: Network): Map<Place, Guide
   const pic = (k?: string) => (k && ix.photos[k] ? photo(k, ix.photos[k]) : null);
   const appeal = (t: string | null) => (t ? ix.articles[t].appeal : 0);
   const index = new Map<Place, GuideView>();
-  for (const place of net.places.values()) {
+  const guidesOf = (place: Place) => {
     let primary: string | null = place.isCity && has(ix.cities[place.id]) ? ix.cities[place.id] : null;
     const near: string[] = [];
     for (const s of place.stations) {
@@ -102,9 +102,20 @@ export function buildGuideIndex(ix: PlacesIndex, net: Network): Map<Place, Guide
       if (!primary && has(link[0])) primary = link[0];
       for (const t of link[1]) if (has(t) && !near.includes(t)) near.push(t);
     }
+    return { primary, near };
+  };
+  // a place that is some station's own guide isn't borrowed by another station (Srinagar has
+  // its own station now; Badgam, next to it, stays Badgam)
+  const owned = new Set<string>();
+  for (const place of net.places.values()) {
+    const { primary } = guidesOf(place);
+    if (primary) owned.add(primary);
+  }
+  for (const place of net.places.values()) {
+    const { primary, near } = guidesOf(place);
     const nearby = near.filter((t) => t !== primary);
     // a famous sight next to a small station deserves the spotlight (Hosapete -> Hampi)
-    const star = nearby.filter((t) => ix.articles[t].icon).sort((a, b) => appeal(b) - appeal(a))[0];
+    const star = nearby.filter((t) => ix.articles[t].icon && !owned.has(t)).sort((a, b) => appeal(b) - appeal(a))[0];
     let title = primary;
     let featured = false;
     // ...but a town's own station keeps its own name unless the sight is far better known
