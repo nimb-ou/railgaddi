@@ -4,7 +4,7 @@ import { dayWord, daysLabel, fmtKm, fmtMins, fmtTime, plural, shiftDays } from "
 import type { Network, NewerTrain, Place, Train } from "../core/network";
 import type { ArticleDetail, GuideView, Photo } from "../core/places";
 import { titleOf } from "../core/slugs";
-import { bySoonest, waitFor, type Leg } from "../core/trips";
+import { bySoonest, CHANGE_ACROSS_TOWN, CHANGE_SAME_STATION, waitFor, type Connection, type Leg } from "../core/trips";
 import { flapHtml, landscapeHtml, ledHtml } from "./boards";
 import { esc } from "./esc";
 import { aspect, coverWidth, credit, photoSrcset, photoUrl } from "./photos";
@@ -53,6 +53,9 @@ export interface PlaceView {
   newer: NewerTrain[]; // trains between origin and here that we know of but have no times for
   /** Where you can come from, when no start is picked or the picked one has no direct train. */
   getHere: GetHere | null;
+  /** Ways with one change from where you start (when there's no direct train, or they're much quicker). */
+  changes: Connection[];
+  name: (p: Place) => string;
 }
 
 export interface GetHereItem {
@@ -73,12 +76,14 @@ export interface GetHere {
   choosing: boolean; // asked to change the start, though it has direct trains
 }
 
-function getHereHtml(g: GetHere, title: string) {
-  const head = g.choosing ? "Where do you start?" : g.blockedFrom ? `No direct train from ${esc(g.blockedFrom)}` : `Get to ${esc(title)} by train`;
+function getHereHtml(g: GetHere, title: string, afterChanges = false) {
+  const head = g.choosing ? "Where do you start?" : g.blockedFrom ? (afterChanges ? "Or start somewhere else" : `No direct train from ${esc(g.blockedFrom)}`) : `Get to ${esc(title)} by train`;
   const lede = g.total
     ? g.choosing
       ? `Direct trains come here from ${plural(g.total, "place")}.`
-      : `${g.blockedFrom ? "But direct trains" : "Direct trains"} come from ${plural(g.total, "place")}. Where do you start?`
+      : afterChanges
+        ? `Direct trains come here from ${plural(g.total, "place")}.`
+        : `${g.blockedFrom ? "But direct trains" : "Direct trains"} come from ${plural(g.total, "place")}. Where do you start?`
     : "No direct train comes here in our timetable.";
   return `<section class="get-here" aria-labelledby="gh-h">
     <div class="section-head"><h3 id="gh-h">${head}</h3></div>
@@ -243,10 +248,12 @@ export function placeHtml(v: PlaceView) {
   return `<div class="panel-scroll">
     ${coverHtml}
     ${ticket}
-    ${v.getHere ? getHereHtml(v.getHere, title) : ""}
+    ${origin && !legs.length ? changesHtml(v.changes, titleOf(origin, null), title, false, v.name) : ""}
+    ${v.getHere ? getHereHtml(v.getHere, title, v.changes.length > 0) : ""}
     ${intro}
     ${sights}
     ${trains}
+    ${origin && legs.length && v.changes.length ? changesHtml(v.changes, titleOf(origin, null), title, true, v.name) : ""}
     ${nearby}
     ${creditsHtml(gv, used)}
   </div>`;
@@ -292,13 +299,26 @@ function weekHtml(mask: number) {
  * ride is the thick stretch; long runs without a stop take more room, so the rhythm of the
  * journey shows; the stops before you board and after you get off fold away.
  */
-export function trainHtml(net: Network, leg: Leg, fromTitle: string, destTitle: string, open: StopsOpen = { before: false, after: false }) {
+interface LineOpts {
+  open?: StopsOpen; // folds around the ride (a whole train)
+  only?: boolean; // just the ride (a journey's legs)
+  top?: boolean; // the line starts here (nothing above the first row)
+  bottom?: boolean; // the line ends here
+}
+
+/**
+ * The rows of a line diagram for one train: its halts, long runs given room, day changes, and
+ * the stops outside your ride folded away (or left out, for a journey's legs).
+ */
+function lineRows(net: Network, leg: Leg, o: LineOpts): string[] {
   const t = leg.train;
   const n = t.st.length;
   const st = (j: number) => net.stations[t.st[j]];
   const time = (j: number) => (t.dep[j] >= 0 ? t.dep[j] : t.arr[j]);
   const est = (j: number) => (t.approx[j] ? "~" : "");
   const rows: string[] = [];
+  const lo = o.only ? leg.from : 0;
+  const hi = o.only ? leg.to : n - 1;
   // the line between two rows is your ride from boarding up to getting off
   const ride = (j: number) => j >= leg.from && j < leg.to;
   const stop = (j: number) => {
@@ -307,10 +327,12 @@ export function trainHtml(net: Network, leg: Leg, fromTitle: string, destTitle: 
     const dwell = t.arr[j] >= 0 && t.dep[j] >= 0 ? t.dep[j] - t.arr[j] : 0;
     const major = end || j === 0 || j === n - 1 || dwell >= 5 || s.halts >= 90;
     const main = j === leg.to || t.dep[j] < 0 ? t.arr[j] : t.dep[j];
-    const cls = ["stop", major ? "major" : "minor", ride(j - 1) ? "in" : "", ride(j) ? "out" : "", j === 0 ? "first" : "", j === n - 1 ? "last" : "",
-      j === leg.from ? "board-at" : "", j === leg.to ? "alight-at" : "", j < leg.from || j > leg.to ? "off" : ""].filter(Boolean).join(" ");
+    const first = j === lo && o.top !== false;
+    const last = j === hi && o.bottom !== false;
+    const cls = ["stop", major ? "major" : "minor", ride(j - 1) || (o.only && j === lo && !first) ? "in" : "", ride(j) || (o.only && j === hi && !last) ? "out" : "",
+      first ? "first" : "", last ? "last" : "", j === leg.from ? "board-at" : "", j === leg.to ? "alight-at" : "", j < leg.from || j > leg.to ? "off" : ""].filter(Boolean).join(" ");
     const note = j === leg.from ? "Board" : j === leg.to ? "Get off" : dwell >= 5 ? `${dwell}m halt` : "";
-    return `<li class="${cls}"${j === leg.from ? ' id="boarding"' : ""}>
+    return `<li class="${cls}"${j === leg.from && !o.only ? ' id="boarding"' : ""}>
       <span class="t"><b>${est(j)}${fmtTime(main)}</b>${note ? `<small>${note}</small>` : ""}</span>
       <span class="node" aria-hidden="true"></span>
       <span class="nm">${end ? `<span class="plate">${esc(s.name)}</span>` : esc(s.name)}<code>${esc(s.code)}</code></span>
@@ -326,14 +348,16 @@ export function trainHtml(net: Network, leg: Leg, fromTitle: string, destTitle: 
       const h = Math.round(Math.min(64, 10 + mins * 0.14));
       rows.push(`<li class="run ${cls}" style="--h:${h}px" aria-hidden="true"><span>${fmtMins(mins)}${km > 0 ? ` · ${fmtKm(km)} km` : ""}</span></li>`);
     }
-    if (day) rows.push(`<li class="dayrow ${cls}"><span>Day ${day}</span></li>`);
+    // a journey counts days from when you set off, not from when this train did
+    if (day && !o.only) rows.push(`<li class="dayrow ${cls}"><span>Day ${day}</span></li>`);
   };
   const fold = (side: "before" | "after", count: number, at: string) =>
     rows.push(`<li class="more"><button type="button" data-act="stops" data-side="${side}" aria-expanded="false" aria-label="Show ${plural(count, "stop")} ${side} ${esc(at)}">${plural(count, side === "before" ? "earlier stop" : "later stop")}</button></li>`);
 
-  const foldBefore = !open.before && leg.from > 2;
-  const foldAfter = !open.after && n - 1 - leg.to > 2;
-  for (let j = 0; j < n; j++) {
+  const open = o.open ?? { before: false, after: false };
+  const foldBefore = !o.only && !open.before && leg.from > 2;
+  const foldAfter = !o.only && !open.after && n - 1 - leg.to > 2;
+  for (let j = lo; j <= hi; j++) {
     if (foldBefore && j > 0 && j < leg.from) {
       if (j === 1) fold("before", leg.from - 1, st(leg.from).name);
       continue;
@@ -344,9 +368,21 @@ export function trainHtml(net: Network, leg: Leg, fromTitle: string, destTitle: 
     }
     rows.push(stop(j));
     const next = foldBefore && j === 0 ? -1 : foldAfter && j === leg.to ? -1 : j + 1;
-    if (next > 0 && next < n) gap(j);
+    if (next > 0 && next <= hi) gap(j);
   }
+  return rows;
+}
 
+/**
+ * One train, as the route diagram printed inside a coach: a line with every halt on it. Your
+ * ride is the thick stretch; long runs without a stop take more room, so the rhythm of the
+ * journey shows; the stops before you board and after you get off fold away.
+ */
+export function trainHtml(net: Network, leg: Leg, fromTitle: string, destTitle: string, open: StopsOpen = { before: false, after: false }, backTo = destTitle) {
+  const t = leg.train;
+  const n = t.st.length;
+  const st = (j: number) => net.stations[t.st[j]];
+  const rows = lineRows(net, leg, { open });
   const from = st(leg.from);
   const origin = st(0);
   const terminus = st(n - 1);
@@ -355,7 +391,7 @@ export function trainHtml(net: Network, leg: Leg, fromTitle: string, destTitle: 
   const runs = shiftDays(t.days, Math.floor(t.dep[leg.from] / 1440));
   return `<div class="panel-scroll">
     <div class="train-top">
-      <button class="back" type="button" data-act="back">← ${esc(destTitle)}</button>
+      <button class="back" type="button" data-act="back">← ${esc(backTo)}</button>
       <button class="round" type="button" data-act="close" aria-label="Close">${ICON.close}</button>
     </div>
     <header class="tr-head">
@@ -372,5 +408,95 @@ export function trainHtml(net: Network, leg: Leg, fromTitle: string, destTitle: 
     <ol class="line" aria-label="Stops" tabindex="-1">${rows.join("")}</ol>
     ${t.approx.some((x) => x) ? `<p class="est-note">~ Estimated: a small stop the official timetable doesn't print, placed between its neighbours using the older timetable.</p>` : ""}
     <p class="tr-src">Times from ${esc(t.source)}. They may have changed: check <a href="https://enquiry.indianrail.gov.in/mntes/" target="_blank" rel="noopener">NTES</a> before you travel. <a href="${esc(reportUrl(t))}" target="_blank" rel="noopener">Report a mistake</a></p>
+  </div>`;
+}
+
+// ---------------------------------------------------------------- journeys with one change
+
+const dayOf = (m: number) => Math.floor(m / 1440);
+
+/** "Leaves 20:00 daily", "Leaves 12:45 on Mon" */
+function whenLeaves(c: Connection) {
+  const d = c.days === 127 ? "every day" : `on ${daysLabel(c.days)}`;
+  return `Leaves ${fmtTime(c.legs[0].dep)} ${d}`;
+}
+
+/** The two rides and the wait, as a strip: widths by time. */
+function journeyStrip(c: Connection) {
+  const [a, b] = c.legs;
+  const w = (m: number) => (m / c.total).toFixed(3);
+  return `<span class="jstrip" aria-hidden="true"><i class="ride" style="--w:${w(a.dur)}"></i><i class="wait" style="--w:${w(c.wait)}"></i><i class="ride" style="--w:${w(b.dur)}"></i></span>`;
+}
+
+/**
+ * The quickest ways with one change, for a place no train reaches directly from where you start
+ * (or, collapsed, when a change is much quicker than the direct trains).
+ */
+export function changesHtml(list: Connection[], fromTitle: string, title: string, direct: boolean, name: (p: Place) => string) {
+  if (!list.length) return "";
+  const items = list
+    .map((c, i) => {
+      const [a, b] = c.legs;
+      const arrive = a.dep + c.total;
+      const later = dayOf(arrive);
+      return `<li><button class="conn" type="button" data-act="journey" data-i="${i}">
+        <span class="conn-top"><b>via ${esc(name(c.via))}</b><span class="conn-total">${fmtMins(c.total)}</span></span>
+        ${journeyStrip(c)}
+        <span class="conn-trains"><span>${esc(a.train.no)} ${esc(a.train.name)}</span><em>change, ${fmtMins(c.wait)}${c.crossTown ? " (another station)" : ""}</em><span>${esc(b.train.no)} ${esc(b.train.name)}</span></span>
+        <span class="conn-when">${whenLeaves(c)} · arrives ${fmtTime(arrive)}${later ? `, day ${later + 1}` : ""}${c.known ? "" : " · running days partly unknown"}</span>
+      </button></li>`;
+    })
+    .join("");
+  const lede = direct
+    ? `A change can be quicker than the direct trains from ${esc(fromTitle)}:`
+    : `No train runs straight from ${esc(fromTitle)} to ${esc(title)}. The quickest ways with one change of train:`;
+  return `<section class="changes" aria-labelledby="ch-h">
+    <div class="section-head"><h3 id="ch-h">${direct ? "Quicker with a change" : "With one change"}</h3></div>
+    <p class="gh-lede">${lede}</p>
+    <ol class="conn-list">${items}</ol>
+    <p class="note">Every change leaves at least ${CHANGE_SAME_STATION} minutes, or ${CHANGE_ACROSS_TOWN / 60} hours when the next train leaves from another station in the city. Long-distance trains often run late: allow more if you can, and book both trains.</p>
+  </section>`;
+}
+
+/** One journey with a change: both trains on one line, the change between them. */
+export function journeyHtml(net: Network, c: Connection, fromTitle: string, destTitle: string, via: string) {
+  const [a, b] = c.legs;
+  const arrive = a.dep + c.total;
+  const later = dayOf(arrive);
+  const legHead = (l: Leg, k: number) =>
+    `<li class="leg-head"><button type="button" data-act="journey-train" data-k="${k}"><b>${esc(l.train.no)}</b><span>${esc(l.train.name)}</span><i aria-hidden="true">›</i></button></li>`;
+  const x = net.stations[a.train.st[a.to]];
+  const y = net.stations[b.train.st[b.from]];
+  const change = `<li class="change">
+      <span class="t"><b>${fmtMins(c.wait)}</b><small>wait</small></span>
+      <span class="node" aria-hidden="true"></span>
+      <span class="nm"><b>Change at ${esc(via)}</b>${c.crossTown ? `<small>Arrive at ${esc(x.name)}, leave from ${esc(y.name)}: allow time to cross the city</small>` : `<small>Same station, ${esc(x.name)}</small>`}</span>
+    </li>`;
+  const rows = [
+    legHead(a, 0),
+    ...lineRows(net, a, { only: true, top: true, bottom: false }),
+    change,
+    legHead(b, 1),
+    ...lineRows(net, b, { only: true, top: false, bottom: true }),
+  ];
+  const known = c.known ? "" : `<p class="tr-src">One of these trains' running days isn't known: check both before you plan.</p>`;
+  return `<div class="panel-scroll">
+    <div class="train-top">
+      <button class="back" type="button" data-act="back">← ${esc(destTitle)}</button>
+      <button class="round" type="button" data-act="close" aria-label="Close">${ICON.close}</button>
+    </div>
+    <header class="tr-head">
+      <h2 id="panel-title" class="vh" tabindex="-1">${esc(fromTitle)} to ${esc(destTitle)}, changing at ${esc(via)}</h2>
+      ${ledHtml("", `${fromTitle} → ${destTitle}`, `1 change · via ${via}`, "", `${fromTitle} to ${destTitle}, one change at ${via}`)}
+      <div class="tr-ride">
+        <div><small>Departs ${esc(fromTitle)}</small>${flapHtml(fmtTime(a.dep), true)}</div>
+        <i class="tr-line" aria-hidden="true"><span>${fmtMins(c.total)} · ${fmtKm(a.km + b.km)} km</span></i>
+        <div><small>Arrives ${esc(destTitle)}</small>${flapHtml(fmtTime(arrive), true)}${later ? `<sup>${later > 1 ? `${later} days later` : "next day"}</sup>` : ""}</div>
+      </div>
+      <div class="tr-days">${c.days !== 127 ? weekHtml(c.days) : ""}<span>Leaves ${esc(fromTitle)} <b>${c.days === 127 ? "every day" : `on ${daysLabel(c.days)}`}</b></span></div>
+    </header>
+    <ol class="line journey" aria-label="Stops" tabindex="-1">${rows.join("")}</ol>
+    ${known}
+    <p class="tr-src">Times from each train's timetable; they may have changed. The change allows at least ${CHANGE_SAME_STATION} minutes (${CHANGE_ACROSS_TOWN / 60} hours across a city), but long-distance trains often run late. Check <a href="https://enquiry.indianrail.gov.in/mntes/" target="_blank" rel="noopener">NTES</a> and book both trains before you travel.</p>
   </div>`;
 }

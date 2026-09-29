@@ -190,3 +190,109 @@ export function newerBetween(net: Network, a: Place, b: Place): NewerTrain[] {
   });
 }
 
+
+// ---------------------------------------------------------------- journeys with one change
+
+/** Two trains, changing at `via`. */
+export interface Connection {
+  via: Place;
+  legs: [Leg, Leg];
+  wait: number; // minutes between arriving at `via` and the second train leaving
+  total: number; // minutes from the first train leaving to the second arriving
+  /** Weekdays (bit 0 = Monday) the first train can leave on to make this connection; 127 = daily. */
+  days: number;
+  known: boolean; // both trains' running days are known (otherwise treated as daily)
+  crossTown: boolean; // the second train leaves from another station of that city
+  others: number; // more pairs of trains through `via` that make it within 3 hours of this one
+}
+
+/** Time to change trains: long-distance trains often run late, so err on the long side. */
+export const CHANGE_SAME_STATION = 45;
+export const CHANGE_ACROSS_TOWN = 120;
+
+/** Does this ride leave its boarding halt on weekday `d` (0 = Monday)? Unknown days: yes. */
+function runsOn(leg: Leg, d: number) {
+  const days = leg.train.days;
+  if (!days) return true;
+  const onTheWay = Math.floor(leg.train.dep[leg.from] / 1440);
+  return ((days >> ((((d - onTheWay) % 7) + 7) % 7)) & 1) === 1;
+}
+
+/**
+ * The quickest ways from `origin` to `dest` changing trains once: every place both have a
+ * direct train to, and for each the best pair of trains, honouring running days and leaving
+ * time to change. `out` is departures(origin), `into` arrivals(dest). Best first.
+ */
+export function connections(out: Map<Place, Destination>, into: Map<Place, Destination>, origin: Place, dest: Place, limit = 6): Connection[] {
+  const best: Connection[] = [];
+  const quickest = (legs: Leg[]) => [...legs].sort((a, b) => a.dur - b.dur).slice(0, 24);
+  for (const [via, a] of out) {
+    if (via === origin || via === dest) continue;
+    const b = into.get(via);
+    if (!b) continue;
+    let top: Connection | null = null;
+    const totals: number[] = [];
+    for (const l1 of quickest(a.legs)) {
+      for (const l2 of quickest(b.legs)) {
+        if (l2.train === l1.train) continue; // the same train: that would be a direct ride
+        const cross = l1.train.st[l1.to] !== l2.train.st[l2.from];
+        const change = cross ? CHANGE_ACROSS_TOWN : CHANGE_SAME_STATION;
+        const arrive = l1.dep + l1.dur; // minutes after midnight of the day you board
+        let pairBest = Infinity;
+        let pairWait = 0;
+        let days = 0;
+        for (let d = 0; d < 7; d++) {
+          if (!runsOn(l1, d)) continue;
+          const at = d * 1440 + arrive; // week minute you reach `via`
+          const ready = at + change;
+          let wait = -1;
+          for (let k = 0; k < 9; k++) {
+            const day = Math.floor(ready / 1440) + k;
+            const leave = day * 1440 + l2.dep;
+            if (leave < ready) continue;
+            if (runsOn(l2, day % 7)) {
+              wait = leave - at;
+              break;
+            }
+          }
+          if (wait < 0) continue;
+          const total = l1.dur + wait + l2.dur;
+          if (total < pairBest) {
+            pairBest = total;
+            pairWait = wait;
+            days = 0;
+          }
+          if (total === pairBest) days |= 1 << d;
+        }
+        if (pairBest === Infinity) continue;
+        totals.push(pairBest);
+        if (!top || pairBest < top.total) {
+          top = {
+            via,
+            legs: [l1, l2],
+            wait: pairWait,
+            total: pairBest,
+            days, // the weekdays you board on
+            known: !!l1.train.days && !!l2.train.days,
+            crossTown: cross,
+            others: 0,
+          };
+        }
+      }
+    }
+    if (!top) continue;
+    top.others = totals.filter((t) => t <= top!.total + 180).length - 1;
+    best.push(top);
+  }
+  // quickest first, but a change across town, or a wait of more than six hours, counts against it
+  const score = (c: Connection) => c.total + (c.crossTown ? 60 : 0) + Math.max(0, c.wait - 360) / 2;
+  best.sort((x, y) => score(x) - score(y) || y.via.halts - x.via.halts);
+  // one per city is plenty; and nothing absurdly slower than the best
+  const out2: Connection[] = [];
+  for (const c of best) {
+    if (out2.length >= limit) break;
+    if (out2.length && c.total > out2[0].total * 1.6 + 240) continue;
+    out2.push(c);
+  }
+  return out2;
+}

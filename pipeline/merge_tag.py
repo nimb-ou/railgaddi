@@ -218,8 +218,15 @@ new_halts = [dict(h, station=code(h["station"])) for h in halts if h["number"] n
 new_paths = [dict(p, via=" ".join(code(c) for c in p["via"].split())) for p in paths if p["number"] not in good]
 TYPES = (("VANDE BHARAT", "VB"), ("AMRIT BHARAT", "AB"), ("JAN SHATABDI", "JShtb"), ("RAJDHANI", "Raj"), ("SHATABDI", "Shtb"),
          ("DURONTO", "Drnt"), ("GARIB", "GR"), ("SAMPARK", "SKr"), ("MEMU", "MEMU"), ("DEMU", "DEMU"))
+# a service class in the book's name ("… Rajdhani Express") beats a name made up from the two ends
+CLASS = re.compile(r"\b(Rajdhani|Shatabdi|Duronto|Vande Bharat|Humsafar|Garib Rath|Tejas|Amrit Bharat|Antyodaya|Uday|"
+                   r"Sampark Kranti|Double Decker|Gatimaan|Suvidha|Yuva)\b", re.I)
 for no, t in sorted(good.items()):
     row = trains.get(no) or {"number": no, "name": t["name"] or no, "days": "", "days_src": ""}
+    book = re.sub(r"\bSuper ?Fast\b", "Superfast", (t["name"] or "").strip())
+    generic = re.fullmatch(r".+ – .+ (Superfast |AC |)(Express|Mail|Special)", row["name"] or "")
+    if book and (generic or not row["name"]) and CLASS.search(book) and not CLASS.search(row["name"] or ""):
+        row["name"] = book
     upper = (row["name"] or "").upper()
     row["type"] = next((ty for k, ty in TYPES if k in upper), row.get("type") or ("SF" if no[:2] in ("12", "20", "22") else "Exp"))
     if row.get("days_src") != "override" and days_mask(t["days"]):

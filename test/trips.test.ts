@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { daysLabel, shiftDays } from "../src/core/format";
-import { arrivals, departures, legPasses, newerBetween, reachable, waitFor, ANY, type Leg } from "../src/core/trips";
+import { arrivals, CHANGE_ACROSS_TOWN, CHANGE_SAME_STATION, connections, departures, legPasses, newerBetween, reachable, waitFor, ANY, type Leg } from "../src/core/trips";
 import { net, place } from "./load";
 
 describe("departures", () => {
@@ -104,6 +104,48 @@ describe("arrivals", () => {
       for (const l of d.legs) {
         expect(mysuru.stations).toContain(l.train.st[l.to]);
         expect(from.stations).toContain(l.train.st[l.from]);
+      }
+    }
+  });
+});
+
+describe("journeys with one change", () => {
+  const from = place("bengaluru");
+  const to = place("amritsar");
+  const list = connections(departures(net, from), arrivals(net, to), from, to);
+
+  it("finds ways from Bengaluru to Amritsar, which no train runs straight between", () => {
+    expect(departures(net, from).has(to)).toBe(false);
+    expect(list.length).toBeGreaterThanOrEqual(3);
+    expect(list[0].total).toBeLessThan(60 * 60); // under 60 hours
+  });
+
+  it("changes at the place both trains serve, with time to change", () => {
+    for (const c of list) {
+      const [a, b] = c.legs;
+      expect(c.via).not.toBe(from);
+      expect(c.via).not.toBe(to);
+      expect(from.stations).toContain(a.train.st[a.from]);
+      expect(c.via.stations).toContain(a.train.st[a.to]);
+      expect(c.via.stations).toContain(b.train.st[b.from]);
+      expect(to.stations).toContain(b.train.st[b.to]);
+      expect(a.train).not.toBe(b.train);
+      expect(c.wait).toBeGreaterThanOrEqual(c.crossTown ? CHANGE_ACROSS_TOWN : CHANGE_SAME_STATION);
+      expect(c.total).toBe(a.dur + c.wait + b.dur);
+      expect(c.days).toBeGreaterThan(0);
+    }
+  });
+
+  it("only boards the second train on a day it runs", () => {
+    for (const c of list) {
+      const [a, b] = c.legs;
+      const d = [0, 1, 2, 3, 4, 5, 6].find((x) => (c.days >> x) & 1)!;
+      const leaveVia = d * 1440 + a.dep + a.dur + c.wait; // week minute the second train leaves
+      expect(leaveVia % 1440).toBe(b.dep);
+      if (b.train.days) {
+        const onTheWay = Math.floor(b.train.dep[b.from] / 1440);
+        const weekday = Math.floor(leaveVia / 1440) % 7;
+        expect((b.train.days >> ((((weekday - onTheWay) % 7) + 7) % 7)) & 1).toBe(1);
       }
     }
   });

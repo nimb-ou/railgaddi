@@ -5,12 +5,12 @@ import type { Network, Place } from "../core/network";
 import type { ArticleDetail, GuideView, Photo, PlaceDetails } from "../core/places";
 import { rankPlaces } from "../core/rank";
 import { titleOf, type Slugs } from "../core/slugs";
-import { ANY, arrivals, bySoonest, departures, legPasses, newerBetween, reachable, type Destination, type Filters, type Leg } from "../core/trips";
+import { ANY, arrivals, bySoonest, connections, departures, legPasses, newerBetween, reachable, type Connection, type Destination, type Filters, type Leg } from "../core/trips";
 import type { RailMap, SightPin } from "../map/map";
 import { Dock } from "../ui/dock";
 import { listHtml, type ListItem } from "../ui/list";
 import { settleFlaps } from "../ui/boards";
-import { esc, placeHtml, scriptLine, trainHtml, type GetHere, type StopsOpen } from "../ui/panel";
+import { esc, journeyHtml, placeHtml, scriptLine, trainHtml, type GetHere, type StopsOpen } from "../ui/panel";
 import { openPosterSheet } from "../ui/poster";
 import { SearchBox } from "../ui/search";
 import { filtersOf, go, href, parse, type Route } from "./router";
@@ -20,11 +20,13 @@ const narrow = () => window.innerWidth <= 720;
 const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const POPULAR = ["bengaluru", "mumbai", "delhi", "kolkata", "chennai", "hyderabad"];
 const LAST = "railgaddi.last"; // the station you started from last time (on this device only)
+const journeyKey = (c: Connection) => c.legs.map((l) => l.train.no).join("-");
 
 type Detail = { detail: ArticleDetail; photos: Map<string, Photo> };
 type Open =
   | { kind: "place"; place: Place; showAll: boolean; sight: number; legs: Leg[]; allFrom?: boolean; choosing?: boolean }
-  | { kind: "train"; place: Place; leg: Leg; stops: StopsOpen }
+  | { kind: "train"; place: Place; leg: Leg; stops: StopsOpen; journey?: Connection }
+  | { kind: "journey"; place: Place; conn: Connection }
   | { kind: "list"; showAll: boolean; withGuides: boolean };
 
 export class App {
@@ -52,6 +54,7 @@ export class App {
   private returnFocus: HTMLElement | null = null;
   private depCache = new Map<Place, Map<Place, Destination>>();
   private arrCache = new Map<Place, Map<Place, Destination>>();
+  private changeCache = new Map<string, Connection[]>();
 
   constructor(
     private net: Network,
@@ -120,7 +123,7 @@ export class App {
     });
     document.addEventListener("keydown", (e) => {
       if (e.key !== "Escape" || (document.activeElement as HTMLElement | null)?.matches("input")) return;
-      if (this.open?.kind === "train") this.back();
+      if (this.open?.kind === "train" || this.open?.kind === "journey") this.back();
       else if (this.open) this.closePanel({ push: true });
     });
     window.addEventListener("popstate", () => this.applyRoute(parse(), false));
@@ -136,12 +139,25 @@ export class App {
     const place = (r.place && this.slugs.find(r.place)) || null;
     if (origin !== this.origin) this.setOrigin(origin, { push: false, fly: !place, animate: true });
     else this.refresh(false);
-    if (place && place !== origin && !r.train && this.open?.kind === "train" && this.open.place === place) {
-      this.back({ push: false }); // browser back from a train: the place, scrolled where you left it
-    } else if (place && place !== origin) {
-      this.openPlace(place, { push: false });
-      const leg = r.train && this.dests.get(place)?.legs.find((l) => l.train.no === r.train);
-      if (leg) this.openTrain(leg, { push: false });
+    const o = this.open;
+    const here = !!(place && o && o.kind !== "list" && o.place === place);
+    if (place && place !== origin) {
+      const conn = r.journey ? this.changesShown(place).find((c) => journeyKey(c) === r.journey) : undefined;
+      if (here && !r.train && !r.journey && o!.kind !== "place") {
+        this.showPlace(place); // browser back from a train or a journey: the place, where you left it
+      } else if (here && conn && !r.train && o!.kind === "train" && o!.journey) {
+        this.back({ push: false }); // back from one of a journey's trains
+      } else {
+        if (!here || o!.kind !== "place") this.openPlace(place, { push: false });
+        if (conn) {
+          this.openJourney(conn, { push: false });
+          const leg = r.train ? conn.legs.find((l) => l.train.no === r.train) : undefined;
+          if (leg) this.openTrain(leg, { push: false }, conn);
+        } else {
+          const leg = r.train && this.dests.get(place)?.legs.find((l) => l.train.no === r.train);
+          if (leg) this.openTrain(leg, { push: false });
+        }
+      }
     } else if (this.open && this.open.kind !== "list") {
       this.closePanel({ push: false, refit: !first });
     }
@@ -253,6 +269,28 @@ export class App {
 
   private name(p: Place) {
     return titleOf(p, this.guides.get(p));
+  }
+
+  /** Ways from where you start to `dest` with one change (cached per pair). */
+  private changesFor(dest: Place): Connection[] {
+    if (!this.origin || dest === this.origin) return [];
+    const key = `${this.origin.id}>${dest.id}`;
+    let c = this.changeCache.get(key);
+    if (!c) {
+      c = connections(this.departuresFrom(this.origin), this.arrivalsTo(dest), this.origin, dest);
+      this.changeCache.set(key, c);
+      if (this.changeCache.size > 20) this.changeCache.delete(this.changeCache.keys().next().value!);
+    }
+    return c;
+  }
+
+  /** Changes worth showing on a place: all when there's no direct train, else only much quicker ones. */
+  private changesShown(dest: Place): Connection[] {
+    const all = this.changesFor(dest);
+    const direct = this.dests.get(dest);
+    if (!direct) return all;
+    const cutoff = direct.fastest * 0.8 - 60;
+    return all.filter((c) => c.total < cutoff).slice(0, 3);
   }
 
   /** In a "from" field: how you'd get from there to where you're looking. */
@@ -459,6 +497,8 @@ export class App {
     this.map.select(p);
     this.map.selectTrain(null);
     this.map.showSights([]);
+    this.map.setSelectedTitle(this.name(p));
+    this.map.hintJourney(this.origin && !this.dests.has(p) ? this.changesFor(p)[0]?.legs ?? [] : []);
     // no start picked: the map turns to show every way into this place
     if (!this.origin) this.refresh(before !== p, false);
     this.transition(() => this.renderPanel(true));
@@ -469,11 +509,11 @@ export class App {
     this.describe();
   }
 
-  private openTrain(leg: Leg, o: { push: boolean }) {
-    if (this.open?.kind !== "place" && this.open?.kind !== "train") return;
+  private openTrain(leg: Leg, o: { push: boolean }, journey?: Connection) {
+    if (!this.open || this.open.kind === "list") return;
     if (this.open.kind === "place") this.placeScroll = this.panel.querySelector(".panel-scroll")?.scrollTop ?? 0;
     this.trainPushed = o.push;
-    this.open = { kind: "train", place: this.open.place, leg, stops: { before: false, after: false } };
+    this.open = { kind: "train", place: this.open.place, leg, stops: { before: false, after: false }, journey };
     this.map.selectTrain(leg);
     this.map.showSights([]);
     this.transition(() => this.renderPanel(true));
@@ -482,19 +522,46 @@ export class App {
     this.describe();
   }
 
+  /** One journey with a change: both trains, the change between them, drawn on the map. */
+  private openJourney(conn: Connection, o: { push: boolean }) {
+    if (!this.open || this.open.kind === "list") return;
+    if (this.open.kind === "place") this.placeScroll = this.panel.querySelector(".panel-scroll")?.scrollTop ?? 0;
+    this.trainPushed = o.push;
+    this.open = { kind: "journey", place: this.open.place, conn };
+    this.map.selectJourney(conn.legs);
+    this.map.showSights([]);
+    this.transition(() => this.renderPanel(true));
+    this.map.focusLeg(conn.legs);
+    if (o.push) this.sync("push");
+    this.describe();
+  }
+
   private back(o = { push: true }) {
-    if (this.open?.kind !== "train") return;
+    if (this.open?.kind !== "train" && this.open?.kind !== "journey") return;
     if (o.push && this.trainPushed) {
       history.back(); // we came from the place: step back rather than stacking another entry
       return;
     }
-    const place = this.open.place;
+    if (this.open.kind === "train" && this.open.journey) {
+      this.open = { kind: "journey", place: this.open.place, conn: this.open.journey };
+      this.map.selectJourney(this.open.conn.legs);
+      this.transition(() => this.renderPanel(true));
+      this.map.focusLeg(this.open.conn.legs);
+      if (o.push) this.sync("push");
+      this.describe();
+      return;
+    }
+    this.showPlace(this.open.place);
+    if (o.push) this.sync("push");
+  }
+
+  /** Back to a place's own view from one of its trains or journeys, scrolled where you left it. */
+  private showPlace(place: Place) {
     this.map.selectTrain(null);
     this.open = { kind: "place", place, showAll: false, sight: -1, legs: [] };
     this.transition(() => this.renderPanel(true, this.placeScroll));
     this.placeScroll = 0;
     this.map.focusOn(place);
-    if (o.push) this.sync("push");
     this.describe();
   }
 
@@ -564,7 +631,13 @@ export class App {
     if (o.kind === "train") {
       const gv = this.guides.get(o.place) ?? null;
       const boards = this.net.placeOf[o.leg.train.st[o.leg.from]];
-      this.panel.innerHTML = trainHtml(this.net, o.leg, titleOf(this.origin ?? boards, null), titleOf(o.place, gv), o.stops);
+      const gets = this.net.placeOf[o.leg.train.st[o.leg.to]];
+      this.panel.innerHTML = o.journey
+        ? trainHtml(this.net, o.leg, titleOf(boards, null), titleOf(gets, null), o.stops, "The journey")
+        : trainHtml(this.net, o.leg, titleOf(this.origin ?? boards, null), titleOf(o.place, gv), o.stops);
+    } else if (o.kind === "journey") {
+      this.panel.dataset.view = "train";
+      this.panel.innerHTML = journeyHtml(this.net, o.conn, titleOf(this.origin!, null), this.name(o.place), this.name(o.conn.via));
       this.panel.dataset.view = "train";
     } else if (o.kind === "list") {
       this.panel.dataset.view = "list";
@@ -593,6 +666,8 @@ export class App {
         }),
         newer: this.origin ? newerBetween(this.net, this.origin, o.place) : [],
         getHere: this.getHere(o.place, !!o.allFrom, !!o.choosing),
+        changes: this.origin ? this.changesShown(o.place) : [],
+        name: (p) => this.name(p),
       });
       const gh = this.panel.querySelector<HTMLInputElement>("#gh-input");
       if (gh) {
@@ -719,6 +794,15 @@ export class App {
       case "share":
         if (o.kind === "place") this.sharePoster(o.place);
         else this.share();
+        break;
+      case "journey":
+        if (o.kind === "place") {
+          const c = this.changesShown(o.place)[Number(el.dataset.i)];
+          if (c) this.openJourney(c, { push: true });
+        }
+        break;
+      case "journey-train":
+        if (o.kind === "journey") this.openTrain(o.conn.legs[Number(el.dataset.k)], { push: true }, o.conn);
         break;
       case "stops":
         if (o.kind === "train") {
@@ -963,6 +1047,7 @@ export class App {
         origin: this.origin ? this.slugs.of(this.origin) : undefined,
         place: place ? this.slugs.of(place) : undefined,
         train: o?.kind === "train" ? o.leg.train.no : undefined,
+        journey: o?.kind === "journey" ? journeyKey(o.conn) : o?.kind === "train" && o.journey ? journeyKey(o.journey) : undefined,
         within: this.filters.within,
         leave: this.filters.leave,
       },
@@ -976,6 +1061,7 @@ export class App {
     const from = this.origin ? titleOf(this.origin, null) : null;
     let title = "Railgaddi · where can the train take you?";
     if (o?.kind === "train") title = `${o.leg.train.no} ${o.leg.train.name} · ${fmtTime(o.leg.dep)} · Railgaddi`;
+    else if (o?.kind === "journey") title = `${from} to ${this.name(o.place)} with one change at ${this.name(o.conn.via)} · Railgaddi`;
     else if (o?.kind === "place") {
       const name = titleOf(o.place, this.guides.get(o.place));
       title = from ? `${name} by train from ${from} · Railgaddi` : `${name} by train: direct from ${plural(this.reach.size, "place")} · Railgaddi`;

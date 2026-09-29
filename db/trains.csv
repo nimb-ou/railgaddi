@@ -530,17 +530,17 @@ number,name,type,days,days_src,src
 12032,Amritsar Shatabdi Express,Shtb,Thu,tag2026,tag2026
 12033,Kanpur Shatabdi,Shtb,"Mon,Tue,Wed,Thu,Fri,Sat",tag2026,tag2026
 12034,New Delhi-Kanpur Shatabdi Express,Shtb,"Mon,Tue,Wed,Thu,Fri,Sat",tag2026,tag2026
-12035,Jaipur – Agra Fort Superfast Express,SF,Daily,tag2026,tag2026
-12036,Agra Fort – Jaipur Superfast Express,SF,Daily,tag2026,tag2026
+12035,Tanakpur Delhi Jan Shatabdi Express,JShtb,Daily,tag2026,tag2026
+12036,Delhi Tanakpur Jan Shatabdi Express,JShtb,Daily,tag2026,tag2026
 12037,New Delhi-Ludhiana Shatabdi Express,Shtb,Daily,tag2026,tag2026
 12038,Ludhiana-New Delhi Shatabdi Express,Shtb,Daily,tag2026,tag2026
-12039,Kathgodam – New Delhi Superfast Express,SF,Daily,tag2026,tag2026
-12040,New Delhi – Kathgodam Superfast Express,SF,Daily,tag2026,tag2026
-12041,Howrah – New Jalpaiguri Superfast Express,SF,"Mon,Tue,Wed,Thu,Fri,Sat",tag2026,tag2026
-12042,New Jalpaiguri – Howrah Superfast Express,SF,"Mon,Tue,Wed,Thu,Fri,Sat",tag2026,tag2026
+12039,Kathgodam New Delhi Shatabdi Express,Shtb,Daily,tag2026,tag2026
+12040,New Delhi Kathgodam Shatabdi Express,Shtb,Daily,tag2026,tag2026
+12041,Howrah New Jalpaiguri Shatabdi Express,Shtb,"Mon,Tue,Wed,Thu,Fri,Sat",tag2026,tag2026
+12042,New Jalpaiguri Howrah Shatabdi Express,Shtb,"Mon,Tue,Wed,Thu,Fri,Sat",tag2026,tag2026
 12043,New Delhi – Moga Superfast Express,SF,,,ogd2017
 12044,Moga – New Delhi Superfast Express,SF,,,ogd2017
-12045,New Delhi – Chandigarh Superfast Express,SF,"Mon,Tue,Thu,Fri,Sat,Sun",wikipedia,tag2026
+12045,New Delhi Chandigarh Shatabdi Express,Shtb,"Mon,Tue,Thu,Fri,Sat,Sun",wikipedia,tag2026
 12046,Chandigarh – New Delhi Superfast Express,SF,"Mon,Tue,Thu,Fri,Sat,Sun",wikipedia,ogd2017
 12047,New Delhi – Firozpur Cant Superfast Express,SF,,,ogd2017
 12048,Firozpur Cant – New Delhi Superfast Express,SF,,,ogd2017
@@ -558,8 +558,8 @@ number,name,type,days,days_src,src
 12060,Hazarat Nizamuddin-Kota Jan Shatabdi,JShtb,Daily,tag2026,tag2026
 12061,HabibGanj Bhopal-Jabalpur Jan Shatabdi,JShtb,Daily,tag2026,ogd2017
 12062,Jabalpur-HabibGanj Bhopal Jan Shatabdi,JShtb,Daily,tag2026,tag2026
-12065,Ajmer – Hazrat Nizamuddin Superfast Express,SF,"Mon,Tue,Wed,Fri,Sat",tag2026,tag2026
-12066,Hazrat Nizamuddin – Ajmer Superfast Express,SF,"Mon,Tue,Wed,Fri,Sat",tag2026,tag2026
+12065,Ajmer Delhi Sarai rohilla Jan Shatabdi Express,JShtb,"Mon,Tue,Wed,Fri,Sat",tag2026,tag2026
+12066,Delhi Sarai Rohilla Ajmer Jan Shatabdi Express,JShtb,"Mon,Tue,Wed,Fri,Sat",tag2026,tag2026
 12067,Guwahati Jorhat Jan Shatabdi,JShtb,"Mon,Tue,Wed,Thu,Fri,Sat",wikipedia,ogd2017
 12068,Jorhat Guwahati Jan Shatabdi,JShtb,"Mon,Tue,Wed,Thu,Fri,Sat",wikipedia,ogd2017
 12069,Raigarh-Gondia Jan Shatabdi,JShtb,"Mon,Tue,Wed,Thu,Fri,Sat",tag2026,tag2026
@@ -728,8 +728,8 @@ number,name,type,days,days_src,src
 12244,Coimbatore-Chennai Central AC Duronto Express,Drnt,"Mon,Wed,Thu,Fri,Sat,Sun",tag2026,tag2026
 12245,Howrah - Yesvantpur AC Duronto Exp,Drnt,"Tue,Wed,Fri,Sat,Sun",tag2026,tag2026
 12246,Yesvantpur - Howrah AC Duronto Exp,Drnt,"Mon,Tue,Thu,Fri,Sun",tag2026,tag2026
-12247,Mumbai Bandra – Hazrat Nizamuddin Superfast Express,SF,Fri,tag2026,tag2026
-12248,Hazrat Nizamuddin – Mumbai Bandra Superfast Express,SF,Sat,tag2026,tag2026
+12247,Bandra (T) Nizamuddin Yuva Express,SF,Fri,tag2026,tag2026
+12248,Nizamuddin Bandra (T) Yuva Express,SF,Sat,tag2026,tag2026
 12249,Howrah – Anand Vihar Terminal Superfast Express,SF,Daily,tag2026,tag2026
 12250,Anand Vihar Terminal – Howrah Superfast Express,SF,Daily,tag2026,tag2026
 12251,Wainganga express,SF,"Tue,Fri",tag2026,tag2026
@@ -768,12 +768,12 @@ number,name,type,days,days_src,src
 12290,Nagpur-Mumbai Cst Duronto Express,Drnt,Daily,tag2026,tag2026
 12291,Yesvantpur - Chennai SF Exp,SF,Fri,tag2026,tag2026
 12292,Chennai - Yesvantpur SF Exp,SF,Sat,tag2026,tag2026
-12293,Lokmanya Tilak – Allahabad Superfast Express,SF,"Mon,Fri",tag2026,tag2026
+12293,Lokmanya Tilak (T) Prayagraj Duronto Express,Drnt,"Mon,Fri",tag2026,tag2026
 12294,Allahabad – Lokmanya Tilak Superfast Express,SF,,,ogd2017
 12295,Bangalore - Patliputra Sanghamitra SF Exp,SF,Daily,tag2026,tag2026
 12296,Patliputra - Bangalore Sanghamitra SF Exp,SF,Daily,tag2026,tag2026
-12297,Ahmedabad – Pune Superfast Express,SF,"Tue,Fri,Sun",tag2026,tag2026
-12298,Pune – Ahmedabad Superfast Express,SF,,,tag2026
+12297,Ahmedabad Pune Duronto Express,Drnt,"Tue,Fri,Sun",tag2026,tag2026
+12298,Pune Ahmedabad Duronto Express,Drnt,,,tag2026
 12301,Howrah-New Delhi Rajdhani Express,Raj,"Mon,Tue,Wed,Thu,Fri,Sat",tag2026,tag2026
 12302,New Delhi-Howrah Rajdhani Express,Raj,"Mon,Tue,Wed,Thu,Sat,Sun",tag2026,tag2026
 12303,Poorva Express,SF,"Mon,Tue,Fri,Sat",tag2026,tag2026
@@ -967,8 +967,8 @@ number,name,type,days,days_src,src
 12498,Shan-e-Punjab Express,SF,Daily,tag2026,tag2026
 12501,Guwahati - New Delhi Poorvottar Sampark Kranti Exp,SKr,Sun,tag2026,tag2026
 12502,New Delhi - Guwahati Poorvottar Sampark Kranti Exp,SKr,Wed,tag2026,tag2026
-12503,Bangalore Cantonment – Kamakhya Superfast Express,SF,"Tue,Fri",tag2026,tag2026
-12504,Kamakhya – Bangalore Cantonment Superfast Express,SF,"Tue,Sat",tag2026,tag2026
+12503,SMVT Bengaluru Agartala Humsafar Express,SF,"Tue,Fri",tag2026,tag2026
+12504,Agartala SMVT Bengaluru Humsafar Express,SF,"Tue,Sat",tag2026,tag2026
 12505,Guwahati - Delhi Anand Vihar North East Exp,SF,Daily,tag2026,tag2026
 12506,Delhi Anand Vihar - Guwahati North East Exp,SF,Daily,tag2026,tag2026
 12507,Trivandrum - Guwahati SF Exp,SF,Tue,tag2026,tag2026
@@ -1046,9 +1046,9 @@ number,name,type,days,days_src,src
 12592,Yesvantpur - Gorakhpur SF Exp,SF,Mon,tag2026,tag2026
 12593,Lucknow-Bhopal Garib Rath,GR,Sat,tag2026,tag2026
 12594,Bhopal-Lucknow Garib Rath Express,GR,Sun,tag2026,tag2026
-12595,Gorakhpur – Anand Vihar Terminal Superfast Express,SF,"Mon,Tue,Thu",tag2026,tag2026
-12596,Anand Vihar Terminal – Gorakhpur Superfast Express,SF,,,tag2026
-12597,Gorakhpur – Mumbai CSMT Superfast Express,SF,Tue,tag2026,tag2026
+12595,Gorakhpur Anand Vihar (T) Humsafar Express,SF,"Mon,Tue,Thu",tag2026,tag2026
+12596,Anand Vihar (T) Gorakhpur Humsafar Express,SF,,,tag2026
+12597,Gorakhpur Mumbai Antyodaya Express,SF,Tue,tag2026,tag2026
 12598,Mumbai CSMT – Gorakhpur Superfast Express,SF,Wed,tag2026,tag2026
 12601,Chennai Mangalore Mail,SF,Daily,tag2026,tag2026
 12602,Chennai Mail,SF,Daily,tag2026,tag2026
@@ -1371,8 +1371,8 @@ number,name,type,days,days_src,src
 12928,Vadodara - Mumbai Central Express,SF,Daily,tag2026,tag2026
 12929,Valsad Dahod InterCity Express,SF,Daily,tag2026,tag2026
 12930,Dahod Valsad InterCity Express,SF,Daily,tag2026,tag2026
-12931,Mumbai – Ahmedabad Superfast Express,SF,"Mon,Tue,Wed,Thu,Fri,Sat",tag2026,tag2026
-12932,Ahmedabad – Mumbai Superfast Express,SF,"Mon,Tue,Wed,Thu,Fri,Sat",tag2026,tag2026
+12931,Mumbai Central Ahemedabad AC Double Decker Express,SF,"Mon,Tue,Wed,Thu,Fri,Sat",tag2026,tag2026
+12932,Ahmedabad Mumbai Central AC Double Decker Express,SF,"Mon,Tue,Wed,Thu,Fri,Sat",tag2026,tag2026
 12933,Karnavati Express,SF,Daily,tag2026,tag2026
 12934,Karnavati Express,SF,Daily,tag2026,tag2026
 12935,Bandra Surat InterCity Express,SF,Daily,tag2026,tag2026
@@ -1425,8 +1425,8 @@ number,name,type,days,days_src,src
 12982,Chetak Express,SF,,,ogd2017
 12983,Ajmer-Chandigarh GaribRath Express,GR,"Tue,Fri,Sun",tag2026,tag2026
 12984,Chandigarh-Ajmer GaribRath,GR,"Mon,Wed,Sat",tag2026,tag2026
-12985,Jaipur – Delhi Sarai Rohilla Superfast Express,SF,Daily,tag2026,tag2026
-12986,Delhi Sarai Rohilla – Jaipur Superfast Express,SF,Daily,tag2026,tag2026
+12985,Jaipur Delhi Sarai Rohilla Double Decker AC Express,SF,Daily,tag2026,tag2026
+12986,Delhi Sarai Rohilla Jaipur AC Double Decker Express,SF,Daily,tag2026,tag2026
 12987,Sealdah Ajmer Express,SF,Daily,tag2026,tag2026
 12988,Ajmer Sealdah Express,SF,Daily,wikipedia,ogd2017
 12989,Dadar Ajmer Superfast Express,SF,"Mon,Thu,Sat",tag2026,tag2026
@@ -1617,8 +1617,8 @@ number,name,type,days,days_src,src
 13420,Jan Sewa Express,Exp,Daily,wikipedia,ogd2017
 13421,Nabadwipdham Malda Express,Exp,"Mon,Thu",tag2026,tag2026
 13422,Malda Nabadwipdham Express,Exp,"Mon,Thu",tag2026,tag2026
-13423,Bhagalpur – Ajmer Express,Exp,Thu,tag2026,tag2026
-13424,Ajmer – Bhagalpur Express,Exp,Sat,tag2026,tag2026
+13423,Bhagalpur Ajmer Humsafar Express,Exp,Thu,tag2026,tag2026
+13424,Ajmer Bhagalpur Humsafar Express,Exp,Sat,tag2026,tag2026
 13425,Malda Town – Surat Express,Exp,,,tag2026
 13426,Surat – Malda Town Express,Exp,,,ogd2017
 13428,Sahibganj Howrah Intercity Express,Exp,Daily,tag2026,tag2026
@@ -2085,7 +2085,7 @@ number,name,type,days,days_src,src
 15555,Bapudham Motihari Patliputra Intercity Express,Exp,Daily,tag2026,tag2026
 15556,Bapudham Motihari Patliputra Intercity Express,Exp,Daily,tag2026,tag2026
 15557,Darbhanga Anand Vihar (T) Amrit Bharat Express,AB,"Mon,Thu",tag2026,tag2026
-15559,Darbhanga – Ahmedabad Express,Exp,Wed,tag2026,tag2026
+15559,Darbhanga Ahmedabad Antyodaya Express,Exp,Wed,tag2026,tag2026
 15560,Ahmedabad – Darbhanga Express,Exp,,,ogd2017
 15562,Anand Vihar (T) Bapudham Motihari Amrit Bharat Express,AB,Sun,tag2026,tag2026
 15563,Jaynagar – Udhna Express,Exp,,,ogd2017
@@ -3148,7 +3148,7 @@ number,name,type,days,days_src,src
 20497,Rameshwaram Firozpur Humsafar Express,SF,Tue,tag2026,tag2026
 20498,Firozpur Rameshwaram Humsafar Express,SF,Sat,tag2026,tag2026
 20501,Agartala – Anand Vihar Terminal Superfast Express,SF,,,ogd2017
-20502,Anand Vihar Terminal – Agartala Superfast Express,SF,Wed,tag2026,tag2026
+20502,Anand Vihar (T) Agartala Tejas Rajdhani Express,Raj,Wed,tag2026,tag2026
 20504,New Delhi Dibrugarh Rajdhani Express,Raj,"Mon,Tue,Wed,Fri,Sat",tag2026,tag2026
 20505,Dibrugarh New Delhi Rajdhani Express Via Rangapara,Raj,"Mon,Fri",tag2026,tag2026
 20508,Anand Vihar (T)- Sairang Rajdhani Express,Raj,Sun,tag2026,tag2026
@@ -3275,15 +3275,15 @@ number,name,type,days,days_src,src
 20872,Rourkela Howrah Vande Bharat Express,VB,"Mon,Wed,Thu,Fri,Sat,Sun",tag2026,tag2026
 20887,Ranchi Varanasi Vande Bharat Express,VB,"Mon,Wed,Thu,Fri,Sat,Sun",tag2026,tag2026
 20888,Varanasi Ranchi Vande Bharat Express,VB,"Mon,Wed,Thu,Fri,Sat,Sun",tag2026,tag2026
-20889,Howrah – Vijayawada Superfast Express,SF,Sat,tag2026,tag2026
-20890,Vijayawada – Howrah Superfast Express,SF,Sun,tag2026,tag2026
+20889,Howrah Tirupati Humsafar Express,SF,Sat,tag2026,tag2026
+20890,Tirupati Howrah Humsafar Express,SF,Sun,tag2026,tag2026
 20891,Tata Nagar Jn Brahmapur Vande Bharat Express,VB,"Mon,Wed,Thu,Fri,Sat,Sun",tag2026,tag2026
 20893,Tatanagar Patna Vande Bharat Express Via Bokoro,VB,"Wed,Thu,Fri,Sat",tag2026,tag2026
 20894,Patna Tatanagar Vande Bharat Express Via Bokoro,VB,"Wed,Thu,Fri,Sat",tag2026,tag2026
 20897,Howrah Ranchi Vande Bharat Express,VB,"Mon,Wed,Thu,Fri,Sat,Sun",tag2026,tag2026
 20898,Ranchi Howrah Vande Bharat Express,VB,"Mon,Wed,Thu,Fri,Sat,Sun",tag2026,tag2026
-20901,Chittaurgarh – Ajmer Superfast Express,SF,"Mon,Tue,Thu,Fri,Sat,Sun",tag2026,tag2026
-20902,Ajmer – Chittaurgarh Superfast Express,SF,"Mon,Tue,Wed,Thu,Fri,Sat",tag2026,tag2026
+20901,Mumbai Central- Gandhinagar Vande Bharat,VB,"Mon,Tue,Thu,Fri,Sat,Sun",tag2026,tag2026
+20902,Gandhinagar Mumbai Central Vande Bharat Express,VB,"Mon,Tue,Wed,Thu,Fri,Sat",tag2026,tag2026
 20903,Vadodara – Varanasi Superfast Express,SF,Tue,tag2026,tag2026
 20904,Varanasi – Vadodara Superfast Express,SF,Fri,tag2026,tag2026
 20907,Dadar Bhuj Sayaji Nagari Express,SF,Daily,tag2026,tag2026
@@ -3372,8 +3372,8 @@ number,name,type,days,days_src,src
 22116,Karmali – Lokmanya Tilak Superfast Express,SF,Thu,tag2026,tag2026
 22117,Pune – Amravati Superfast Express,SF,,,tag2026
 22118,Amravati – Pune Superfast Express,SF,Thu,tag2026,tag2026
-22119,Mumbai CSMT – Karmali Superfast Express,SF,"Tue,Wed,Fri,Sat,Sun",tag2026,tag2026
-22120,Karmali – Mumbai CSMT Superfast Express,SF,"Tue,Wed,Fri,Sat,Sun",tag2026,tag2026
+22119,Mumbai CSMT Madgaon Tejas Express,SF,"Tue,Wed,Fri,Sat,Sun",tag2026,tag2026
+22120,Madgaon Mumbai CSMT Tejas Express,SF,"Tue,Wed,Fri,Sat,Sun",tag2026,tag2026
 22121,Lokmanya Tilak – Lucknow Charbagh Superfast Express,SF,Sat,tag2026,tag2026
 22122,Lucknow Charbagh – Lokmanya Tilak Superfast Express,SF,Sun,tag2026,tag2026
 22123,Pune – Ajni Superfast Express,SF,Fri,tag2026,ogd2017
@@ -3392,7 +3392,7 @@ number,name,type,days,days_src,src
 22136,Rewa – Nagpur Superfast Express,SF,,,ogd2017
 22137,Nagpur – Ahmedabad Superfast Express,SF,"Wed,Sat,Sun",tag2026,tag2026
 22138,Ahmedabad – Nagpur Superfast Express,SF,,,tag2026
-22140,Solapur – Mumbai CSMT Superfast Express,SF,Sun,tag2026,tag2026
+22140,Ajni Pune Humsafar Express,SF,Sun,tag2026,tag2026
 22141,Pune Nagpur Humsafar Express,SF,Thu,tag2026,tag2026
 22142,Nagpur Pune Humsafar Express,SF,Fri,tag2026,tag2026
 22143,Mumbai CSMT – Bidar Superfast Express,SF,"Wed,Fri,Sat",tag2026,tag2026
@@ -3445,18 +3445,18 @@ number,name,type,days,days_src,src
 22197,Kolkata Veerangana Laxmi Bai Pratham Swatantrata Sangram Express,SF,Sun,tag2026,tag2026
 22198,Veerangna Laxmi Bai Kolkata Pratham Swatantrata Sangram Express,SF,Fri,tag2026,tag2026
 22199,Gwalior Balrampur Sushasan Express,SF,,,tag2026
-22201,Sealdah – Puri Express,Drnt,"Mon,Wed,Fri",tag2026,tag2026
-22202,Puri – Sealdah Express,Drnt,"Tue,Thu,Sat",tag2026,tag2026
-22203,Visakhapatnam – Secunderabad Superfast Express,SF,"Tue,Thu,Sun",tag2026,tag2026
-22204,Secunderabad – Visakhapatnam Superfast Express,SF,"Mon,Wed,Sat",tag2026,tag2026
+22201,Sealdah Puri Duronto Express,Drnt,"Mon,Wed,Fri",tag2026,tag2026
+22202,Puri Sealdah Duronto Express,Drnt,"Tue,Thu,Sat",tag2026,tag2026
+22203,Visakhapatnam Secunderabad Duronto Express,Drnt,"Tue,Thu,Sun",tag2026,tag2026
+22204,Secunderabad Visakapatnam Duronto Express,Drnt,"Mon,Wed,Sat",tag2026,tag2026
 22205,Chennai – Madurai Superfast Express,SF,,,ogd2017
 22206,Madurai – Chennai Superfast Express,SF,,,ogd2017
 22207,Chennai – Thiruvananthapuram Superfast Express,SF,"Tue,Fri",tag2026,tag2026
 22208,Thiruvananthapuram – Chennai Superfast Express,SF,"Wed,Sun",tag2026,tag2026
-22209,Mumbai – New Delhi Express,Drnt,"Mon,Fri",tag2026,tag2026
+22209,Mumbai Central Hazrat Nizamuddin Duronto Express,Drnt,"Mon,Fri",tag2026,tag2026
 22210,Bct Duronto,Drnt,"Tue,Sat",tag2026,tag2026
-22213,Shalimar – Patna Superfast Express,SF,"Mon,Wed,Fri",tag2026,tag2026
-22214,Patna – Shalimar Superfast Express,SF,"Tue,Thu,Sat",tag2026,tag2026
+22213,Shalimar Patna Duronto Express,Drnt,"Mon,Wed,Fri",tag2026,tag2026
+22214,Patna Shalimar Duronto Express,Drnt,"Tue,Thu,Sat",tag2026,tag2026
 22221,Mumbai CSMT Nizamudin Rajdhani Express,Raj,Daily,tag2026,tag2026
 22222,Nizamudin Mumbai CSMT Rajdhani Express,Raj,Daily,tag2026,tag2026
 22223,Mumbai CSMT - Shirdi Vande Bharat Express,VB,"Mon,Wed,Thu,Fri,Sat,Sun",tag2026,tag2026
@@ -3475,7 +3475,7 @@ number,name,type,days,days_src,src
 22306,Jasidih SMVT Bengaluru Express,SF,Fri,tag2026,tag2026
 22307,Merta Road – Bikaner Superfast Express,SF,,,ogd2017
 22308,Bikaner-Howrah SF Express,SF,,,ogd2017
-22309,Howrah – New Jalpaiguri Superfast Express,SF,"Mon,Tue,Wed,Thu,Sat,Sun",tag2026,tag2026
+22309,Howrah Jamalpur Vande Bharat Express,VB,"Mon,Tue,Wed,Thu,Sat,Sun",tag2026,tag2026
 22310,Njp Hwh AC,SF,"Mon,Tue,Wed,Thu,Sat,Sun",tag2026,tag2026
 22311,Godda Lokmanya Tilak (T) Express,SF,Sun,tag2026,tag2026
 22312,Lokmanya Tilak (T) Godda Express,SF,Thu,tag2026,tag2026
@@ -3514,10 +3514,10 @@ number,name,type,days,days_src,src
 22410,Anand ViharT Delhi-Sasaram GaribRath Express,GR,Sat,tag2026,tag2026
 22411,Naharlagun – New Delhi Superfast Express,SF,"Tue,Sat",tag2026,tag2026
 22412,New Delhi – Naharlagun Superfast Express,SF,,,ogd2017
-22413,Madgaon – Hazrat Nizamuddin Superfast Express,SF,"Mon,Sun",tag2026,tag2026
-22414,Hazrat Nizamuddin – Madgaon Superfast Express,SF,"Fri,Sat",tag2026,tag2026
-22415,Visakhapatnam – New Delhi Superfast Express,SF,"Mon,Wed,Thu,Fri,Sat,Sun",tag2026,tag2026
-22416,New Delhi – Visakhapatnam Superfast Express,SF,"Mon,Wed,Thu,Fri,Sat,Sun",tag2026,tag2026
+22413,Madgaon Nizamuddin Rajdhani Express,Raj,"Mon,Sun",tag2026,tag2026
+22414,Nizamuddin Madgaon Rajdhani Express,Raj,"Fri,Sat",tag2026,tag2026
+22415,Varanasi New Delhi Vande Bharat Express,VB,"Mon,Wed,Thu,Fri,Sat,Sun",tag2026,tag2026
+22416,New Delhi Varanasi Vande Bharat Express,VB,"Mon,Wed,Thu,Fri,Sat,Sun",tag2026,tag2026
 22417,Varanasi – New Delhi Superfast Express,SF,,,tag2026
 22418,New Delhi – Varanasi Superfast Express,SF,"Mon,Wed,Fri",tag2026,tag2026
 22419,Ghazipur City – Anand Vihar Terminal Superfast Express,SF,"Mon,Wed,Fri,Sun",tag2026,tag2026
@@ -3534,7 +3534,7 @@ number,name,type,days,days_src,src
 22430,Pathankot – Delhi Superfast Express,SF,"Mon,Tue,Wed,Thu,Sat,Sun",tag2026,tag2026
 22431,Allahabad – Udhampur Superfast Express,SF,"Tue,Sat",tag2026,tag2026
 22432,Udhampur – Allahabad Superfast Express,SF,"Wed,Sun",tag2026,tag2026
-22433,Ghazipur City – Anand Vihar Terminal Superfast Express,SF,"Tue,Sat",tag2026,tag2026
+22433,Ghazipur City Anand Vihar (T) Humsafar Express,SF,"Tue,Sat",tag2026,tag2026
 22434,Anand Vihar Terminal – Ghazipur City Superfast Express,SF,"Mon,Fri",tag2026,ogd2017
 22435,Varanasi New Del hi Vande Bharat Express,VB,,,tag2026
 22436,New Delhi Varanasi Vande Bharat Express,VB,"Mon,Tue,Wed,Fri,Sat,Sun",tag2026,tag2026
@@ -3556,8 +3556,8 @@ number,name,type,days,days_src,src
 22454,Meerut City – Lucknow Superfast Express,SF,Daily,wikipedia,ogd2017
 22455,Sainagar Shirdi – Kalka Superfast Express,SF,,,ogd2017
 22456,Kalka – Sainagar Shirdi Superfast Express,SF,"Thu,Sun",tag2026,tag2026
-22457,Hazur Sahib Nanded – Una Himachal Superfast Express,SF,"Mon,Tue,Wed,Fri,Sat,Sun",tag2026,tag2026
-22458,Una Himachal – Hazur Sahib Nanded Superfast Express,SF,"Mon,Tue,Wed,Fri,Sat,Sun",tag2026,tag2026
+22457,Anand Vihar (T) Dehradun Vande Bharat Express,VB,"Mon,Tue,Wed,Fri,Sat,Sun",tag2026,tag2026
+22458,Dehradun Anand Vihar (T) Vande Bharat Exp,VB,"Mon,Tue,Wed,Fri,Sat,Sun",tag2026,tag2026
 22459,Madhupur Anand Vihar (T) Humsafar Express,SF,Tue,tag2026,tag2026
 22461,Shri Shakti,SF,"Mon,Tue,Wed,Fri,Sat,Sun",tag2026,tag2026
 22462,Shri Shakti,SF,"Mon,Tue,Thu,Fri,Sat,Sun",tag2026,tag2026
@@ -3570,8 +3570,8 @@ number,name,type,days,days_src,src
 22474,Bdts Bkn SF,SF,Tue,tag2026,tag2026
 22475,Bikaner – Coimbatore Superfast Express,SF,Thu,tag2026,tag2026
 22476,Coimbatore – Bikaner Superfast Express,SF,Sat,tag2026,tag2026
-22477,Jodhpur – Jaipur Superfast Express,SF,,,tag2026
-22478,Jaipur – Jodhpur Superfast Express,SF,"Mon,Tue,Thu,Fri,Sat,Sun",tag2026,tag2026
+22477,New Delhi Shri Mata Vaishno Devi Katra Vande Bharat Express,VB,,,tag2026
+22478,Shri Mata Vaishno Devi Katra New Delhi Vande Bharat Express,VB,"Mon,Tue,Thu,Fri,Sat,Sun",tag2026,tag2026
 22479,New Delhi Lohian Khas Sarbat da Bhalaa Express,SF,"Tue,Wed",tag2026,tag2026
 22480,Lohian Khas Sarbat da Bhalaa New Delhi Shatabdi Express,Shtb,"Tue,Wed,Thu,Sat,Sun",tag2026,tag2026
 22481,Jodhpur-Delhi Sarai Rohilla Express,SF,Daily,wikipedia,tag2026
@@ -3580,8 +3580,8 @@ number,name,type,days,days_src,src
 22484,Gandhidham – Jodhpur Superfast Express,SF,Daily,tag2026,tag2026
 22486,Firozpur New Delhi Intercity Express,SF,"Mon,Fri",tag2026,tag2026
 22487,Radhikapur – Katihar Superfast Express,SF,,,ogd2017
-22488,Katihar – Radhikapur Superfast Express,SF,"Mon,Tue,Wed,Thu,Sat,Sun",tag2026,tag2026
-22497,Sriganganagar – Tiruchchirappalli Superfast Express,SF,Tue,tag2026,tag2026
+22488,Amritsar Delhi Vande Bharat Express,VB,"Mon,Tue,Wed,Thu,Sat,Sun",tag2026,tag2026
+22497,Sri Ganga Nagar Tiruchchirappalli Humsafar Express,SF,Tue,tag2026,tag2026
 22498,Tiruchchirappalli Sri Ganga Nagar Humsafar Express,SF,Fri,tag2026,tag2026
 22499,Deoghar Varanasi Vande Bharat Express,VB,"Mon,Wed,Thu,Fri,Sat,Sun",tag2026,tag2026
 22501,Krantivira Sangolli Rayanna – New Tinsukia Superfast Express,SF,Tue,tag2026,tag2026
@@ -3640,8 +3640,8 @@ number,name,type,days,days_src,src
 22622,Kanniyakumari – Rameswaram Superfast Express,SF,"Tue,Fri,Sun",tag2026,tag2026
 22623,Chennai Egmore – Madurai Superfast Express,SF,"Fri,Sun",tag2026,tag2026
 22624,Madurai – Chennai Egmore Superfast Express,SF,"Thu,Sat",tag2026,tag2026
-22625,Chennai – Krantivira Sangolli Rayanna Superfast Express,SF,Daily,tag2026,tag2026
-22626,Krantivira Sangolli Rayanna – Chennai Superfast Express,SF,Daily,tag2026,tag2026
+22625,MGR Chennai Central KSR Bengaluru A/C Double Decker Express,SF,Daily,tag2026,tag2026
+22626,KSR Bengaluru MGR Chennai Central AC Double Decker Express,SF,Daily,tag2026,tag2026
 22627,Tiruchchirappalli – Thiruvananthapuram Superfast Express,SF,Daily,tag2026,tag2026
 22628,Thiruvananthapuram – Tiruchchirappalli Superfast Express,SF,Daily,tag2026,tag2026
 22629,Dadar – Tirunelveli Superfast Express,SF,Thu,tag2026,tag2026
@@ -3699,19 +3699,19 @@ number,name,type,days,days_src,src
 22682,Chennai - Mysore Weekly SF Exp,SF,Thu,tag2026,tag2026
 22683,Yesvantpur – Lucknow Charbagh Superfast Express,SF,Mon,tag2026,tag2026
 22684,Lucknow Charbagh – Yesvantpur Superfast Express,SF,Thu,tag2026,tag2026
-22685,Yesvantpur – Chandigarh Superfast Express,SF,"Wed,Sat",tag2026,tag2026
-22686,Chandigarh – Yesvantpur Superfast Express,SF,"Tue,Sat",tag2026,tag2026
+22685,Yesvantpur Chandigarh Karnataka Sampark Kranti Express,SKr,"Wed,Sat",tag2026,tag2026
+22686,Chandigarh Yesvantpur Karnataka Sampark Kranti Express,SKr,"Tue,Sat",tag2026,tag2026
 22687,Saharanpur – Chandigarh Superfast Express,SF,"Tue,Thu",tag2026,tag2026
 22688,Chandigarh Chennai Express,SF,"Thu,Sat",tag2026,tag2026
 22690,Yesvantpur Ahmedabad Express,SF,,,tag2026
-22691,Krantivira Sangolli Rayanna – Hazrat Nizamuddin Superfast Express,SF,Daily,tag2026,tag2026
-22692,Hazrat Nizamuddin – Krantivira Sangolli Rayanna Superfast Express,SF,Daily,tag2026,tag2026
+22691,KSR Bengaluru Nizamuddin Rajdhani Express,Raj,Daily,tag2026,tag2026
+22692,Nizamuddin KSR Bengaluru Rajdhani Express,Raj,Daily,tag2026,tag2026
 22697,Ubl Chennai,SF,Sat,tag2026,tag2026
 22698,Chennai – Hubballi Superfast Express,SF,Sun,tag2026,tag2026
 22705,Tirupati – Jammu Tawi Superfast Express,SF,Tue,tag2026,ogd2017
-22706,Jammu Tawi – Tirupati Superfast Express,SF,Fri,tag2026,tag2026
-22707,Visakhapatnam – Tirupati Superfast Express,SF,"Mon,Thu,Sat",tag2026,tag2026
-22708,Tirupati – Visakhapatnam Superfast Express,SF,"Wed,Fri,Sun",tag2026,tag2026
+22706,Jammu Tawi Tirupathi Humsafar Express,SF,Fri,tag2026,tag2026
+22707,Visakhapatnam Tirupati Double Decker Express,SF,"Mon,Thu,Sat",tag2026,tag2026
+22708,Tirupati Visakapatnam Double decker,SF,"Wed,Fri,Sun",tag2026,tag2026
 22709,Hazur Sahib Nanded Amb Andaura Express,SF,Tue,tag2026,tag2026
 22717,Rajkot Secunderabad Express,SF,"Mon,Wed,Thu",tag2026,tag2026
 22718,Secunderabad Rajkot Express,SF,,,tag2026
@@ -3751,8 +3751,8 @@ number,name,type,days,days_src,src
 22830,Shalimar – Bhuj Superfast Express,SF,Sat,tag2026,ogd2017
 22831,Howrah – Sri Satya Sai Prashanthi Nilayam Superfast Express,SF,Wed,tag2026,tag2026
 22832,Sri Satya Sai Prashanthi Nilayam – Howrah Superfast Express,SF,Fri,tag2026,tag2026
-22833,Bhubaneswar – Krishnarajapuram Superfast Express,SF,Wed,tag2026,tag2026
-22834,Krishnarajapuram – Bhubaneswar Superfast Express,SF,Thu,tag2026,tag2026
+22833,Bhubaneswar SMVT Bengaluru Humsafar Express,SF,Wed,tag2026,tag2026
+22834,SMVT Bengaluru Bhubaneswar Humsafar Express,SF,Thu,tag2026,tag2026
 22835,Shalimar-Puri Express,SF,Wed,tag2026,tag2026
 22836,Puri-Shalimar weekly superfast express,SF,Tue,tag2026,ogd2017
 22837,Hatia – Ernakulam Superfast Express,SF,,,tag2026
@@ -3784,28 +3784,28 @@ number,name,type,days,days_src,src
 22864,Yesvantpur – Howrah Superfast Express,SF,Wed,tag2026,tag2026
 22865,Lokmanya Tilak – Puri Superfast Express,SF,Thu,tag2026,tag2026
 22866,Puri – Lokmanya Tilak Superfast Express,SF,Tue,wikipedia,ogd2017
-22867,Durg – Hazrat Nizamuddin Superfast Express,SF,"Tue,Fri",tag2026,tag2026
-22868,Hazrat Nizamuddin – Durg Superfast Express,SF,"Wed,Sat",tag2026,tag2026
+22867,Durg Nizamuddin Humsafar Express,SF,"Tue,Fri",tag2026,tag2026
+22868,Nizamuddin Durg Humsafar Express,SF,"Wed,Sat",tag2026,tag2026
 22869,Visakhapatnam – Chennai Superfast Express,SF,Mon,tag2026,tag2026
 22870,Chennai – Visakhapatnam Superfast Express,SF,Tue,tag2026,tag2026
 22871,Bhubaneswar – Tirupati Superfast Express,SF,Sun,tag2026,tag2026
 22872,Tirupati – Bhubaneswar Superfast Express,SF,,,ogd2017
 22873,Digha – Visakhapatnam Superfast Express,SF,Fri,tag2026,tag2026
 22874,Visakhapatnam – Digha Superfast Express,SF,Thu,tag2026,tag2026
-22875,Kharagpur – Purulia Superfast Express,SF,,,tag2026
-22876,Purulia – Kharagpur Superfast Express,SF,"Mon,Tue,Wed",tag2026,tag2026
-22877,Howrah – Ernakulam Superfast Express,SF,Sat,tag2026,tag2026
-22878,Ernakulam – Howrah Superfast Express,SF,Mon,tag2026,tag2026
+22875,Visakhapatnam Guntur Uday Express,SF,,,tag2026
+22876,Guntur Visakhapatnam Double Decker,SF,"Mon,Tue,Wed",tag2026,tag2026
+22877,Howrah Ernakulam Antyodaya Express,SF,Sat,tag2026,tag2026
+22878,Ernakulam Howrah Antyodaya Express,SF,Mon,tag2026,tag2026
 22879,Bhubaneswar – Tirupati Superfast Express,SF,Sat,tag2026,tag2026
 22880,Tirupati – Bhubaneswar Superfast Express,SF,Sun,tag2026,tag2026
 22881,Pune – Bhubaneswar Superfast Express,SF,Thu,tag2026,tag2026
 22882,Bhubaneswar – Pune Superfast Express,SF,Tue,tag2026,tag2026
-22883,Puri – Yesvantpur Superfast Express,SF,Fri,tag2026,tag2026
+22883,Puri Yesvantpur Garib Rath Express,GR,Fri,tag2026,tag2026
 22884,Yesvantpur – Puri Superfast Express,SF,,,ogd2017
 22885,Lokmanya Tilak – Tatanagar Superfast Express,SF,,,ogd2017
 22886,Tatanagar – Lokmanya Tilak Superfast Express,SF,,,ogd2017
-22887,Howrah – Yesvantpur Superfast Express,SF,Tue,tag2026,tag2026
-22888,Yesvantpur – Howrah Superfast Express,SF,Thu,tag2026,tag2026
+22887,Howrah SMVT Bengaluru Humsafar Express,SF,Tue,tag2026,tag2026
+22888,SMVT Benga luru Howrah Humsafar Express,SF,Thu,tag2026,tag2026
 22889,Digha – Puri Superfast Express,SF,Sun,tag2026,tag2026
 22890,Puri – Digha Superfast Express,SF,Sat,tag2026,tag2026
 22891,Howrah – Ranchi Superfast Express,SF,"Wed,Thu,Sat",tag2026,tag2026
@@ -3829,7 +3829,7 @@ number,name,type,days,days_src,src
 22911,Indore – Howrah Superfast Express,SF,,,ogd2017
 22912,Shipra Express,SF,,,ogd2017
 22913,Bandra (T) Saharsa Humsafar Express,SF,Sun,tag2026,tag2026
-22914,Patna – Mumbai Bandra Superfast Express,SF,Tue,tag2026,tag2026
+22914,Saharsa Bandra (T) Humsafar Express,SF,Tue,tag2026,tag2026
 22915,Bdts Hsr SF,SF,Mon,tag2026,tag2026
 22916,Hisar – Mumbai Bandra Superfast Express,SF,Tue,tag2026,tag2026
 22917,Mumbai Bandra – Haridwar Superfast Express,SF,Wed,tag2026,tag2026
@@ -3839,7 +3839,7 @@ number,name,type,days,days_src,src
 22921,Bandra (T) Gorakhpur Antyodaya Express,SF,Sun,tag2026,tag2026
 22923,Bandra (T) Jam Nagar Humsafar Express,SF,"Mon,Thu,Sat",tag2026,tag2026
 22924,Jamnagar Bandra (T) Humsafar Express,SF,"Tue,Fri,Sun",tag2026,tag2026
-22925,Ambala Cantonment – Kalka Superfast Express,SF,"Mon,Wed,Thu,Fri,Sat,Sun",tag2026,tag2026
+22925,Ahmedbad Okha Vande Bharat Express,VB,"Mon,Wed,Thu,Fri,Sat,Sun",tag2026,tag2026
 22926,Paschim Express,SF,"Mon,Tue,Thu,Fri,Sat,Sun",tag2026,tag2026
 22927,Mumbai Bandra – Ahmedabad Superfast Express,SF,Daily,tag2026,tag2026
 22928,Ahmedabad – Mumbai Bandra Superfast Express,SF,Daily,tag2026,tag2026
@@ -3874,8 +3874,8 @@ number,name,type,days,days_src,src
 22957,Ahmedabad – Veraval Superfast Express,SF,Daily,tag2026,tag2026
 22959,Surat – Jamnagar Superfast Express,SF,Daily,tag2026,tag2026
 22960,Jamnagar – Surat Superfast Express,SF,Daily,tag2026,tag2026
-22961,Surat – Hapa Superfast Express,SF,"Mon,Tue,Wed,Thu,Fri,Sat",tag2026,tag2026
-22962,Hapa – Surat Superfast Express,SF,"Mon,Tue,Wed,Thu,Fri,Sat",tag2026,tag2026
+22961,Mumbai Central Ahmedabad Vande Bharat Express,VB,"Mon,Tue,Wed,Thu,Fri,Sat",tag2026,tag2026
+22962,Ahmedabad Mumbai Central Vande Bharat Express,VB,"Mon,Tue,Wed,Thu,Fri,Sat",tag2026,tag2026
 22963,Bdts Bvc SF,SF,Mon,tag2026,tag2026
 22964,Bvc Bdts SF,SF,Mon,tag2026,tag2026
 22965,Mumbai Bandra – Bhagat Ki Kothi Superfast Express,SF,Fri,tag2026,tag2026

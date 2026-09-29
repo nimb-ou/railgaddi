@@ -129,7 +129,8 @@ export class RailMap {
   private shown = new Map<Place, Shown>();
   private discs = new Map<string, HTMLCanvasElement>();
   private selected: Place | null = null;
-  private selectedTrain: { leg: Leg; motion: Motion } | null = null;
+  private selectedTrains: { leg: Leg; motion: Motion }[] = []; // one train, or a journey's trains
+  private hintLegs: Leg[] = []; // the best way with a change, drawn quietly while a place is open
   private sights: SightPin[] = [];
   private activeSight = -1;
   private hover: Place | null = null;
@@ -239,7 +240,7 @@ export class RailMap {
   refreshNetwork() {
     this.indexNetwork();
     this.resize();
-    if (this.selectedTrain) this.selectTrain(this.selectedTrain.leg);
+    if (this.selectedTrains.length) this.selectJourney(this.selectedTrains.map((x) => x.leg));
   }
 
   /** Minute -> km samples between two point indices (halts carry the times). */
@@ -375,7 +376,17 @@ export class RailMap {
   }
 
   selectTrain(leg: Leg | null) {
-    this.selectedTrain = leg ? { leg, motion: this.motion(leg.train, 0, leg.train.st.length - 1) } : null;
+    this.selectJourney(leg ? [leg] : []);
+  }
+
+  /** The trains of a journey with changes (or one train): drawn in red, the rest dimmed. */
+  selectJourney(legs: Leg[]) {
+    this.selectedTrains = legs.map((leg) => ({ leg, motion: this.motion(leg.train, 0, leg.train.st.length - 1) }));
+  }
+
+  /** A way in with a change, for a place no train reaches directly: drawn in livery, quietly. */
+  hintJourney(legs: Leg[]) {
+    this.hintLegs = legs;
   }
 
   showSights(pins: SightPin[], active = -1) {
@@ -427,6 +438,7 @@ export class RailMap {
     const b = this.boundsOf([place.anchor]);
     if (this.origin) {
       b.add(this.origin.anchor);
+      for (const l of this.hintLegs) for (let j = l.from; j <= l.to; j++) b.add(l.train.st[j]);
       const dest = new Set(place.stations);
       for (const r of this.routes) {
         const end = r.st.findIndex((s) => dest.has(s));
@@ -439,11 +451,10 @@ export class RailMap {
     this.fly(this.transformFor(b.box(0.12), 12), duration);
   }
 
-  /** Frame the part of a train's journey you'd ride. */
-  focusLeg(leg: Leg, duration = 850) {
-    const t = leg.train;
+  /** Frame the part of a train's journey you'd ride (or every train of a journey). */
+  focusLeg(leg: Leg | Leg[], duration = 850) {
     const b = this.boundsOf([]);
-    for (let j = leg.from; j <= leg.to; j++) b.add(t.st[j]);
+    for (const l of Array.isArray(leg) ? leg : [leg]) for (let j = l.from; j <= l.to; j++) b.add(l.train.st[j]);
     this.fly(this.transformFor(b.box(0.1), 12), duration);
   }
 
@@ -686,7 +697,7 @@ export class RailMap {
 
     if (this.origin) {
       this.drawRoutes();
-      if (this.selectedTrain) this.drawSelectedTrain();
+      if (this.selectedTrains.length) this.drawSelectedTrain();
       this.drawDots();
     }
     this.drawTrains();
@@ -711,7 +722,7 @@ export class RailMap {
     const ctx = this.ctx;
     const { k, x, y } = this.tf;
     const focus = this.selected;
-    const trainFocus = this.selectedTrain?.leg.train ?? null;
+    const trainFocus = this.selectedTrains.length > 0;
     const dim = this.sights.length ? 0.1 : focus || trainFocus ? 0.16 : 0.55;
     const close = k >= 3;
     ctx.lineCap = "round";
@@ -755,6 +766,18 @@ export class RailMap {
       }
       ctx.globalAlpha = 1;
     }
+    // a place reached only with a change: its quickest way, in livery
+    if (focus && !trainFocus && !this.sights.length && this.hintLegs.length) {
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = this.c.livery;
+      ctx.lineWidth = close ? 4 : 2.6;
+      for (const leg of this.hintLegs) {
+        const p = this.lineOf(leg.train, leg.train.km[leg.from] - 0.01, leg.train.km[leg.to] + 0.01);
+        ctx.stroke(p);
+        if (close) this.ties(() => ctx.stroke(p), 1.4);
+      }
+      this.drawChanges(this.hintLegs, this.c.livery);
+    }
     // the lines that reach the selected place, in full livery
     if (focus && !trainFocus && !this.sights.length) {
       const dest = new Set(focus.stations);
@@ -775,43 +798,81 @@ export class RailMap {
 
   private drawSelectedTrain() {
     const ctx = this.ctx;
-    const { leg } = this.selectedTrain!;
-    const t = leg.train;
-    const g = this.geom(t);
-    const X = (i: number) => this.tf.applyX(this.sx[i]);
-    const Y = (i: number) => this.tf.applyY(this.sy[i]);
-    const line = (km0: number, km1: number) => {
-      const p = new Path2D();
-      let first = true;
-      for (let j = 0; j < g.st.length; j++) {
-        if (g.km[j] < km0 || g.km[j] > km1) continue;
-        if (first) p.moveTo(X(g.st[j]), Y(g.st[j]));
-        else p.lineTo(X(g.st[j]), Y(g.st[j]));
-        first = false;
+    const journey = this.selectedTrains.length > 1;
+    for (const { leg } of this.selectedTrains) {
+      const t = leg.train;
+      // the whole train's run, faint and dashed (only for a single train: a journey is busy enough)
+      if (!journey) {
+        ctx.strokeStyle = this.c.ink;
+        ctx.globalAlpha = 0.35;
+        ctx.lineWidth = 1.4;
+        ctx.setLineDash([3, 4]);
+        ctx.stroke(this.lineOf(t, -1, Infinity));
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 1;
       }
-      return p;
-    };
-    ctx.strokeStyle = this.c.ink;
-    ctx.globalAlpha = 0.35;
-    ctx.lineWidth = 1.4;
-    ctx.setLineDash([3, 4]);
-    ctx.stroke(line(-1, Infinity));
-    ctx.setLineDash([]);
-    ctx.globalAlpha = 1;
-    const ride = line(t.km[leg.from] - 0.01, t.km[leg.to] + 0.01);
-    ctx.strokeStyle = this.c.accent;
-    ctx.lineWidth = 4;
-    ctx.stroke(ride);
-    this.ties(() => ctx.stroke(ride), 1.4);
-    for (let j = leg.from; j <= leg.to; j++) {
-      if ((t.arr[j] < 0 && t.dep[j] < 0) || !this.ok[t.st[j]]) continue;
-      ctx.beginPath();
-      ctx.arc(X(t.st[j]), Y(t.st[j]), 3.4, 0, TAU);
-      ctx.fillStyle = this.c.ring;
-      ctx.fill();
-      ctx.lineWidth = 1.8;
+      const ride = this.lineOf(t, t.km[leg.from] - 0.01, t.km[leg.to] + 0.01);
       ctx.strokeStyle = this.c.accent;
-      ctx.stroke();
+      ctx.lineWidth = 4;
+      ctx.stroke(ride);
+      this.ties(() => ctx.stroke(ride), 1.4);
+    }
+    for (const { leg } of this.selectedTrains) {
+      const t = leg.train;
+      for (let j = leg.from; j <= leg.to; j++) {
+        if ((t.arr[j] < 0 && t.dep[j] < 0) || !this.ok[t.st[j]]) continue;
+        ctx.beginPath();
+        ctx.arc(this.tf.applyX(this.sx[t.st[j]]), this.tf.applyY(this.sy[t.st[j]]), 3.4, 0, TAU);
+        ctx.fillStyle = this.c.ring;
+        ctx.fill();
+        ctx.lineWidth = 1.8;
+        ctx.strokeStyle = this.c.accent;
+        ctx.stroke();
+      }
+    }
+    if (journey) this.drawChanges(this.selectedTrains.map((x) => x.leg), this.c.accent);
+  }
+
+  /** A train's drawn line between two distances along it, in screen space. */
+  private lineOf(t: Train, km0: number, km1: number) {
+    const g = this.geom(t);
+    const p = new Path2D();
+    let first = true;
+    for (let j = 0; j < g.st.length; j++) {
+      if (g.km[j] < km0 || g.km[j] > km1) continue;
+      const x = this.tf.applyX(this.sx[g.st[j]]), y = this.tf.applyY(this.sy[g.st[j]]);
+      if (first) p.moveTo(x, y);
+      else p.lineTo(x, y);
+      first = false;
+    }
+    return p;
+  }
+
+  /** Where you change trains: the interchange symbol of a line diagram, two linked rings. */
+  private drawChanges(legs: Leg[], color: string) {
+    const ctx = this.ctx;
+    for (let i = 1; i < legs.length; i++) {
+      const a = legs[i - 1].train.st[legs[i - 1].to];
+      const b = legs[i].train.st[legs[i].from];
+      const pts = [a, b].filter((s) => this.ok[s]).map((s) => [this.tf.applyX(this.sx[s]), this.tf.applyY(this.sy[s])]);
+      if (!pts.length) continue;
+      if (pts.length === 2) {
+        ctx.beginPath();
+        ctx.moveTo(pts[0][0], pts[0][1]);
+        ctx.lineTo(pts[1][0], pts[1][1]);
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = color;
+        ctx.stroke();
+      }
+      for (const [x, y] of pts) {
+        ctx.beginPath();
+        ctx.arc(x, y, 6.5, 0, TAU);
+        ctx.fillStyle = this.c.ring;
+        ctx.fill();
+        ctx.lineWidth = 2.6;
+        ctx.strokeStyle = color;
+        ctx.stroke();
+      }
     }
   }
 
@@ -847,6 +908,30 @@ export class RailMap {
       }
     }
     ctx.globalAlpha = 1;
+    // a place no direct train reaches still gets its ring and board when it's the one you picked
+    const sel = this.selected;
+    if (sel && this.ok[sel.anchor] && !this.reach.some((d) => d.place === sel) && !this.shown.get(sel)?.alpha) {
+      const x = this.tf.applyX(this.sx[sel.anchor]);
+      const y = this.tf.applyY(this.sy[sel.anchor]);
+      ctx.beginPath();
+      ctx.arc(x, y, r + 1, 0, TAU);
+      ctx.fillStyle = this.c.ring;
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = this.c.accent;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(x, y, r + 6, 0, TAU);
+      ctx.stroke();
+      this.stationBoard(this.selectedTitle || sel.name, x, y + 12);
+    }
+  }
+
+  private selectedTitle = "";
+
+  /** The name to put on the selected place's board when it has no photo bubble. */
+  setSelectedTitle(t: string) {
+    this.selectedTitle = t;
   }
 
   private drawTrains() {
@@ -890,9 +975,9 @@ export class RailMap {
       return;
     }
     if (this.revealMins !== Infinity) return;
-    if (this.selectedTrain) {
+    if (this.selectedTrains.length) {
       ctx.strokeStyle = ctx.fillStyle = this.c.accent;
-      streak(this.selectedTrain.motion, 3, 0.9, 4);
+      for (const x of this.selectedTrains) streak(x.motion, 3, 0.9, 4);
       ctx.globalAlpha = 1;
       return;
     }

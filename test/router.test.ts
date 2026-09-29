@@ -11,6 +11,8 @@ describe("addresses", () => {
       { origin: "bengaluru" },
       { origin: "bengaluru", place: "mysuru" },
       { origin: "bengaluru", place: "mysuru", train: "12007" },
+      { origin: "bengaluru", place: "amritsar", journey: "22691-12013" },
+      { origin: "bengaluru", place: "amritsar", journey: "22691-12013", train: "12013" },
       { place: "hampi" },
       { origin: "delhi", within: 360, leave: "2h" as const },
     ];
