@@ -84,6 +84,7 @@ retired_rows = read_table("retired")
 retired = {r["number"] for r in retired_rows if r["status"] == "duplicate"}  # renumbered: the new number has newer times
 unlisted = {r["number"] for r in retired_rows if r["status"] == "unlisted"}  # the newer book doesn't list the number
 skipped = [no for no, t in train_rows.items() if seasonal_2017(no, t) or no in retired]
+renamed_local = []
 trains = []
 for no in sorted(train_rows):
     t = train_rows[no]
@@ -106,7 +107,18 @@ for no in sorted(train_rows):
     if any(b < a for a, b in zip(times, times[1:])):
         sys.exit(f"train {no}: times go backwards (use +1, +2 for later days)")
     src = f"{t['src']}-unlisted" if no in unlisted else t["src"]
-    trains.append(dict(number=no, name=display_name(t["name"]), type=t["type"], days=days_mask(t["days"]), src=src, stops=stops))
+    name = display_name(t["name"])
+    if t["src"] == "ogd2017" and t["type"] in ("Pass", "MEMU", "DEMU"):
+        # the older timetable sometimes files a local train under another's name ("Karimganj
+        # Dullabcherra Passenger" for Kurseong to Darjeeling): if it names none of its own
+        # stations, call it by its ends
+        on_route = " ".join(stations[s[0]]["name"] for s in stops).lower()
+        own = [w for w in re.findall(r"[a-z]{4,}", name.lower()) if w not in ("passenger", "memu", "demu", "fast", "express", "special", "shuttle", "local")]
+        if own and not any(w in on_route for w in own):
+            short = lambda c: re.sub(r"\s+(Junction|Jn\.?|Terminus|Road|Halt)$", "", stations[c]["name"])  # noqa: E731
+            name = f"{short(stops[0][0])} – {short(stops[-1][0])} {TYPE_LABELS.get(t['type'], t['type'])}"
+            renamed_local.append(no)
+    trains.append(dict(number=no, name=name, type=t["type"], days=days_mask(t["days"]), src=src, stops=stops))
 
 newer = read_table("newer_trains")
 SOURCES = {
@@ -115,7 +127,8 @@ SOURCES = {
     "tag2026": "Indian Railways' 2026 timetable (Trains at a Glance)",
 }
 source_keys = sorted({t["src"] for t in trains})
-print(f"left out: {len(skipped)} seasonal specials and retired trains from the 2017 timetable")
+print(f"left out: {len(skipped)} seasonal specials and retired trains from the 2017 timetable; "
+      f"{len(renamed_local)} local trains named after their own ends")
 print(f"db/: {len(stations)} stations, {len(trains)} trains, {sum(len(v) for v in halts.values())} halts, "
       f"{sum(1 for t in trains if t['days'])} with running days, {len(newer)} newer trains")
 

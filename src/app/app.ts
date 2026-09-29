@@ -15,6 +15,9 @@ import { openPosterSheet } from "../ui/poster";
 import { savedHtml, type SavedPlace, type SavedRoute } from "../ui/saved";
 import { placeKey, routeKey, type PlaceSave, type RouteSave } from "../core/saves";
 import { Saves } from "./saves";
+import discoverUrl from "../../data/discover.json?url";
+import { records, type Record as TimetableRecord } from "../core/numbers";
+import { discoverHtml, placeFactHtml, storyHtml, type DiscoverData, type RideView, type Story } from "../ui/discover";
 import { SearchBox } from "../ui/search";
 import { filtersOf, go, href, parse, type Route } from "./router";
 
@@ -31,6 +34,8 @@ type Open =
   | { kind: "train"; place: Place; leg: Leg; stops: StopsOpen; journey?: Connection }
   | { kind: "journey"; place: Place; conn: Connection }
   | { kind: "saved" }
+  | { kind: "discover"; fact: number; cat: string }
+  | { kind: "story"; story: Story }
   | { kind: "list"; showAll: boolean; withGuides: boolean };
 
 export class App {
@@ -60,6 +65,11 @@ export class App {
   private arrCache = new Map<Place, Map<Place, Destination>>();
   private changeCache = new Map<string, Connection[]>();
   readonly saves = new Saves();
+  private discoverData: DiscoverData | null = null;
+  private discoverLoad: Promise<DiscoverData | null> | null = null;
+  private timetableRecords: TimetableRecord[] | null = null;
+  private factAt = -1; // where the facts deck is, so it resumes there
+  private codeIndex = new Map<string, number>();
 
   constructor(
     private net: Network,
@@ -116,6 +126,22 @@ export class App {
 
     this.panel.addEventListener("click", (e) => this.onPanelClick(e));
     $("saved-btn").addEventListener("click", () => (this.open?.kind === "saved" ? this.closePanel({ push: false }) : this.openSaved()));
+    $("discover-btn").addEventListener("click", () =>
+      this.open?.kind === "discover" || this.open?.kind === "story" ? this.closePanel({ push: true }) : this.openDiscover(null, { push: true }),
+    );
+    $("hero-fact").addEventListener("click", (e) => {
+      const a = (e.target as HTMLElement).closest("a");
+      if (!a || e.metaKey || e.ctrlKey || e.shiftKey) return;
+      e.preventDefault();
+      this.openDiscover(null, { push: true });
+    });
+    for (const st of net.stations) this.codeIndex.set(st.code, st.i);
+    // Discover is small (~35 kB); fetch it once things are quiet, for the facts on places
+    const idle = (window as Window & { requestIdleCallback?: (f: () => void) => void }).requestIdleCallback ?? ((f: () => void) => setTimeout(f, 1500));
+    idle(() => this.loadDiscover().then(() => {
+      this.heroFact();
+      if (this.open?.kind === "place") this.renderPanel(false);
+    }));
     this.saves.on(() => this.savesChanged());
     this.savesChanged();
     this.saves.init();
@@ -142,6 +168,12 @@ export class App {
 
   /** Put the app in the state an address describes (first load, back/forward). */
   applyRoute(r: Route, first: boolean) {
+    if (r.discover !== undefined) {
+      // Discover leaves the map as it is: where you start stays where you start
+      if (first) this.settle();
+      this.openDiscover(r.discover || null, { push: false });
+      return;
+    }
     this.filters = filtersOf(r);
     this.dock.set(this.filters);
     const origin = (r.origin && this.slugs.find(r.origin)) || null;
@@ -642,6 +674,86 @@ export class App {
     if (k === "saved" || k === "place" || k === "journey") this.renderPanel(false);
   }
 
+  private loadDiscover() {
+    this.discoverLoad ??= fetch(discoverUrl)
+      .then((r) => (r.ok ? (r.json() as Promise<DiscoverData>) : null))
+      .then((d) => (this.discoverData = d))
+      .catch(() => {
+        this.discoverLoad = null; // try again next time
+        return null;
+      });
+    return this.discoverLoad;
+  }
+
+  /** Discover (journeys, facts, records), or one journey's story. */
+  private async openDiscover(slug: string | null, o: { push: boolean }) {
+    const d = await this.loadDiscover();
+    if (!d) return this.toast("Couldn't load Discover. Check your connection.");
+    if (!this.open) this.returnFocus = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
+    const story = slug ? d.stories.find((s) => s.slug === slug) : undefined;
+    if (slug && !story) this.toast("That story isn't here any more.");
+    if (this.factAt < 0) this.factAt = Math.floor(Math.random() * d.facts.length);
+    const cat = this.open?.kind === "discover" ? this.open.cat : "All";
+    this.open = story ? { kind: "story", story } : { kind: "discover", fact: this.factAt, cat };
+    this.map.select(null);
+    this.map.selectTrain(null);
+    this.map.showSights([]);
+    this.transition(() => this.renderPanel(true));
+    this.setPanelOpen(true);
+    this.syncChrome();
+    if (o.push) this.sync("push");
+    this.describe();
+  }
+
+  private placeOfCode(code: string) {
+    const i = this.codeIndex.get(code);
+    return i === undefined ? null : this.net.placeOf[i];
+  }
+
+  /** A story's rides, resolved to places and how long they take. */
+  private rideViews(s: Story): RideView[] {
+    return s.rides.flatMap((r, i) => {
+      const a = this.placeOfCode(r.from);
+      const b = this.placeOfCode(r.to);
+      if (!a || !b) return [];
+      const d = this.departuresFrom(a).get(b);
+      const legs = r.train ? d?.legs.filter((l) => l.train.no === r.train) : d?.legs;
+      const note = legs?.length
+        ? r.train
+          ? `${legs[0].train.no} ${legs[0].train.name} · ${fmtMins(legs[0].dur)}`
+          : `${fmtMins(Math.min(...legs.map((l) => l.dur)))} · ${plural(new Set(legs.map((l) => l.train)).size, "direct train")}`
+        : "With one change";
+      return [{ label: r.label, note, i, href: href({ origin: this.slugs.of(a), place: this.slugs.of(b), train: legs?.length && r.train ? r.train : undefined }) }];
+    });
+  }
+
+  /** The facts about a set of stations (a place, a story's rides). */
+  private factsAt(codes: string[], max: number) {
+    const want = new Set(codes);
+    return (this.discoverData?.facts ?? []).filter((f) => f.stations?.some((c) => want.has(c))).slice(0, max);
+  }
+
+  private placeFact(p: Place) {
+    const f = this.factsAt(p.stations.map((s) => this.net.stations[s].code), 1)[0];
+    return f ? placeFactHtml(f, this.discoverData!.facts.indexOf(f) + 1, this.discoverData!.facts.length) : "";
+  }
+
+  /** A fact on the landing page, a doorway into Discover. */
+  private heroFact() {
+    const el = $("hero-fact");
+    const short = (this.discoverData?.facts ?? []).filter((f) => f.text.length <= 150);
+    if (!short.length) return;
+    const f = short[Math.floor(Math.random() * short.length)];
+    el.innerHTML = `<span>Did you know?</span> ${esc(f.text)} <a href="${href({ discover: "" })}">More in Discover →</a>`;
+    el.hidden = false;
+  }
+
+  /** Follow a link inside Discover to a route in the app. */
+  private goRoute(r: Route) {
+    this.applyRoute({ ...r, within: this.filters.within, leave: this.filters.leave }, false);
+    this.sync("push");
+  }
+
   private openList() {
     if (!this.origin) return;
     this.open = { kind: "list", showAll: false, withGuides: true };
@@ -715,6 +827,14 @@ export class App {
     } else if (o.kind === "journey") {
       this.panel.dataset.view = "train";
       this.panel.innerHTML = journeyHtml(this.net, o.conn, titleOf(this.origin!, null), this.name(o.place), this.name(o.conn.via), this.saves.has(this.routeSave(o.place, o.conn).key));
+    } else if (o.kind === "discover") {
+      this.panel.dataset.view = "discover";
+      this.timetableRecords ??= records(this.net);
+      this.panel.innerHTML = discoverHtml(this.discoverData!, { fact: o.fact, cat: o.cat, records: this.timetableRecords, storyHref: (st) => href({ discover: st.slug }) });
+    } else if (o.kind === "story") {
+      this.panel.dataset.view = "story";
+      const codes = o.story.rides.flatMap((r) => [r.from, r.to]);
+      this.panel.innerHTML = storyHtml(o.story, this.rideViews(o.story), this.factsAt(codes, 2), this.discoverData!.facts);
     } else if (o.kind === "saved") {
       this.panel.dataset.view = "saved";
       this.panel.innerHTML = savedHtml(this.savedView());
@@ -750,6 +870,7 @@ export class App {
         changes: this.origin ? this.changesShown(o.place) : [],
         name: (p) => this.name(p),
         saved: { place: this.saves.has(placeKey(this.slugs.of(o.place))), route: !!this.origin && this.saves.has(this.routeSave(o.place).key) },
+        fact: this.placeFact(o.place),
       });
       const gh = this.panel.querySelector<HTMLInputElement>("#gh-input");
       if (gh) {
@@ -883,6 +1004,44 @@ export class App {
         if (o.kind === "place") this.sharePoster(o.place);
         else this.share();
         break;
+      case "fact-next":
+      case "fact-prev":
+        if (o.kind === "discover") {
+          o.fact += act === "fact-next" ? 1 : -1;
+          this.factAt = o.fact;
+          this.renderPanel(false);
+          this.panel.querySelector<HTMLElement>(`[data-act=${act}]`)?.focus({ preventScroll: true });
+        }
+        break;
+      case "fact-cat":
+        if (o.kind === "discover") {
+          o.cat = el.dataset.cat ?? "All";
+          o.fact = 0;
+          this.renderPanel(false);
+        }
+        break;
+      case "story":
+      case "discover":
+        if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+        e.preventDefault();
+        this.openDiscover(act === "story" ? el.dataset.slug! : null, { push: true });
+        break;
+      case "ride":
+        if (o.kind === "story") {
+          if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+          e.preventDefault();
+          const r = parse(new URL((el as HTMLAnchorElement).href));
+          this.goRoute(r);
+        }
+        break;
+      case "record": {
+        const rec = this.timetableRecords?.[Number(el.dataset.i)];
+        if (rec?.train) {
+          const { train, from, to } = rec.train;
+          this.goRoute({ origin: this.slugs.of(this.net.placeOf[train.st[from]]), place: this.slugs.of(this.net.placeOf[train.st[to]]), train: train.no });
+        } else if (rec?.place) this.goRoute({ origin: this.origin ? this.slugs.of(this.origin) : undefined, place: this.slugs.of(rec.place) });
+        break;
+      }
       case "save-place":
         if (o.kind === "place") {
           const on = this.saves.toggle({ key: placeKey(this.slugs.of(o.place)), kind: "place", data: { slug: this.slugs.of(o.place), title: this.name(o.place), state: o.place.state } });
@@ -1154,6 +1313,10 @@ export class App {
 
   private sync(mode: "push" | "replace") {
     const o = this.open;
+    if (o?.kind === "discover" || o?.kind === "story") {
+      go({ discover: o.kind === "story" ? o.story.slug : "" }, mode);
+      return;
+    }
     const place = o && "place" in o ? o.place : null;
     go(
       {
@@ -1174,6 +1337,8 @@ export class App {
     const from = this.origin ? titleOf(this.origin, null) : null;
     let title = "Railgaddi · where can the train take you?";
     if (o?.kind === "train") title = `${o.leg.train.no} ${o.leg.train.name} · ${fmtTime(o.leg.dep)} · Railgaddi`;
+    else if (o?.kind === "discover") title = "Discover: journeys worth taking, and facts from India's railways · Railgaddi";
+    else if (o?.kind === "story") title = `${o.story.title} · Railgaddi`;
     else if (o?.kind === "journey") title = `${from} to ${this.name(o.place)} with one change at ${this.name(o.conn.via)} · Railgaddi`;
     else if (o?.kind === "place") {
       const name = titleOf(o.place, this.guides.get(o.place));

@@ -16,6 +16,7 @@ import { rankPlaces } from "../src/core/rank";
 import { buildSlugs, titleOf } from "../src/core/slugs";
 import { arrivals, departures, newerBetween, type Leg } from "../src/core/trips";
 import { photoUrl } from "../src/ui/photos";
+import type { DiscoverData } from "../src/ui/discover";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const DIST = join(ROOT, "dist");
@@ -231,6 +232,40 @@ for (const [o, list] of pairs) {
     urls.push(path(o, p));
     count++;
   }
+}
+
+// ---------------------------------------------------------------- Discover: journeys and facts
+const discover = JSON.parse(read("discover.json").toString()) as DiscoverData;
+const codePlace = new Map(net.stations.map((st) => [st.code, net.placeOf[st.i]]));
+render({
+  path: "/discover/",
+  title: "Discover: journeys worth taking, and facts from India's railways · Railgaddi",
+  description: clip(`${discover.stories.map((st) => st.title).slice(0, 6).join(", ")}, and ${discover.facts.length} facts about India's trains, track and stations.`),
+  body: `<h1>Discover: stories from the rails</h1>
+    <h2>Journeys worth taking</h2><ul>${discover.stories.map((st) => `<li>${link(`/discover/${st.slug}/`, st.title)}: ${esc(st.dek)}</li>`).join("")}</ul>
+    <h2>Did you know?</h2><ol>${discover.facts.map((f) => `<li>${esc(f.text)} (<a href="${esc(f.source)}">source</a>)</li>`).join("")}</ol>`,
+});
+urls.push("/discover/");
+count++;
+for (const st of discover.stories) {
+  const rides = st.rides.flatMap((r) => {
+    const a = codePlace.get(r.from);
+    const b = codePlace.get(r.to);
+    return a && b ? [`<li>${link(path(a, b), r.label)}</li>`] : [];
+  });
+  render({
+    path: `/discover/${st.slug}/`,
+    title: `${st.title} · Railgaddi`,
+    description: clip(`${st.dek} ${st.body[0]}`),
+    image: st.photo ? photoUrl(st.photo, 1280) : null,
+    imageAlt: st.title,
+    body: `<h1>${esc(st.title)}</h1><p>${esc(st.dek)}</p>${st.body.map((x) => `<p>${esc(x)}</p>`).join("")}
+      ${rides.length ? `<h2>Ride it</h2><ul>${rides.join("")}</ul>` : ""}
+      <p>${link("/discover/", "More journeys and facts")}</p>`,
+    jsonld: { "@context": "https://schema.org", "@type": "Article", headline: st.title, description: st.dek, image: st.photo ? photoUrl(st.photo, 1280) : undefined, url: `${SITE}/discover/${st.slug}/` },
+  });
+  urls.push(`/discover/${st.slug}/`);
+  count++;
 }
 
 // ---------------------------------------------------------------- sitemap, robots, 404

@@ -218,14 +218,14 @@ new_halts = [dict(h, station=code(h["station"])) for h in halts if h["number"] n
 new_paths = [dict(p, via=" ".join(code(c) for c in p["via"].split())) for p in paths if p["number"] not in good]
 TYPES = (("VANDE BHARAT", "VB"), ("AMRIT BHARAT", "AB"), ("JAN SHATABDI", "JShtb"), ("RAJDHANI", "Raj"), ("SHATABDI", "Shtb"),
          ("DURONTO", "Drnt"), ("GARIB", "GR"), ("SAMPARK", "SKr"), ("MEMU", "MEMU"), ("DEMU", "DEMU"))
-# a service class in the book's name ("… Rajdhani Express") beats a name made up from the two ends
-CLASS = re.compile(r"\b(Rajdhani|Shatabdi|Duronto|Vande Bharat|Humsafar|Garib Rath|Tejas|Amrit Bharat|Antyodaya|Uday|"
-                   r"Sampark Kranti|Double Decker|Gatimaan|Suvidha|Yuva)\b", re.I)
 for no, t in sorted(good.items()):
     row = trains.get(no) or {"number": no, "name": t["name"] or no, "days": "", "days_src": ""}
     book = re.sub(r"\bSuper ?Fast\b", "Superfast", (t["name"] or "").strip())
-    generic = re.fullmatch(r".+ – .+ (Superfast |AC |)(Express|Mail|Special)", row["name"] or "")
-    if book and (generic or not row["name"]) and CLASS.search(book) and not CLASS.search(row["name"] or ""):
+    # the book's name goes with the book's route; ours stays only when it's plainly the same
+    # train ("Karnataka Express" in "KSR Bengaluru New Delhi Karnataka Express"). A number
+    # reused for another train, or a name made up from the ends, takes the book's.
+    words = lambda n: set(re.findall(r"[a-z]{4,}", (n or "").lower())) - {"express", "superfast", "mail", "special", "junction"}  # noqa: E731
+    if book and not (row["name"] and words(row["name"]) and words(row["name"]) <= words(book)):
         row["name"] = book
     upper = (row["name"] or "").upper()
     row["type"] = next((ty for k, ty in TYPES if k in upper), row.get("type") or ("SF" if no[:2] in ("12", "20", "22") else "Exp"))
@@ -242,7 +242,12 @@ for no, t in sorted(good.items()):
             passed, how = line_between(a["station"], b["station"])
             stats[f"stretches: {how}"] += 1
             line = [a["station"], *passed, b["station"]]
-            km += abs(b["table_km"] - a["table_km"]) if same_page else sum(hav(pos[x], pos[y]) for x, y in zip(line, line[1:]) if x in pos and y in pos)
+            along = sum(hav(pos[x], pos[y]) for x, y in zip(line, line[1:]) if x in pos and y in pos)
+            printed = abs(b["table_km"] - a["table_km"]) if same_page else None
+            if printed is not None and along > 0 and not (0.8 * along - 5 <= printed <= 1.6 * along + 20):
+                stats["printed km misread, line length used"] += 1
+                printed = None
+            km += printed if printed is not None else along
             if passed:
                 new_paths.append({"number": no, "after": j, "via": " ".join(passed)})
         new_halts.append({"number": no, "seq": j + 1, "station": h["station"], "arr": h["arr"], "dep": h["dep"],

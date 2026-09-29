@@ -6,6 +6,8 @@
 //   /from/bengaluru/to/amritsar/22691-22429/        a journey with one change
 //   /from/bengaluru/to/amritsar/22691-22429/22691/  one of its trains
 //   /to/hampi/                         a place, before you've said where you start
+//   /discover/                         journeys worth taking, facts, records
+//   /discover/konkan-railway/          one journey's story
 // Filters ride along in the query: ?within=360&leave=2h
 import type { Filters, Leave } from "../core/trips";
 
@@ -14,6 +16,7 @@ export interface Route {
   place?: string;
   train?: string;
   journey?: string; // "22691-22429": the trains of a journey with a change
+  discover?: string; // "" for Discover itself, or a story's slug
   within?: number;
   leave?: Leave;
 }
@@ -25,6 +28,10 @@ export function parse(url: URL = new URL(location.href)): Route {
   const path = url.pathname.slice(base().length).replace(/\/+$/, "");
   const parts = path.split("/").filter(Boolean).map(decodeURIComponent);
   const r: Route = {};
+  if (parts[0] === "discover") {
+    r.discover = parts[1] && /^[a-z0-9-]+$/.test(parts[1]) ? parts[1] : "";
+    return r;
+  }
   for (let i = 0; i < parts.length; i++) {
     if (parts[i] === "from" && parts[i + 1]) r.origin = parts[++i];
     else if (parts[i] === "to" && parts[i + 1]) {
@@ -41,6 +48,7 @@ export function parse(url: URL = new URL(location.href)): Route {
 }
 
 export function href(r: Route) {
+  if (r.discover !== undefined) return `${base()}/discover/${r.discover ? `${r.discover}/` : ""}`;
   let path = "";
   if (r.origin) path += `/from/${encodeURIComponent(r.origin)}`;
   if (r.place) path += `/to/${encodeURIComponent(r.place)}${r.journey ? `/${r.journey}` : ""}${r.train ? `/${r.train}` : ""}`;

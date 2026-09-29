@@ -58,6 +58,7 @@ export interface PlaceView {
   changes: Connection[];
   name: (p: Place) => string;
   saved: { place: boolean; route: boolean };
+  fact: string; // a "Did you know?" note about this place, if there is one
 }
 
 export interface GetHereItem {
@@ -255,6 +256,7 @@ export function placeHtml(v: PlaceView) {
     ${origin && !legs.length ? changesHtml(v.changes, titleOf(origin, null), title, false, v.name) : ""}
     ${v.getHere ? getHereHtml(v.getHere, title, v.changes.length > 0) : ""}
     ${intro}
+    ${v.fact}
     ${sights}
     ${trains}
     ${origin && legs.length && v.changes.length ? changesHtml(v.changes, titleOf(origin, null), title, true, v.name) : ""}

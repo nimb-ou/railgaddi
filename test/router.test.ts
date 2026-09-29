@@ -14,6 +14,8 @@ describe("addresses", () => {
       { origin: "bengaluru", place: "amritsar", journey: "22691-12013" },
       { origin: "bengaluru", place: "amritsar", journey: "22691-12013", train: "12013" },
       { place: "hampi" },
+      { discover: "" },
+      { discover: "konkan-railway" },
       { origin: "delhi", within: 360, leave: "2h" as const },
     ];
     for (const r of routes) expect(parse(url(href(r)))).toEqual(r);

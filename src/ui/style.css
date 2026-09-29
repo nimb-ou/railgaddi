@@ -1174,6 +1174,63 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 .sr-note { font-size: 12px; color: var(--muted); }
 .saved-routes .unsave { top: 50%; right: 12px; transform: translateY(-50%); background: color-mix(in srgb, var(--ink) 55%, transparent); }
 
+/* ---------------------------------------------------------------- discover */
+.masthead { flex: 1; display: grid; gap: 6px; }
+.masthead .eyebrow { margin: 0; }
+.masthead h2 { margin: 0; font-size: 22px; font-weight: 800; line-height: 1.15; letter-spacing: -0.015em; color: var(--ink); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.chips button { padding: 4px 11px; border: 1px solid var(--rule); border-radius: 999px; background: none; font-size: 12px; font-weight: 700; color: var(--muted); transition: background 0.2s, color 0.2s; }
+.chips button:hover { color: var(--text); background: var(--paper-2); }
+.chips button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+/* a fact, printed like the notes at the foot of a timetable page */
+.note { margin: 0; padding: 14px 16px 12px; border: 1px solid var(--rule); border-left: 4px solid var(--livery); border-radius: 4px 8px 8px 4px; background: var(--paper); display: grid; gap: 8px; }
+.note figcaption { display: flex; align-items: baseline; gap: 10px; font-size: 10.5px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.note-no { color: var(--ink); }
+.note-of { margin-left: auto; letter-spacing: 0.04em; font-weight: 700; }
+.note p { margin: 0; font-size: 14.5px; line-height: 1.55; color: var(--text); text-wrap: pretty; }
+.note-src { justify-self: start; font-size: 11.5px; color: var(--muted); text-decoration: none; }
+.note-src:hover { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+.note-nav { display: flex; justify-content: space-between; padding-top: 6px; border-top: 1px dashed var(--rule); }
+.discover .note p { animation: note-in 0.35s var(--ease); }
+@keyframes note-in { from { opacity: 0; transform: translateY(4px); } }
+.place-fact .note { background: var(--paper); }
+/* journeys, as postcards */
+.story-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 12px; }
+.story-card { display: grid; align-content: start; gap: 5px; text-decoration: none; color: inherit; }
+.story-card .frame { display: block; aspect-ratio: 3 / 2; overflow: hidden; background: var(--paper-2); border: 5px solid var(--ring); border-radius: 3px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 8px 18px -12px rgba(0, 0, 0, 0.45); transition: transform 0.35s var(--ease); }
+.story-card .frame img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.story-card:hover .frame { transform: translateY(-2px) rotate(-0.6deg); }
+.story-card b { font-size: 14px; font-weight: 800; line-height: 1.25; color: var(--ink); }
+.sc-tags { font-size: 10px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--livery); margin-top: 3px; }
+.sc-dek { font-size: 12px; line-height: 1.45; color: var(--muted); }
+/* records, as a timetable table */
+.records { list-style: none; margin: 0; padding: 0; }
+.records li + li { border-top: 1px solid var(--line); }
+.records button, .records div { display: grid; grid-template-columns: 1fr auto; gap: 1px 12px; width: 100%; padding: 10px 2px; border: 0; background: none; text-align: left; }
+.records button:hover { background: var(--paper-2); }
+.rec-label { font-size: 12px; font-weight: 700; color: var(--muted); }
+.rec-value { grid-row: span 2; align-self: center; font-size: 15px; font-weight: 800; color: var(--ink); white-space: nowrap; }
+.rec-detail { font-size: 12.5px; color: var(--text); line-height: 1.4; }
+/* one story */
+.story .cover .shot { height: 200px; }
+.story-head { display: grid; gap: 6px; }
+.story-head h2 { margin: 0; font-size: 25px; font-weight: 800; line-height: 1.15; letter-spacing: -0.02em; color: var(--ink); text-wrap: balance; }
+.story-dek { margin: 0; font-size: 15px; line-height: 1.5; color: var(--muted); text-wrap: pretty; }
+.story-body p { margin: 0 0 14px; font-size: 15px; line-height: 1.7; color: var(--text); text-wrap: pretty; }
+.rides { display: grid; gap: 8px; }
+.ride-ticket { position: relative; display: grid; gap: 3px; padding: 12px 16px; border-radius: 8px; background: var(--ticket); text-decoration: none; color: inherit;
+  --notch: radial-gradient(circle at 0 50%, transparent 6px, #000 6.5px) left / 51% 100% no-repeat, radial-gradient(circle at 100% 50%, transparent 6px, #000 6.5px) right / 51% 100% no-repeat;
+  -webkit-mask: var(--notch); mask: var(--notch); transition: filter 0.2s; }
+.ride-ticket:hover { filter: brightness(0.97); }
+.rt-label { font-size: 11.5px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink); }
+.rt-note { font-size: 12.5px; color: var(--muted); }
+.rt-go { font-size: 12.5px; font-weight: 800; color: var(--accent); }
+/* the landing page's doorway into Discover */
+.hero-fact { margin: 4px 0 0; max-width: 44ch; font-size: 13px; line-height: 1.5; color: var(--muted); text-wrap: pretty; animation: note-in 0.6s var(--ease) both; }
+.hero-fact span { font-weight: 800; color: var(--ink); }
+.hero-fact a { font-weight: 800; color: var(--accent); text-decoration: none; white-space: nowrap; }
+.hero-fact a:hover { text-decoration: underline; text-underline-offset: 3px; }
+
 /* ---------------------------------------------------------------- sharing: a travel poster */
 .poster-sheet { position: fixed; inset: 0; z-index: 45; display: grid; place-items: center; padding: 16px; background: rgba(8, 12, 22, 0.5); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); animation: fade-in 0.25s ease both; }
 .poster-sheet.closing { animation: fade-out 0.22s ease both; }
@@ -1278,6 +1335,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   #origin-input { font-size: 26px; }
   .board-script { font-size: 15px; }
   .popular > span { display: none; }
+  .hero-fact { display: none; }
   .origin-box { left: 16px; top: calc(58px + env(safe-area-inset-top, 0px)); }
   .chip-name { font-size: 19px; }
   /* the ticket on a phone: one line per end, the start's name gets the room */

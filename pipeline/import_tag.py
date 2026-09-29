@@ -314,6 +314,23 @@ ABBR = {"PT": "PANDIT", "NSCB": "NETAJI SUBHAS CHANDRA BOSE", "SSS": "SHREE SIDD
         "KSR": "KRANTIVIRA SANGOLLI RAYANNA", "MGR": "PURATCHI THALAIVAR DR M G RAMACHANDRAN"}
 
 
+_words = {}
+
+
+def words_of(idx):
+    """Station names by each word in them (built once per index): finding the names that contain
+    some words is then a set intersection, not a scan of every name."""
+    key = (id(idx), len(idx))
+    if key not in _words:
+        by = defaultdict(set)
+        for n in idx:
+            for w in n.split():
+                by[w].add(n)
+        _words.clear()
+        _words[key] = by
+    return _words[key]
+
+
 def resolve(name, idx, pos, near_to, rail_km=None, expected=()):
     """A station code for a printed name. With a neighbouring halt already placed, the answer must
     lie within the rail distance TAG prints between them (straight lines are never longer than the
@@ -325,10 +342,12 @@ def resolve(name, idx, pos, near_to, rail_km=None, expected=()):
         return ""
     keys = {key, " ".join(ABBR.get(w, w) for w in key.split())}
     exact = set().union(*(idx.get(k, set()) for k in keys))
+    by_word = words_of(idx)
     loose = set()
     for k in keys:
-        words = set(k.split())
-        loose |= {c for n, cs in idx.items() if words <= set(n.split()) for c in cs}
+        sets = [by_word.get(w, set()) for w in k.split()]
+        for n in set.intersection(*sets) if sets else ():
+            loose |= idx[n]
     anchor = pos.get(near_to)
     reach = (rail_km * 1.08 + 6) if rail_km is not None else 400
 
@@ -337,7 +356,8 @@ def resolve(name, idx, pos, near_to, rail_km=None, expected=()):
 
     # "Sir M Visvesvaraya Terminal Bengaluru": a known name (2+ words) inside the printed one
     words = set(key.split())
-    inner = [(len(n.split()), c) for n, cs in idx.items() if len(n.split()) >= 2 and set(n.split()) <= words for c in cs]
+    near_names = set().union(*(by_word.get(w, set()) for w in words)) if words else set()
+    inner = [(len(n.split()), c) for n in near_names if len(n.split()) >= 2 and set(n.split()) <= words for c in idx[n]]
     longest = max((n for n, _ in inner), default=0)
     inside = {c for n, c in inner if n == longest}
     for cands in (exact, loose, inside):
@@ -512,11 +532,15 @@ def merge(segs):
     return out
 
 
+DURONTO = False  # set per train: Durontos run long stretches with no passenger stop
+
+
 def check(halts):
     """Why this train can't be trusted as read, or "" if it passes: every halt placed, a departure
     at the start and an arrival at the end, time never running backwards, and no stretch that
     would need a train faster than 160 km/h or slower than 12 hours for under 400 km, and no halt
-    longer than 6 hours (a day read twice)."""
+    longer than 6 hours (a day read twice), no stretch over 650 km without a halt, and no route that
+    heads far out and comes back."""
     if not all(h["code"] for h in halts):
         return "station not identified"
     if halts[0]["dep"] is None or halts[-1]["arr"] is None:
@@ -532,11 +556,105 @@ def check(halts):
         if a["code"] in pos and b["code"] in pos:
             km = hav(pos[a["code"]], pos[b["code"]])
             mins = b["arr"] - a["dep"]
-            if mins <= 0 or km / (mins / 60) > 160:
+            if mins <= 0 or km / (mins / 60) > SPEED(km):
                 return "impossible speed"
             if mins > 720 and km < 400:
                 return "long gap"
+            if km > 650 and not DURONTO:
+                return "halts missing"  # only Durontos run that far without a passenger stop
+    placed = [pos[h["code"]] for h in halts if h["code"] in pos]
+    if len(placed) >= 3:
+        # a train goes somewhere: it doesn't head far out and come most of the way back (two
+        # trains' pages joined into one)
+        reach = max(hav(placed[0], x) for x in placed)
+        if reach > 1.35 * hav(placed[0], placed[-1]) + 350:
+            return "doubles back"
     return ""
+
+
+def SPEED(km):
+    """Fastest believable average between two halts, as the crow flies: the track is longer and
+    no train averages more than about 130 km/h on it, nor much over 100 across a long run; very
+    short hops get slack for rounding."""
+    return 105 if km >= 300 else 135 if km >= 40 else 160
+
+
+def name_index():
+    """The book's Train Name Index: every Mail/Express train by name, its numbers ("20111/20112",
+    the first running From -> To) and its end stations. Two sets of five columns per page; long
+    names and station names wrap onto the next line."""
+    entries = []
+    path = SRC / "Train_Name_Index.pdf"
+    if not path.exists():
+        return entries
+    for page in fitz.open(path):
+        ws = page.get_text("words")
+        heads = sorted(w[0] for w in ws if w[4] == "Train" and w[1] < 60)
+        for k in range(0, len(heads) - 1, 2):  # (name, number) header pairs, one per column set
+            h1, h2 = heads[k], heads[k + 1]
+            others = sorted(w[0] for w in ws if w[1] < 60 and w[4] in ("From", "To", "Table") and w[0] > h2)[:3]
+            if len(others) < 3:
+                continue
+            h3, h4, h5 = others
+            cols = [(h1 - 25, h2 - 12), (h2 - 12, h3 - 20), (h3 - 20, h4 - 22), (h4 - 22, h5 - 10)]
+            lines = defaultdict(lambda: [[], [], [], []])
+            for w in ws:
+                if w[1] < 52:
+                    continue
+                for c, (x0, x1) in enumerate(cols):
+                    if x0 <= w[0] < x1:
+                        lines[round(w[1])][c].append(w[4])
+            cur = None
+            for y in sorted(lines):
+                name, num, frm, to = (" ".join(x) for x in lines[y])
+                to = re.sub(r"(\s+[\dA,]+)+$", "", to)  # table numbers that spill into the To column
+                nums = re.findall(r"\d{5}", num)
+                if nums:
+                    cur = {"name": name, "numbers": nums, "from": frm, "to": to}
+                    entries.append(cur)
+                elif cur:
+                    for key, v in (("name", name), ("from", frm), ("to", to)):
+                        if v:
+                            cur[key] = f"{cur[key]} {v}".strip()
+    for e in entries:
+        e["from_code"] = resolve(e["from"], names, pos, None, None, ())
+        e["to_code"] = resolve(e["to"], names, pos, None, None, ())
+    return entries
+
+
+INDEX = name_index()
+(SRC / "index.json").write_text(json.dumps(INDEX, ensure_ascii=False, indent=0))
+print(f"name index: {len(INDEX)} trains, ends placed for {sum(1 for e in INDEX if e['from_code'] and e['to_code'])}")
+
+# the two ends of each train number, by the index (its From and To columns aren't in running
+# order: 12401 runs Kota -> Dehradun though the index lists "Dehradun, Kota")
+INDEX_ENDS = {}
+for e in INDEX:
+    if e["from_code"] and e["to_code"]:
+        for n in e["numbers"]:
+            INDEX_ENDS.setdefault(n, (e["from_code"], e["to_code"]))
+
+
+def near(a, b):
+    return a == b or (a in pos and b in pos and hav(pos[a], pos[b]) < 30)
+
+
+def check_ends(no, halts):
+    """The train must run between the two ends the index gives it. A stray first or last row
+    (another train's, read into this column) is dropped; a train missing a whole page of its
+    route (it starts or ends somewhere else) is refused."""
+    ends = INDEX_ENDS.get(no)
+    if not ends or len(halts) < 3:
+        return halts, ""
+    at_end = lambda h: any(near(h["code"], e) for e in ends)  # noqa: E731
+    if not at_end(halts[0]) and at_end(halts[1]):
+        halts = [dict(halts[1], arr=None)] + halts[2:]
+    if not at_end(halts[-1]) and at_end(halts[-2]):
+        halts = halts[:-2] + [dict(halts[-2], dep=None)]
+    a, b = ends
+    if not ((near(halts[0]["code"], a) and near(halts[-1]["code"], b)) or (near(halts[0]["code"], b) and near(halts[-1]["code"], a))):
+        return halts, "doesn't run end to end as the index says"
+    return halts, ""
 
 
 def fault(halts):
@@ -559,7 +677,7 @@ def fault(halts):
         if a["code"] in pos and b["code"] in pos and a["dep"] is not None and b["arr"] is not None:
             km = hav(pos[a["code"]], pos[b["code"]])
             mins = b["arr"] - a["dep"]
-            if mins <= 0 or km / (mins / 60) > 160 or (mins > 720 and km < 400):
+            if mins <= 0 or km / (mins / 60) > SPEED(km) or (mins > 720 and km < 400) or km > 650:
                 return j
     return None
 
@@ -692,9 +810,11 @@ for no, segs in segments.items():
                 h[k] -= base
         report["halts"] += 1
         report["halts without a code"] += not h["code"]
-    problem = check(halts)
+    DURONTO = "DURONTO" in " ".join(s.get("name", "") for s in segs).upper()
+    halts, ends_problem = check_ends(no, halts)
+    problem = ends_problem or check(halts)
     repaired = ""
-    if problem:
+    if problem and not ends_problem:
         fixed, repaired = repair(halts)
         if fixed:
             halts, problem = fixed, ""
@@ -707,53 +827,6 @@ for no, segs in segments.items():
                   "tables": sorted({s["table"] for s in segs}), "ok": ok, "problem": problem, "repaired": repaired,
                   "halts": [{"station": h["code"], "name": h["name"], "arr": fmt_time(h["arr"]), "dep": fmt_time(h["dep"]),
                              "page": h.get("page"), "table_km": h["km"]} for h in halts]}
-
-def name_index():
-    """The book's Train Name Index: every Mail/Express train by name, its numbers ("20111/20112",
-    the first running From -> To) and its end stations. Two sets of five columns per page; long
-    names and station names wrap onto the next line."""
-    entries = []
-    path = SRC / "Train_Name_Index.pdf"
-    if not path.exists():
-        return entries
-    for page in fitz.open(path):
-        ws = page.get_text("words")
-        heads = sorted(w[0] for w in ws if w[4] == "Train" and w[1] < 60)
-        for k in range(0, len(heads) - 1, 2):  # (name, number) header pairs, one per column set
-            h1, h2 = heads[k], heads[k + 1]
-            others = sorted(w[0] for w in ws if w[1] < 60 and w[4] in ("From", "To", "Table") and w[0] > h2)[:3]
-            if len(others) < 3:
-                continue
-            h3, h4, h5 = others
-            cols = [(h1 - 25, h2 - 12), (h2 - 12, h3 - 20), (h3 - 20, h4 - 22), (h4 - 22, h5 - 10)]
-            lines = defaultdict(lambda: [[], [], [], []])
-            for w in ws:
-                if w[1] < 52:
-                    continue
-                for c, (x0, x1) in enumerate(cols):
-                    if x0 <= w[0] < x1:
-                        lines[round(w[1])][c].append(w[4])
-            cur = None
-            for y in sorted(lines):
-                name, num, frm, to = (" ".join(x) for x in lines[y])
-                to = re.sub(r"(\s+[\dA,]+)+$", "", to)  # table numbers that spill into the To column
-                nums = re.findall(r"\d{5}", num)
-                if nums:
-                    cur = {"name": name, "numbers": nums, "from": frm, "to": to}
-                    entries.append(cur)
-                elif cur:
-                    for key, v in (("name", name), ("from", frm), ("to", to)):
-                        if v:
-                            cur[key] = f"{cur[key]} {v}".strip()
-    for e in entries:
-        e["from_code"] = resolve(e["from"], names, pos, None, None, ())
-        e["to_code"] = resolve(e["to"], names, pos, None, None, ())
-    return entries
-
-
-INDEX = name_index()
-(SRC / "index.json").write_text(json.dumps(INDEX, ensure_ascii=False, indent=0))
-print(f"name index: {len(INDEX)} trains, ends placed for {sum(1 for e in INDEX if e['from_code'] and e['to_code'])}")
 
 # every train number the book lists (its Train Name Index, and every table read): a 2017 train
 # whose number isn't here has been renumbered or withdrawn since
