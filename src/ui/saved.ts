@@ -60,7 +60,7 @@ export function savedHtml(v: SavedView) {
         .map(
           (p) => `<div class="bucket-card">
             <a class="sight" href="${esc(p.href ?? "#")}" data-act="nav" ${p.href ? "" : 'aria-disabled="true"'}>
-              <span class="frame">${p.photo ? img(p.photo, `${coverWidth(p.photo, 184, 138)}px`, 250, 960, p.title) : `<i class="ph-none" aria-hidden="true">${esc(p.title.slice(0, 1))}</i>`}</span>
+              <span class="frame">${p.photo ? img(p.photo, `${coverWidth(p.photo, 184, 138)}px`, 250, 500, "") : `<i class="ph-none" aria-hidden="true">${esc(p.title.slice(0, 1))}</i>`}</span>
               <b>${esc(p.title)}</b>
               <span>${esc(p.note || p.state)}</span>
             </a>

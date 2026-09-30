@@ -10,7 +10,10 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "icons": "node scripts/make-icons.mjs",
-    "shot": "node scripts/shot.mjs"
+    "shot": "node scripts/shot.mjs",
+    "predev": "node scripts/compress-data.mjs",
+    "prebuild": "node scripts/compress-data.mjs",
+    "pretest": "node scripts/compress-data.mjs"
   },
   "devDependencies": {
     "@types/d3": "^7.4.3",

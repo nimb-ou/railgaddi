@@ -139,6 +139,8 @@ export class RailMap {
   private revealFrom = 0;
   private maxMins = 1;
   private lastFrame = 0;
+  private lastDraw = 0;
+  private dirty = true; // something changed since the last drawing
 
   simMinute = 0; // timetable clock, minutes of day
   private toward = false; // routes lead into the centre place instead of out of it
@@ -167,11 +169,15 @@ export class RailMap {
     this.zoom = d3
       .zoom<HTMLCanvasElement, unknown>()
       .scaleExtent([0.2, 320])
-      .on("zoom", (e) => (this.tf = e.transform));
+      .on("zoom", (e) => {
+        this.tf = e.transform;
+        this.dirty = true;
+      });
     d3.select(canvas).call(this.zoom).on("dblclick.zoom", null);
     canvas.addEventListener("pointermove", (e) => this.pointer(e, false));
     canvas.addEventListener("click", (e) => this.pointer(e, true));
     canvas.addEventListener("pointerleave", () => {
+      this.dirty = true;
       this.hover = null;
       this.hoverSight = -1;
       this.hooks.onHover(null, 0, 0);
@@ -186,6 +192,7 @@ export class RailMap {
   // ---------------------------------------------------------------- setup
 
   readTheme() {
+    this.dirty = true;
     const css = getComputedStyle(document.documentElement);
     const v = (n: string) => css.getPropertyValue(n).trim();
     this.c = {
@@ -238,6 +245,7 @@ export class RailMap {
 
   /** Call after the network's lines change (the detailed route geometry arrived). */
   refreshNetwork() {
+    this.dirty = true;
     this.indexNetwork();
     this.resize();
     if (this.selectedTrains.length) this.selectJourney(this.selectedTrains.map((x) => x.leg));
@@ -268,6 +276,7 @@ export class RailMap {
   }
 
   resize() {
+    this.dirty = true;
     const r = this.canvas.getBoundingClientRect();
     if (!r.width || !r.height) return;
     // full density on phones (3x screens), capped at 2x on big screens where pixels add up fast
@@ -307,15 +316,18 @@ export class RailMap {
   // ---------------------------------------------------------------- public API
 
   setInsets(i: Insets) {
+    this.dirty = true;
     this.insets = i;
   }
 
   /** Screen rectangles (panels, docks) that bubbles should keep clear of. */
   setSafeRects(rects: DOMRect[]) {
+    this.dirty = true;
     this.safe = rects;
   }
 
   setCandidates(cands: BubbleCandidate[]) {
+    this.dirty = true;
     this.cands = [...cands].sort((a, b) => b.score - a.score);
     const keep = new Set(cands.map((c) => c.place));
     for (const [p, s] of this.shown) {
@@ -330,6 +342,7 @@ export class RailMap {
    * routes then lead *into* the place (arrivals) and times count down to reaching it.
    */
   setOrigin(origin: Place | null, active: Map<Train, ActiveTrain>, reach: Reach[], animate: boolean, toward = false) {
+    this.dirty = true;
     const changed = origin !== this.origin || toward !== this.toward;
     this.origin = origin;
     this.toward = toward;
@@ -372,6 +385,7 @@ export class RailMap {
   }
 
   select(place: Place | null) {
+    this.dirty = true;
     this.selected = place;
   }
 
@@ -381,15 +395,18 @@ export class RailMap {
 
   /** The trains of a journey with changes (or one train): drawn in red, the rest dimmed. */
   selectJourney(legs: Leg[]) {
+    this.dirty = true;
     this.selectedTrains = legs.map((leg) => ({ leg, motion: this.motion(leg.train, 0, leg.train.st.length - 1) }));
   }
 
   /** A way in with a change, for a place no train reaches directly: drawn in livery, quietly. */
   hintJourney(legs: Leg[]) {
+    this.dirty = true;
     this.hintLegs = legs;
   }
 
   showSights(pins: SightPin[], active = -1) {
+    this.dirty = true;
     this.sights = pins;
     this.activeSight = active;
   }
@@ -604,6 +621,7 @@ export class RailMap {
       else this.hooks.onBackground();
       return;
     }
+    if (best !== this.hover || sight !== this.hoverSight) this.dirty = true;
     this.hover = best;
     this.hoverSight = sight;
     this.canvas.style.cursor = best || sight >= 0 ? "pointer" : "";
@@ -612,10 +630,17 @@ export class RailMap {
 
   // ---------------------------------------------------------------- frame
 
+  /**
+   * Draw only when something changed: the view (pan, zoom, hover, what's selected, a photo that
+   * arrived), an animation under way (lines spreading out, photos fading), or the moving trains,
+   * which move about a pixel a second and are redrawn a dozen times a second. An idle map costs
+   * nothing, which matters on a phone.
+   */
   private frame(now: number) {
     const dt = this.lastFrame ? Math.min(now - this.lastFrame, 100) : 16;
     this.lastFrame = now;
-    if (this.playing && !reduceMotion()) {
+    const moving = this.playing && !reduceMotion();
+    if (moving) {
       this.simMinute = (this.simMinute + (dt / 1000) * SIM_SPEED) % 1440; // timetable minutes per real second
       this.onClock(this.simMinute);
     }
@@ -623,7 +648,14 @@ export class RailMap {
       const p = (now - this.revealFrom) / 2400;
       this.revealMins = p >= 1 ? Infinity : Math.max(0, d3.easeCubicOut(Math.max(0, p)) * this.maxMins);
     }
-    this.draw(dt);
+    let fading = false;
+    for (const s of this.shown.values()) if (s.alpha !== s.target) fading = true;
+    const animating = fading || this.revealMins !== Infinity;
+    if (this.dirty || animating || (moving && now - this.lastDraw > 80)) {
+      this.draw(Math.min(now - this.lastDraw, 100), this.dirty || animating);
+      this.dirty = false;
+      this.lastDraw = now;
+    }
     requestAnimationFrame((t) => this.frame(t));
   }
 
@@ -688,7 +720,7 @@ export class RailMap {
     c.globalAlpha = 1;
   }
 
-  private draw(dt: number) {
+  private draw(dt: number, layout = true) {
     const ctx = this.ctx;
     this.drawBase();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -701,7 +733,7 @@ export class RailMap {
       this.drawDots();
     }
     this.drawTrains();
-    this.layoutBubbles();
+    if (layout) this.layoutBubbles(); // where photos go only changes with the view
     this.drawBubbles(dt);
     if (this.sights.length) this.drawSights();
   }
@@ -931,6 +963,7 @@ export class RailMap {
 
   /** The name to put on the selected place's board when it has no photo bubble. */
   setSelectedTitle(t: string) {
+    this.dirty = true;
     this.selectedTitle = t;
   }
 
@@ -1099,7 +1132,7 @@ export class RailMap {
     if (hit) return hit;
     if (!photo) return null;
     const d = 2 * R * this.dpr;
-    const img = loadedImage(photoUrl(photo, coverWidth(photo, d, d)), () => {});
+    const img = loadedImage(photoUrl(photo, coverWidth(photo, d, d)), () => (this.dirty = true)); // draw it once it's here
     if (!img) return null;
     const pad = 8;
     const size = Math.ceil((R + pad) * 2 * this.dpr);

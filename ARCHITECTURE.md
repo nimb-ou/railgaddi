@@ -28,6 +28,13 @@ real track.
 | `paths.bin`: stations passed between halts | 848 kB | 121 kB | after first paint |
 | `places/NN.json` ×32: intros and sights | ~40 kB | ~10 kB | when a place opens |
 
+The two binary files ship gzipped too (`scripts/compress-data.mjs`, run before every build):
+hosts compress JSON on the fly, but not always binary files (Cloudflare doesn't by default), so
+the app fetches the `.gz` copies and unpacks them itself (`DecompressionStream`). The map draws
+only when something changes (view, selection, a photo arriving, an animation) and redraws the
+moving trains a dozen times a second, so an idle map costs no CPU. The offline copy is fetched
+once the page and its photos are in, never alongside them.
+
 Every file name carries a content hash, so the CDN and browsers can cache it for a year and a new
 timetable is picked up the moment the HTML points at new names. The service worker precaches all
 of it after the first visit, so the whole country works offline; photos are cached as they're seen.

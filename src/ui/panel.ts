@@ -29,8 +29,9 @@ export function scriptLine(p: Place) {
 
 /** A photo that fades in when loaded, sized for the slot it sits in. */
 export function img(p: Photo, sizes: string, min: number, max: number, alt = "", eager = false) {
+  // the cover goes first; everything else waits its turn on a slow connection
   return `<img src="${esc(photoUrl(p, min))}" srcset="${esc(photoSrcset(p, min, max))}" sizes="${sizes}" alt="${esc(alt)}"
-    ${eager ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async" crossorigin="anonymous" referrerpolicy="no-referrer" />`;
+    ${eager ? 'fetchpriority="high"' : 'loading="lazy" fetchpriority="low"'} decoding="async" crossorigin="anonymous" referrerpolicy="no-referrer" />`;
 }
 
 /** The cover is 420×200 beside the map, full width × 170 on phones; wide banners crop to fit. */
@@ -176,7 +177,7 @@ export function placeHtml(v: PlaceView) {
           .map(({ s, i, ph }) => {
             used.push(ph!);
             return `<button class="sight ${i === v.activeSight ? "active" : ""}" type="button" data-act="sight" data-i="${i}" id="sight-${i}" aria-pressed="${i === v.activeSight}">
-              <span class="frame">${img(ph!, `${coverWidth(ph!, 184, 138)}px`, 250, 1280, s.n)}</span>
+              <span class="frame">${img(ph!, `${coverWidth(ph!, 184, 138)}px`, 250, 500, "")}</span>
               <b>${esc(s.n)}${s.k === "do" ? `<i class="kind">Do</i>` : ""}</b>
               ${s.d ? `<span>${esc(s.d)}</span>` : ""}
             </button>`;
@@ -247,7 +248,7 @@ export function placeHtml(v: PlaceView) {
       <button class="round" type="button" data-act="close" aria-label="Close">${ICON.close}</button>
     </div>`;
   const coverHtml = cover
-    ? `<figure class="cover"><div class="shot">${img(cover, coverSizes(cover), 500, 1920, title, true)}</div>${tools}${heading}</figure>`
+    ? `<figure class="cover"><div class="shot" data-key="${esc(cover.t)}">${img(cover, coverSizes(cover), 500, 1920, "", true)}</div>${tools}${heading}</figure>`
     : `<figure class="cover bare">${tools}${heading}</figure>`;
 
   return `<div class="panel-scroll">

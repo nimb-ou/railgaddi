@@ -23,18 +23,19 @@
     <meta name="twitter:card" content="summary_large_image" />
 
     <link rel="preconnect" href="https://upload.wikimedia.org" crossorigin />
+    <script src="/theme-boot.js"></script>
   </head>
   <body>
     <a class="skip" href="#origin-input">Skip to search</a>
     <canvas id="map" role="img" aria-label="Map of India's railway network. Places you can reach are listed with the List button."></canvas>
 
     <header class="topbar">
-      <a class="brand" href="/" id="brand" aria-label="Railgaddi, home">
+      <a class="brand" href="/" id="brand">
         <span class="brand-hi" lang="hi">रेलगाड़ी</span>
-        <span class="brand-name">Railgaddi</span>
+        <span class="brand-name">Railgaddi</span><span class="vh">, home</span>
       </a>
       <div class="topbar-tools">
-        <button class="tb-btn" id="discover-btn" type="button" aria-pressed="false">
+        <button class="tb-btn" id="discover-btn" type="button" aria-pressed="false" aria-label="Discover">
           <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><circle cx="10" cy="10" r="7.5" /><path d="M12.9 7.1l-1.7 4.1-4.1 1.7 1.7-4.1z" /></svg>
           <span>Discover</span>
         </button>
@@ -42,7 +43,10 @@
           <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M10 16.5s-6.5-3.9-6.5-8.4A3.6 3.6 0 0 1 10 6.1a3.6 3.6 0 0 1 6.5 2c0 4.5-6.5 8.4-6.5 8.4z" /></svg>
           <span class="tb-count" id="saved-count" hidden></span>
         </button>
-        <div class="themes" id="themes" role="radiogroup" aria-label="Day or night"></div>
+        <div class="themes" id="themes" role="radiogroup" aria-label="Day or night">
+          <button type="button" role="radio" data-id="day" aria-label="Day"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.6M8 12.9v1.6M1.5 8h1.6M12.9 8h1.6M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M3.4 12.6l1.1-1.1M11.5 4.5l1.1-1.1"/></svg><span>Day</span></button>
+          <button type="button" role="radio" data-id="night" aria-label="Night"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13 9.8A5.5 5.5 0 0 1 6.2 3a5.5 5.5 0 1 0 6.8 6.8z"/></svg><span>Night</span></button>
+        </div>
         <button class="icon-btn" id="info-btn" type="button" aria-label="About Railgaddi and its data" aria-expanded="false" aria-controls="info">
           <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="10" cy="10" r="8.2" /><path d="M10 9v5M10 6.2v.1" /></svg>
         </button>
@@ -59,9 +63,9 @@
         <div class="board" id="board">
           <div class="board-script" lang="hi" aria-hidden="true">कहाँ से, कहाँ तक?</div>
           <div class="board-field">
-            <label class="board-label" for="origin-input">From</label>
+            <label class="board-label" for="origin-input">From <span>· or a train number</span></label>
             <div class="board-row">
-              <input id="origin-input" type="search" enterkeyhint="go" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="City, station or train" />
+              <input id="origin-input" type="search" enterkeyhint="go" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="City or station" />
               <button class="near-btn" id="near-btn" type="button" aria-label="Start from the station nearest you" title="Nearest station">
                 <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="10" cy="10" r="3" /><path d="M10 1.5v3M10 15.5v3M1.5 10h3M15.5 10h3" /><circle cx="10" cy="10" r="6.5" /></svg>
               </button>

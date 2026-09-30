@@ -17,7 +17,7 @@ export function applySavedTheme() {
 export function setupChrome(map: RailMap, onTheme: () => void) {
   // Day / Night
   const themes = $("themes");
-  themes.innerHTML = THEMES.map((t) => `<button type="button" role="radio" data-id="${t.id}">${ICONS[t.id]}<span>${t.name}</span></button>`).join("");
+  themes.innerHTML = THEMES.map((t) => `<button type="button" role="radio" data-id="${t.id}" aria-label="${t.name}">${ICONS[t.id]}<span>${t.name}</span></button>`).join("");
   const mark = () => {
     for (const b of themes.querySelectorAll<HTMLElement>("button")) b.setAttribute("aria-checked", String(b.dataset.id === document.documentElement.dataset.theme));
   };

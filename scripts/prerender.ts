@@ -90,6 +90,8 @@ function render(pg: Page) {
     pg.jsonld ? `<script type="application/ld+json">${JSON.stringify(pg.jsonld).replace(/</g, "\\u003c")}</script>` : "",
   ].join("\n    ");
   let html = shell
+    // a deep link waits for the timetable behind the loading screen; the landing page doesn't
+    .replace('<html lang="en" data-theme="day">', pg.path === "/" ? "$&" : '<html lang="en" data-theme="day" data-deep>')
     .replace(/<title>[^<]*<\/title>/, `<title>${esc(pg.title)}</title>`)
     .replace(/(<meta name="description" content=")[^"]*/, `$1${esc(pg.description)}`)
     .replace(/(<meta property="og:title" content=")[^"]*/, `$1${esc(pg.title.replace(/ · Railgaddi$/, ""))}`)
@@ -98,6 +100,13 @@ function render(pg: Page) {
     .replace(/(<meta property="og:image:alt" content=")[^"]*/, `$1${esc(pg.imageAlt ?? "A map of India with photos of places you can reach by train")}`)
     .replace("</head>", `    ${head}\n  </head>`)
     .replace(/<noscript>[\s\S]*?<\/noscript>/, `<noscript><article class="static">${pg.body}${FOOT}</article></noscript>`);
+  if (pg.image && pg.imageAlt) {
+    // a link to a place loads with that place in the window: its photo, its name on a board
+    const small = pg.image.replace(/\/\d+px-([^/]+)$/, "/500px-$1");
+    html = html
+      .replace(/<b>Railgaddi<\/b>/, `<b>${esc(pg.imageAlt)}</b>`)
+      .replace(/<div class="landscape ls-window"[\s\S]*?<\/svg><\/div>\s*<\/div>/, `<div class="ls-window ls-photo"><img src="${esc(small)}" alt="" fetchpriority="high" referrerpolicy="no-referrer" /></div>`);
+  }
   if (pg.image) {
     // a place photo isn't 1200×630: let platforms read its real size
     html = html.replace(/\s*<meta property="og:image:width"[^>]*>\s*<meta property="og:image:height"[^>]*>/, "");

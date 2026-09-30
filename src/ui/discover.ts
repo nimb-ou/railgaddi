@@ -79,7 +79,7 @@ export function discoverHtml(d: DiscoverData, v: { fact: number; cat: string; re
       <div class="story-grid">${d.stories
         .map(
           (s) => `<a class="story-card" href="${esc(v.storyHref(s))}" data-act="story" data-slug="${esc(s.slug)}">
-            <span class="frame">${s.photo ? img(s.photo, `${coverWidth(s.photo, 184, 124)}px`, 250, 960, "") : ""}</span>
+            <span class="frame">${s.photo ? img(s.photo, `${coverWidth(s.photo, 184, 124)}px`, 250, 500, "") : ""}</span>
             <span class="sc-tags">${s.tags.map(esc).join(" · ")}</span>
             <b>${esc(s.title)}</b>
             <span class="sc-dek">${esc(s.dek)}</span>

@@ -242,6 +242,8 @@ a { color: inherit; }
 }
 .themes button svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
 .themes button[aria-checked="true"] { background: var(--ink); color: var(--paper); }
+/* before the app marks one, the current theme shows as chosen */
+:root[data-theme="day"] .themes:not(:has([aria-checked])) [data-id="day"], :root[data-theme="night"] .themes:not(:has([aria-checked])) [data-id="night"] { background: var(--ink); color: var(--paper); }
 /* Discover, and your trips: quiet paper buttons, like the theme switch */
 .tb-btn {
   position: relative;
@@ -985,6 +987,8 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 @keyframes ls-pass { to { transform: translateX(-50%); } }
 .ls-window { width: 232px; height: 138px; border-radius: 28px; box-shadow: 0 0 0 9px var(--frame), 0 0 0 10px rgba(0, 0, 0, 0.18), 0 26px 40px -22px rgba(0, 0, 0, 0.55); margin: 14px 0 10px; }
 .ls-strip { height: 46px; border-radius: 10px; }
+.ls-photo { overflow: hidden; background: var(--paper-2); }
+.ls-photo img { display: block; width: 100%; height: 100%; object-fit: cover; animation: arrive 1.5s cubic-bezier(0.16, 0.84, 0.24, 1) both; }
 
 /* ---------------------------------------------------------------- one train, as the route diagram inside a coach */
 .vh { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -1320,6 +1324,14 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
 }
 .loading.done { opacity: 0; pointer-events: none; }
 .loading .ls-window { margin: 6px 0 8px; }
+/* the landing page doesn't wait for the timetable: its headline and search are there at once, and
+   the timetable loads in a window over the map. A deep link (a place, a train) waits whole. */
+html:not([data-deep]) .loading { inset: auto 0 auto auto; top: 50%; width: 46%; transform: translateY(-50%); background: none; pointer-events: none; }
+html:not([data-deep]) .loading b { display: none; }
+@media (max-width: 720px) {
+  html:not([data-deep]) .loading { inset: auto 0 calc(12px + env(safe-area-inset-bottom, 0px)) 0; top: auto; width: auto; transform: none; }
+  html:not([data-deep]) .loading .ls-window { width: 150px; height: 88px; border-radius: 20px; box-shadow: 0 0 0 7px var(--frame), 0 16px 26px -16px rgba(0, 0, 0, 0.5); }
+}
 
 /* the dock is centred: on mid-size screens lift the pause button clear of it */
 @media (max-width: 1240px) and (min-width: 721px) {

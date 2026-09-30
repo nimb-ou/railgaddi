@@ -102,6 +102,8 @@ export class App {
       onTrain,
     });
     this.renderPopular();
+    // typed before the timetable arrived: answer it now
+    for (const id of ["origin-input", "to-input"]) if (($(id) as HTMLInputElement).value.trim()) $(id).dispatchEvent(new Event("input"));
     $("tk-from").addEventListener("click", () => this.editTicket("from"));
     $("tk-to").addEventListener("click", () => this.editTicket("to"));
     for (const id of ["tk-from-input", "tk-to-input"]) {
@@ -831,6 +833,9 @@ export class App {
     if (!o) return;
     const scroller = () => this.panel.querySelector<HTMLElement>(".panel-scroll");
     const keep = fresh ? 0 : scroller()?.scrollTop ?? 0;
+    // the same place drawn again (its guide arrived, something was saved): keep the photo that's
+    // already showing, rather than loading and gliding it in again
+    const shot = fresh ? null : this.panel.querySelector<HTMLElement>(".shot[data-key]");
     if (o.kind === "train") {
       const gv = this.guides.get(o.place) ?? null;
       const boards = this.net.placeOf[o.leg.train.st[o.leg.from]];
@@ -894,6 +899,8 @@ export class App {
         });
       }
     }
+    const again = shot && this.panel.querySelector<HTMLElement>(`.shot[data-key="${CSS.escape(shot.dataset.key!)}"]`);
+    if (again) again.replaceWith(shot);
     this.addGrip();
     settleFlaps(this.panel);
     this.parallax();

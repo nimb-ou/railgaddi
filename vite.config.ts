@@ -35,7 +35,7 @@ export default defineConfig({
       },
       workbox: {
         // the app, the whole timetable and every place guide: about 1 MB compressed
-        globPatterns: ["**/*.{js,css,html,svg,png,woff2,json,bin}"],
+        globPatterns: ["**/*.{js,css,html,svg,png,woff2,json,gz}"], // the timetable as its gzipped copy
         // Indian-script fonts load when a name in that script appears, then stay (runtime cache below)
         globIgnores: ["**/og.jpg", "**/noto-sans-*.woff2", "**/*-vietnamese-*.woff2"],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
