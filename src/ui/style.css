@@ -589,6 +589,9 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius
   transition: background 0.2s, color 0.2s;
 }
 .list-btn svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.dock-list > div, .dock-list { display: flex; align-items: center; gap: 6px; }
+.dock-list .dock-label { width: 100%; }
+#surprise-btn svg circle { fill: currentColor; stroke: none; }
 .list-btn:hover { background: var(--paper-2); }
 .list-btn[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 
@@ -1378,7 +1381,7 @@ html:not([data-deep]) .loading b { display: none; }
   .dock-list .dock-label, .list-txt, .seg .long { display: none; }
   .list-btn { width: 36px; height: 32px; padding: 0; justify-content: center; }
   .seg { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; min-width: 0; }
-  .seg button { flex: none; padding: 6px 11px; }
+  .seg button { flex: none; padding: 6px 9px; }
   .toast { top: auto; bottom: calc(150px + env(safe-area-inset-bottom, 0px)); }
   body.panel-open .toast { bottom: calc(74vh + 12px); }
   body.panel-open .clock, body.panel-open .origin-box { display: none; }

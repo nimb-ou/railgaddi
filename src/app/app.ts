@@ -111,6 +111,7 @@ export class App {
       $(id).addEventListener("keydown", (e) => e.key === "Escape" && (($("tk-edit").hidden = true), $("tk-from").focus()));
     }
     $("near-btn").addEventListener("click", () => this.nearMe());
+    $("surprise-btn").addEventListener("click", () => this.surprise());
     $("count").addEventListener("click", (e) => {
       if (!(e.target as HTMLElement).closest("[data-act=reset]")) return;
       this.dock.set({ ...ANY });
@@ -164,6 +165,13 @@ export class App {
       this.startOver(false);
     });
     document.addEventListener("keydown", (e) => {
+      // "/" to search, as on most sites
+      if (e.key === "/" && !(document.activeElement as HTMLElement | null)?.matches("input, textarea") && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        if (this.heroShown) this.search.focus();
+        else this.editTicket(this.origin ? "to" : "from");
+        return;
+      }
       if (e.key !== "Escape" || (document.activeElement as HTMLElement | null)?.matches("input")) return;
       if (this.open?.kind === "train" || this.open?.kind === "journey") this.back();
       else if (this.open) this.closePanel({ push: true });
@@ -413,6 +421,19 @@ export class App {
   private renderPopular() {
     const last = this.lastOrigin();
     this.search.renderPopular((p) => href({ origin: this.slugs.of(p) }), last && { place: last, label: "Where you started last time" });
+  }
+
+  /** A place worth the ride, within the filters: famous ones more likely, never the same twice running. */
+  private surprise() {
+    const home = this.origin ? this.guides.get(this.origin)?.title : undefined;
+    const pool = [...this.reach.keys()]
+      .map((p) => ({ p, gv: this.guides.get(p) }))
+      .filter(({ p, gv }) => gv?.icon && gv.title !== home && p !== this.destination());
+    if (!pool.length) return this.toast("Nothing with a guide within these filters. Try a longer ride.");
+    const weight = (x: (typeof pool)[number]) => Math.sqrt(1 + x.gv!.entry.appeal);
+    let r = Math.random() * pool.reduce((a, x) => a + weight(x), 0);
+    const pick = pool.find((x) => (r -= weight(x)) <= 0) ?? pool[0];
+    this.openPlace(pick.p, { push: true });
   }
 
   /** Start from the station nearest you (the position never leaves this device). */

@@ -125,5 +125,8 @@ Every Wikimedia response is cached in `raw/`, so re-runs only ask for what is ne
 
 1. Indian Railways' permission for *Trains at a Glance* (drafts in
    [docs/permission-requests.md](docs/permission-requests.md)), then import it each year.
-2. Trips with one change, and "trains between two places".
-3. A detailed base map when zoomed in to a town.
+2. Read the rest of the book: about 650 trains are still only partly readable (a terminus time
+   printed apart from its row, a few layouts not yet handled).
+3. Render a place's panel into its prerendered page, so a shared link shows the place before the
+   timetable has loaded.
+4. A detailed base map when zoomed in to a town.
