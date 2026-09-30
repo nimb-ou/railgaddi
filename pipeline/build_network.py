@@ -58,9 +58,30 @@ via = {(r["number"], int(r["after"])): r["via"].split() for r in read_table("pat
 KEEP_CAPS = {"MEMU", "DEMU", "CSMT", "SMVT", "SMVB", "LOKMANYA"} - {"LOKMANYA"}
 
 
+# every word of every station's name and every train's: to mend names the book wrapped mid-word
+VOCAB = Counter(w.lower() for r in list(stations.values()) + list(train_rows.values()) for w in re.findall(r"[A-Za-z]+", r["name"]))
+
+
+def mend(n):
+    """ "Varanasi New Del hi" -> "Varanasi New Delhi": the book's column headings wrap long names
+    mid-word. Two pieces are one word again when together they make a known name and one of them
+    isn't a word on its own."""
+    words = n.split()
+    out = []
+    for w in words:
+        if out and out[-1].isalpha() and w.isalpha() and w[0].islower() | (len(w) <= 3):
+            joined = (out[-1] + w).lower()
+            if VOCAB[joined] and (VOCAB[out[-1].lower()] < 2 or VOCAB[w.lower()] < 2 or w[0].islower()):
+                out[-1] = out[-1] + w.lower()
+                continue
+        out.append(w)
+    return " ".join(out)
+
+
 def display_name(n):
     """How a train's name is shown: the older timetable abbreviates and shouts ("VASCO-DA-GAMA -
     Howrah Amaravati Exp"); db/ keeps the names as sourced."""
+    n = mend(n)
     n = re.sub(r"\bS/?F\.?\s+Exp(ress)?\.?(?=$|\s)", "Superfast Express", n)
     n = re.sub(r"\bExp\.?(?=$|\s)", "Express", n)
     n = re.sub(r"\bSpl\.?(?=$|\s)", "Special", n)

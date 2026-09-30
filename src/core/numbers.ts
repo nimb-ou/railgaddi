@@ -31,7 +31,19 @@ export function records(net: Network): Record[] {
   out.push({ label: "Most stops", value: `${most.st.length} halts`, detail: `${most.no} ${most.name}, ${ends(most)}`, train: whole(most) });
 
   const speed = (t: Train) => run(t) / (time(t) / 60);
-  const long = trains.filter((t) => run(t) >= 200);
+  // a record needs a believable distance: rails wind, but not to half as far again as the
+  // straight lines between the stops (a route drawn the long way round would make a slow train
+  // look like the country's fastest)
+  const R = 6371, rad = Math.PI / 180;
+  const crow = (a: number, b: number) => {
+    const s = net.stations[a], z = net.stations[b];
+    if (s.lat === null || s.lon === null || z.lat === null || z.lon === null) return NaN;
+    const h = Math.sin(((z.lat - s.lat) * rad) / 2) ** 2 + Math.cos(s.lat * rad) * Math.cos(z.lat * rad) * Math.sin(((z.lon - s.lon) * rad) / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(h));
+  };
+  const sound = (d: number, straight: number) => !(straight >= 0) || d <= 1.45 * straight + 30;
+  const straightRun = (t: Train) => t.st.slice(1).reduce((sum, s, j) => sum + crow(t.st[j], s), 0);
+  const long = trains.filter((t) => run(t) >= 200 && sound(run(t), straightRun(t)));
   const fastest = best(long, speed);
   out.push({ label: "Fastest end to end", value: `${Math.round(speed(fastest))} km/h`, detail: `average, ${fastest.no} ${fastest.name}, ${ends(fastest)}`, train: whole(fastest) });
 
@@ -43,7 +55,7 @@ export function records(net: Network): Record[] {
   for (const t of trains) {
     for (let j = 1; j < t.st.length; j++) {
       const d = t.dist[j] - t.dist[j - 1];
-      if (d > hop.d && d < 1500) hop = { t, j, d };
+      if (d > hop.d && d < 1500 && sound(d, crow(t.st[j - 1], t.st[j]))) hop = { t, j, d };
     }
   }
   out.push({

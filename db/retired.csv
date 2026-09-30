@@ -29,6 +29,8 @@ number,name,status,reason
 11102,Gwalior – Pune Express,unlisted,not in Trains at a Glance 2026 under this number
 11103,Jhansi – Mumbai Bandra Express,duplicate,"renumbered 22195, which has 2026 times"
 11104,Mumbai Bandra – Jhansi Express,unlisted,not in Trains at a Glance 2026 under this number
+11111,Gwalior – Balrampur Express,duplicate,"renumbered 22199, which has 2026 times"
+11112,Balrampur – Gwalior Express,duplicate,"renumbered 22200, which has 2026 times"
 11202,Ajni – Lokmanya Tilak Express,unlisted,not in Trains at a Glance 2026 under this number
 11204,Jaipur – Nagpur Express,unlisted,not in Trains at a Glance 2026 under this number
 11205,Lokmanya Tilak – Nizamabad Express,unlisted,not in Trains at a Glance 2026 under this number
@@ -41,7 +43,7 @@ number,name,status,reason
 11424,Hubli Jn - Solapur Express,unlisted,not in Trains at a Glance 2026 under this number
 12043,New Delhi – Moga Superfast Express,unlisted,not in Trains at a Glance 2026 under this number
 12044,Moga – New Delhi Superfast Express,unlisted,not in Trains at a Glance 2026 under this number
-12048,Firozpur Cant – New Delhi Superfast Express,duplicate,"renumbered 26462, which has 2026 times"
+12047,New Delhi – Firozpur Cant Superfast Express,duplicate,"renumbered 26461, which has 2026 times"
 12118,Manmad-Mumbai Ltt Express,duplicate,"renumbered 12110, which has 2026 times"
 12149,Pune - Patliputra SF Exp,unlisted,not in Trains at a Glance 2026 under this number
 12150,Patliputra - Pune SF Exp,unlisted,not in Trains at a Glance 2026 under this number
@@ -87,8 +89,6 @@ number,name,status,reason
 12848,Digha-Howrah AC Duronto Express,unlisted,not in Trains at a Glance 2026 under this number
 12897,Puducherry-Bhubaneswar Express,duplicate,"renumbered 20851, which has 2026 times"
 12898,Bhubaneswar-Puducherry Superfast Express,unlisted,not in Trains at a Glance 2026 under this number
-12981,Chetak Express,duplicate,"renumbered 20473, which has 2026 times"
-12982,Chetak Express,duplicate,"renumbered 20474, which has 2026 times"
 13007,Udyan Abha Toofan Express,unlisted,not in Trains at a Glance 2026 under this number
 13008,Udyan Abha Toofan Express,unlisted,not in Trains at a Glance 2026 under this number
 13013,Barddhaman Rampurhat Tri-Weekly Express,unlisted,not in Trains at a Glance 2026 under this number
@@ -143,8 +143,6 @@ number,name,status,reason
 14502,Jammu Tawi – Bathinda Express,unlisted,not in Trains at a Glance 2026 under this number
 14519,Kissan Express,duplicate,"renumbered 14732, which has 2026 times"
 14520,Kisan Express,duplicate,"renumbered 14731, which has 2026 times"
-14553,Himachal Express,duplicate,"renumbered 14012, which has 2026 times"
-14554,Himachal Express,unlisted,not in Trains at a Glance 2026 under this number
 14555,Bareilly-Delhi Express,unlisted,not in Trains at a Glance 2026 under this number
 14556,Delhi-Bareilly Express,unlisted,not in Trains at a Glance 2026 under this number
 14623,Chhindwara – Delhi Sarai Rohilla Express,unlisted,not in Trains at a Glance 2026 under this number
@@ -183,6 +181,8 @@ number,name,status,reason
 15718,Mariani-Guwahati Intercity Express,duplicate,"renumbered 15666, which has 2026 times"
 15771,AlipurDuar-Kamakhya Intercity Express,unlisted,not in Trains at a Glance 2026 under this number
 15772,Kamakhya-AlipurDuar Intercity Express,unlisted,not in Trains at a Glance 2026 under this number
+15905,Kanniyakumari - Dibrugarh Vivek Exp,duplicate,"renumbered 22503, which has 2026 times"
+15906,Dibrugarh - Kanniyakumari Vivek Exp,duplicate,"renumbered 22504, which has 2026 times"
 15941,Jhajha - Dibrugarh Exp,unlisted,not in Trains at a Glance 2026 under this number
 15942,Dibrugarh - Jhajha Exp,unlisted,not in Trains at a Glance 2026 under this number
 16024,Yesvantpur – Mysore Express,unlisted,not in Trains at a Glance 2026 under this number
@@ -209,8 +209,6 @@ number,name,status,reason
 16524,Karwar – Mangaluru Express,unlisted,not in Trains at a Glance 2026 under this number
 16557,Rajya Rani Express,duplicate,"renumbered 20659, which has 2026 times"
 16558,Bangalore Mysore Rajya Rani Express,duplicate,"renumbered 20660, which has 2026 times"
-16569,Yesvantpur – Kacheguda Express,unlisted,not in Trains at a Glance 2026 under this number
-16570,Kacheguda – Yesvantpur Express,unlisted,not in Trains at a Glance 2026 under this number
 16579,Yesvantpur – Shimoga Town Express,duplicate,"renumbered 20689, which has 2026 times"
 16580,Shimoga Town – Yesvantpur Express,duplicate,"renumbered 20690, which has 2026 times"
 16687,Navyug Express,unlisted,not in Trains at a Glance 2026 under this number
@@ -244,6 +242,8 @@ number,name,status,reason
 17404,Narasapur Tirupati Link Express,unlisted,not in Trains at a Glance 2026 under this number
 17413,Tirupati – Puducherry Express,unlisted,not in Trains at a Glance 2026 under this number
 17414,Puducherry – Tirupati Express,unlisted,not in Trains at a Glance 2026 under this number
+17615,Kacheguda – Madurai Express,duplicate,"renumbered 22715, which has 2026 times"
+17616,Madurai – Kacheguda Express,duplicate,"renumbered 22716, which has 2026 times"
 17623,Hazur Sahib Nanded – Bikaner Express,unlisted,not in Trains at a Glance 2026 under this number
 18211,Durg – Jagdalpur Express,unlisted,not in Trains at a Glance 2026 under this number
 18212,Jagdalpur – Durg Express,unlisted,not in Trains at a Glance 2026 under this number
@@ -273,6 +273,7 @@ number,name,status,reason
 19026,Bhavnagar Surat (Slip) Express,unlisted,not in Trains at a Glance 2026 under this number
 19039,Awadh Express,duplicate,"renumbered 11061, which has 2026 times"
 19040,Awadh Express,unlisted,not in Trains at a Glance 2026 under this number
+19042,Ghazipur City – Mumbai Bandra Express,duplicate,"renumbered 20942, which has 2026 times"
 19055,Valsad – Jodhpur Express,unlisted,not in Trains at a Glance 2026 under this number
 19057,Udhna – Varanasi Express,unlisted,not in Trains at a Glance 2026 under this number
 19058,Bsb Udn Express,duplicate,"renumbered 20930, which has 2026 times"

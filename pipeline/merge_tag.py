@@ -244,7 +244,10 @@ for no, t in sorted(good.items()):
             line = [a["station"], *passed, b["station"]]
             along = sum(hav(pos[x], pos[y]) for x, y in zip(line, line[1:]) if x in pos and y in pos)
             printed = abs(b["table_km"] - a["table_km"]) if same_page else None
-            if printed is not None and along > 0 and not (0.8 * along - 5 <= printed <= 1.6 * along + 20):
+            # along the mapped track the printed figure should be close; a straight line (no track
+            # mapped) can be much shorter than the rails through hills
+            high = 1.25 * along + 15 if how == "osm" else 1.6 * along + 20
+            if printed is not None and along > 0 and not (0.8 * along - 5 <= printed <= high):
                 stats["printed km misread, line length used"] += 1
                 printed = None
             km += printed if printed is not None else along

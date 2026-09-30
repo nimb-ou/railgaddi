@@ -113,6 +113,17 @@ def row_rules(page, x0, x1):
     return sorted(ys)
 
 
+def number_rows(words):
+    """y of each row that holds three or more train numbers: the "Train Number" row, found by what
+    it holds rather than its label (one table prints "PECI" there)."""
+    rows = defaultdict(list)
+    for w in words:
+        if NUMBER.match(w[4]):
+            rows[round((w[1] + w[3]) / 4)].append((w[1] + w[3]) / 2)
+    ys = sorted(sum(v) / len(v) for v in rows.values() if len(v) >= 3)
+    return [y for k, y in enumerate(ys) if not k or y - ys[k - 1] > 6]
+
+
 def label_y(words, marker_x, *needles):
     """y of a row label in the left column ("Train Number", "Days of departure", …)."""
     for w in words:
@@ -122,6 +133,8 @@ def label_y(words, marker_x, *needles):
 
 
 def parse_days(text):
+    # a table number from the row above can creep into the cell ("23 W, Sa"): days have no digits
+    text = " ".join(t for t in text.split() if not re.search(r"\d", t))
     t = text.replace("–", "-").replace(" ", "").lower()
     if not t:
         return 0
@@ -139,14 +152,18 @@ def parse_days(text):
     return (127 & ~mask) if m else mask
 
 
-def mark_groups(marks, top, bottom):
-    """Station rows from a column of a/d markers: an 'a', a 'd', or an 'a' directly above a 'd'
-    (or the other way up, on the right of a mirrored page)."""
-    marks = sorted((w for w in marks if top < w[1] < bottom), key=lambda w: w[1])
+def mark_groups(marks, top, bottom, rules=()):
+    """Station rows from a column of a/d markers: an 'a', a 'd', or an 'a' and a 'd' one above the
+    other (either way up: the right of a mirrored page reads upwards, and some rows on the left are
+    printed 'd' over 'a' too). Two markers with a row rule between them are two rows: a
+    departure-only row (Durgapur), then the next station's arrival (Asansol)."""
+    marks = sorted((w for w in marks if top < (w[1] + w[3]) / 2 < bottom), key=lambda w: w[1])  # by the marker's middle
     groups, i = [], 0
+    ruled = lambda y0, y1: any(y0 + 0.5 < r < y1 - 0.5 for r in rules)  # noqa: E731
     while i < len(marks):
         w = marks[i]
-        if i + 1 < len(marks) and {w[4], marks[i + 1][4]} == {"a", "d"} and marks[i + 1][1] - w[1] < 9:
+        nxt = marks[i + 1] if i + 1 < len(marks) else None
+        if nxt and {w[4], nxt[4]} == {"a", "d"} and nxt[1] - w[1] < 9 and not ruled((w[1] + w[3]) / 2, (nxt[1] + nxt[3]) / 2):
             groups.append({w[4]: (w[1] + w[3]) / 2, marks[i + 1][4]: (marks[i + 1][1] + marks[i + 1][3]) / 2})
             i += 2
         else:
@@ -169,7 +186,7 @@ def column_head(words, hsegs, b, y_no, table):
     return {"no": m.group(1), "name": name, "table": table, "halts": []}
 
 
-def parse_mirrored(page, table, words, xl, xr, y0=0, y1=1e9):
+def parse_mirrored(page, table, words, xl, xr, y0=0, y1=1e9, x0=-1e9, x1=1e9):
     """A page printed both ways round: station names down the middle, trains one way in the
     columns on the left (read top to bottom, a/d markers left of the names), the other way on the
     right (read bottom to top, markers right of the names). Each side's days and From/To tables
@@ -177,14 +194,16 @@ def parse_mirrored(page, table, words, xl, xr, y0=0, y1=1e9):
     cx = lambda w: (w[0] + w[2]) / 2  # noqa: E731
     cy = lambda w: (w[1] + w[3]) / 2  # noqa: E731
     mid = [w for w in words if xl + 3 < cx(w) < xr - 3]
-    y_no = next((cy(w) for w in mid if w[4] == "Number"), None)
-    days_rows = sorted({round(cy(w)) for w in mid if w[4] == "Days"})
-    ft_rows = sorted({round(cy(w)) for w in mid if w[4] == "Table"})
+    # the row labels are centred between the markers, give or take (table 60's "Days" sits on one)
+    labels = [w for w in words if xl - 4 < cx(w) < xr + 4]
+    y_no = next((cy(w) for w in labels if w[4] == "Number"), None) or next(iter(number_rows(words)), None)
+    days_rows = sorted({round(cy(w)) for w in labels if w[4] == "Days"})
+    ft_rows = sorted({round(cy(w)) for w in labels if w[4] == "Table"})
     if y_no is None or len(days_rows) < 2 or len(ft_rows) < 2:
         return []
     (d_top, d_bot), (f_top, f_bot) = (days_rows[0], days_rows[-1]), (ft_rows[0], ft_rows[-1])
     top, bottom = max(d_top, f_top) + 4, min(d_bot, f_bot) - 4
-    rs = rules(page, y0, y1)
+    rs = [x for x in rules(page, y0, y1) if x0 - 1 <= x <= x1 + 1]  # this table's own column rules
     sides = []
     for side, xs in (("left", [x for x in rs if x < xl - 1]), ("right", [x for x in rs if x > xr + 1])):
         sides.append((side, list(zip(xs, xs[1:]))))
@@ -194,9 +213,9 @@ def parse_mirrored(page, table, words, xl, xr, y0=0, y1=1e9):
         return " ".join(w[4] for w in sorted(words, key=lambda w: (round(w[1]), w[0])) if b[0] < cx(w) < b[1] and abs(cy(w) - y) < dy)
 
     marks = [w for w in words if w[4] in ("a", "d") and (w[2] - w[0]) < 6]
-    left_groups = mark_groups([w for w in marks if abs(w[0] - xl) < 3], top, bottom)
-    right_groups = mark_groups([w for w in marks if abs(w[0] - xr) < 3], top, bottom)
     hrules = row_rules(page, xl + 4, xr - 4)
+    left_groups = mark_groups([w for w in marks if abs(w[0] - xl) < 3], top, bottom, hrules)
+    right_groups = mark_groups([w for w in marks if abs(w[0] - xr) < 3], top, bottom, hrules)
     out = []
     for side, bands in sides:
         columns = []
@@ -244,15 +263,34 @@ def parse_mirrored(page, table, words, xl, xr, y0=0, y1=1e9):
     return out
 
 
+def two_way_tables(marks):
+    """The (left, right) marker columns of each table printed both ways round, left to right: two
+    columns of a/d markers 24–160 points apart, with the station names between them."""
+    xs = []
+    for x in sorted(x for x, n in Counter(round(w[0]) for w in marks).items() if n >= 5):
+        if not xs or x - xs[-1] > 4:
+            xs.append(x)
+    pairs, i = [], 0
+    while i + 1 < len(xs):
+        if 24 < xs[i + 1] - xs[i] < 160:
+            pairs.append((xs[i], xs[i + 1]))
+            i += 2
+        else:
+            i += 1
+    return pairs
+
+
 def parse_page(page, table):
     """Every train column on a page. Some pages carry two tables, one above the other: each is
     read on its own, from its own "Train Number" row down."""
     words = page.get_text("words")
-    heads = sorted((w[1] + w[3]) / 2 for w in words if w[4] == "Number")
+    heads = sorted({(w[1] + w[3]) / 2 for w in words if w[4] == "Number"} | set(number_rows(words)))
     starts = heads[:1] + [y for a, y in zip(heads, heads[1:]) if y - a > 150]
     if len(starts) < 2:
         return parse_region(page, table, words)
-    cuts = [0] + [y - 60 for y in starts[1:]] + [page.rect.height]
+    to_rows = [(w[1] + w[3]) / 2 for w in words if w[4] == "To" and any(v[4] == "Table" and abs(v[1] - w[1]) < 2 for v in words)]
+    cut_at = lambda y: max([t + 5 for t in to_rows if y - 130 < t < y - 20] or [y - 60])  # noqa: E731
+    cuts = [0] + [cut_at(y) for y in starts[1:]] + [page.rect.height]
     out = []
     for y0, y1 in zip(cuts, cuts[1:]):
         out += parse_region(page, table, [w for w in words if y0 <= (w[1] + w[3]) / 2 < y1], y0, y1)
@@ -264,7 +302,26 @@ def parse_region(page, table, words, y0=0, y1=1e9):
     if len(marks) < 3:
         return []
     xs = [x for x, n in Counter(round(w[0]) for w in marks).most_common(3) if n >= 5]
-    if len(xs) >= 2 and 30 < abs(xs[0] - xs[1]) < 160:
+    # two tables printed both ways round, side by side (61 and 62): a pair of marker columns each
+    pairs = two_way_tables(marks)
+    if len(pairs) >= 2:
+        out, bounds = [], []
+        for (xl, xr), (nl, _) in zip(pairs, pairs[1:] + [(None, None)]):
+            if nl is None:
+                bounds.append(1e9)
+                continue
+            # between two tables' boxes: an empty strip between two column rules
+            between = [x for x in rules(page, y0, y1) if xr < x < nl]
+            gaps = [(a, b) for a, b in zip(between, between[1:]) if b - a > 6
+                    and not any(a < (w[0] + w[2]) / 2 < b for w in words if y0 <= (w[1] + w[3]) / 2 <= y1)]
+            bounds.append((gaps[0][0] + gaps[0][1]) / 2 if gaps else (xr + nl) / 2)
+        lo = -1e9
+        for (xl, xr), hi in zip(pairs, bounds):
+            part = [w for w in words if lo <= (w[0] + w[2]) / 2 < hi]
+            out += parse_mirrored(page, table, part, xl, xr, y0, y1, lo, hi)
+            lo = hi
+        return out
+    if len(xs) >= 2 and 24 < abs(xs[0] - xs[1]) < 160:
         return parse_mirrored(page, table, words, min(xs[:2]), max(xs[:2]), y0, y1)
     marker_x = Counter(round(w[0]) for w in marks).most_common(1)[0][0]
     marks = [w for w in marks if abs(w[0] - marker_x) < 3]
@@ -273,14 +330,21 @@ def parse_region(page, table, words, y0=0, y1=1e9):
         return []
     bands = list(zip(cols, cols[1:]))
 
-    y_no = label_y(words, marker_x, "number")
-    y_days = label_y(words, marker_x, "departure")
-    y_from = next((((w[1] + w[3]) / 2) for w in words if w[2] < marker_x and w[4] == "From"), None)
-    y_to = next((((w[1] + w[3]) / 2) for w in words if w[2] < marker_x and w[4] == "To"
-                 and any(v[4] == "Table" and abs(v[1] - w[1]) < 2 for v in words)), None)
-    y_arrival = label_y(words, marker_x, "arrival")
+    y_no = label_y(words, marker_x, "number") or next(iter(number_rows(words)), None)
+    # rows are labelled "Days of departure" / "Days of arrival", or (table 52) "Days of Operation"
+    # at both, and "From Table No. To" at the top as well as "To Table No." at the bottom
+    days = sorted((w[1] + w[3]) / 2 for w in words if w[2] < marker_x and w[4] == "Days")
+    y_days = label_y(words, marker_x, "departure") or (days[0] if days else None)
     if y_no is None:
         return []
+    # the header rows sit just under the train numbers; the "To Table" row closes the table
+    head_rows = lambda ys: [y for y in ys if y_no - 5 < y < y_no + 70]  # noqa: E731
+    y_from = min(head_rows((w[1] + w[3]) / 2 for w in words if w[2] < marker_x and w[4] == "From"), default=None)
+    to_rows = [(w[1] + w[3]) / 2 for w in words if w[2] < marker_x and w[4] == "To"
+               and any(v[4] == "Table" and abs(v[1] - w[1]) < 2 for v in words)]
+    y_to = max((y for y in to_rows if y > y_no + 70), default=None)
+    y_days = y_days if y_days is None or y_days > y_no - 5 else min(head_rows(days), default=None)
+    y_arrival = label_y(words, marker_x, "arrival") or (days[-1] if len(days) >= 2 and days[-1] > y_no + 70 else None)
     top = max(y for y in (y_no, y_days, y_from) if y is not None) + 4
     bottom = min(y for y in (y_arrival, y_to, page.rect.height) if y is not None) - 3
 
@@ -311,7 +375,7 @@ def parse_region(page, table, words, y0=0, y1=1e9):
                         "from": cell(b, y_from) if y_from else "", "to": cell(b, y_to) if y_to else "", "halts": []})
 
     # station rows: an 'a', a 'd', or an 'a' directly above a 'd'
-    marks = sorted((w for w in marks if top < w[1] < bottom), key=lambda w: w[1])
+    marks = sorted((w for w in marks if top < (w[1] + w[3]) / 2 < bottom), key=lambda w: w[1])  # by the marker's middle
     groups, i = [], 0
     while i < len(marks):
         w = marks[i]
@@ -323,6 +387,29 @@ def parse_region(page, table, words, y0=0, y1=1e9):
             i += 1
     name_x0 = min((w[0] for w in words if w[2] < marker_x - 1 and w[4] in ("Km.", "Km")), default=0)
     hrules = row_rules(page, name_x0 + 12, marker_x - 2)
+    # Some tables print a branch line's stations with no a/d markers (Asarva, Dungarpur, Indore on
+    # table 54): a name between two row rules that no marked row covers is a row too. One time
+    # there is taken as a departure (an arrival at the end), two as arrival and departure.
+    if hrules:
+        def band_of(g):
+            above = [y for y in hrules if y <= min(g.values()) - 1]
+            below = [y for y in hrules if y >= max(g.values()) + 1]
+            return (above[-1] if above else min(g.values()) - 5.5, below[0] if below else max(g.values()) + 5.5)
+        covered = [band_of(g) for g in groups]
+        loose = defaultdict(list)
+        for w in words:
+            y = (w[1] + w[3]) / 2
+            if not (top < y < bottom) or w[2] >= marker_x - 1 or w[0] < name_x0 - 1 or re.search(r"\d", w[4]) or w[4] in ("a", "d", "Km.", "Km"):
+                continue
+            if any(a - 0.5 <= y <= b + 0.5 for a, b in covered):
+                continue
+            k = sum(1 for r in hrules if r < y)
+            if 0 < k < len(hrules):  # between two rules: a row, not a label above or below the grid
+                loose[k].append(y)
+        for ys in loose.values():
+            y = sum(ys) / len(ys)
+            groups.append({"a": y, "d": y})
+        groups.sort(key=lambda g: min(g.values()))
     for k, g in enumerate(groups):
         y0, y1 = min(g.values()) - 5.5, max(g.values()) + 5.5
         # never reach into the neighbouring rows: stop at the printed rules, else halfway
@@ -390,7 +477,8 @@ def resolve_times(col):
 # spellings that differ between TAG, the 2017 timetable and OpenStreetMap
 SPELLING = {"BANGALORE": "BENGALURU", "CANT": "CANTT", "SUBHASH": "SUBHAS", "LAXMIBAI": "LAKSHMIBAI",
             "VIRANGNA": "VIRANGANA", "VISHVESVARAYA": "VISVESVARAYA", "VISHWESHWARAIAH": "VISVESVARAYA",
-            "VISVESVARAIAH": "VISVESVARAYA", "PT": "", "PANDIT": "", "KM": ""}
+            "VISVESVARAIAH": "VISVESVARAYA", "PT": "", "PANDIT": "", "KM": "",
+            "BADAUN": "BUDAUN"}
 
 
 def norm(s):
@@ -597,6 +685,14 @@ def place_segment(seg, expected):
         for h in wrong:
             h["code"] = ""
         outward()
+    # a name that's one station's alone (Patna, Amritsar), where a printed distance was misread
+    # and ruled it out: the times are checked against the map later anyway. But a row that fits
+    # none of its neighbours' distances may be printed out of running order (a junction another
+    # table continues from), so it never lines two pages up (merge)
+    for h in halts:
+        if not h["code"]:
+            h["code"] = resolve(h["name"], names, pos, None, None, expected)
+            h["unsure"] = bool(h["code"])
     # clock times -> minutes since this page's first time, rolling past midnight
     last = None
     for h in halts:
@@ -612,12 +708,13 @@ def when(h):
     return h["arr"] if h["arr"] is not None else h["dep"]
 
 
-def merge(segs):
+def merge(segs, no=None, start=None, align_last=False, note=None):
     """One train's pages from different tables, joined where they print the same station at the
     same clock time (tables overlap at junctions); pages with no overlap follow in "To Table" order."""
-    # the order the book gives: start where "From Table" is empty, follow "To Table" links
+    # the order the book gives: start where "From Table" is empty, follow "To Table" links (or
+    # start where the caller says: see the tries in the train loop)
     segs = sorted(segs, key=lambda s: s["page"])
-    first = next((s for s in segs if not re.search(r"\d", s["from"])), segs[0])
+    first = start or next((s for s in segs if not re.search(r"\d", s["from"])), segs[0])
     chain, cur = [first], first
     while True:
         links = [t.rstrip("A") for t in re.findall(r"\d+A?", cur["to"])]
@@ -632,9 +729,9 @@ def merge(segs):
     while rest:
         for s in rest:
             shift = None
-            for h in s["halts"]:
+            for h in (s["halts"][::-1] if align_last else s["halts"]):
                 for m in merged:
-                    if h["code"] and h["code"] == m["code"]:
+                    if h["code"] and h["code"] == m["code"] and not h.get("unsure") and not m.get("unsure"):
                         for k in ("dep", "arr"):
                             if h[k] is not None and m[k] is not None and (m[k] - h[k]) % 1440 == 0:
                                 shift = m[k] - h[k]
@@ -651,7 +748,8 @@ def merge(segs):
             end = max(when(m) for m in merged)
             while when(s["halts"][0]) + shift < end:
                 shift += 1440
-            report["pages joined without overlap"] += 1
+            if note is not None:
+                note["pages joined without overlap"] += 1
         rest.remove(s)
         for h in s["halts"]:
             h = dict(h, arr=None if h["arr"] is None else h["arr"] + shift, dep=None if h["dep"] is None else h["dep"] + shift)
@@ -770,15 +868,49 @@ print(f"name index: {len(INDEX)} trains, ends placed for {sum(1 for e in INDEX i
 
 # the two ends of each train number, by the index (its From and To columns aren't in running
 # order: 12401 runs Kota -> Dehradun though the index lists "Dehradun, Kota")
-INDEX_ENDS = {}
+INDEX_ENDS, INDEX_END_NAMES = {}, {}
 for e in INDEX:
-    if e["from_code"] and e["to_code"]:
-        for n in e["numbers"]:
+    for n in e["numbers"]:
+        INDEX_END_NAMES.setdefault(n, (e["from"], e["to"]))
+        if e["from_code"] and e["to_code"]:
             INDEX_ENDS.setdefault(n, (e["from_code"], e["to_code"]))
 
 
 def near(a, b):
     return a == b or (a in pos and b in pos and hav(pos[a], pos[b]) < 30)
+
+
+def fold(name):
+    """A printed name, for comparing two printings of it: "Rajendranagar (T)" ~ "Rajendra Nagar"."""
+    s = norm(name)
+    s = re.sub(r"\b(JN|JUNCTION|TERMINUS|TERMINAL|T)\b", " ", s)
+    return re.sub(r"[^A-Z]", "", s)
+
+
+def same_name(a, b):
+    """Two printings of one station's name: the same letters, one the start of the other (Udaipur,
+    Udaipur City), or a spelling apart (Bathinda, Bhatinda)."""
+    x, y = fold(a), fold(b)
+    if len(x) < 4 or len(y) < 4:
+        return x == y and bool(x)
+    return x.startswith(y) or y.startswith(x) or difflib.SequenceMatcher(None, x, y).ratio() >= 0.85
+
+
+def place_ends(no, halts):
+    """A first or last halt the page couldn't place is placed by the book's own index, when it
+    names that station (the index's name and the table's are printed by the same hand)."""
+    ends, end_names = INDEX_ENDS.get(no, ()), INDEX_END_NAMES.get(no, ())
+    for h in (halts[0], halts[-1]):
+        if h["code"]:
+            continue
+        c = resolve(h["name"], names, pos, None, None, set(ends))
+        if c and any(near(c, e) for e in ends):
+            h["code"] = c
+            continue
+        for e, en in zip(ends, end_names):
+            if same_name(h["name"], en):
+                h["code"] = e
+                break
 
 
 def check_ends(no, halts):
@@ -788,13 +920,17 @@ def check_ends(no, halts):
     ends = INDEX_ENDS.get(no)
     if not ends or len(halts) < 3:
         return halts, ""
-    at_end = lambda h: any(near(h["code"], e) for e in ends)  # noqa: E731
+    end_names = INDEX_END_NAMES.get(no, ())
+    # by place, or by name: the index can place a name at the wrong station of that name
+    # ("Rajendra Nagar" in Hyderabad for the Patna Rajdhanis' Rajendranagar)
+    at = lambda h, e, en: near(h["code"], e) or same_name(h["name"], en)  # noqa: E731
+    at_end = lambda h: any(at(h, e, en) for e, en in zip(ends, end_names))  # noqa: E731
     if not at_end(halts[0]) and at_end(halts[1]):
         halts = [dict(halts[1], arr=None)] + halts[2:]
     if not at_end(halts[-1]) and at_end(halts[-2]):
         halts = halts[:-2] + [dict(halts[-2], dep=None)]
-    a, b = ends
-    if not ((near(halts[0]["code"], a) and near(halts[-1]["code"], b)) or (near(halts[0]["code"], b) and near(halts[-1]["code"], a))):
+    (a, b), (an, bn) = ends, end_names
+    if not ((at(halts[0], a, an) and at(halts[-1], b, bn)) or (at(halts[0], b, bn) and at(halts[-1], a, an))):
         return halts, "doesn't run end to end as the index says"
     return halts, ""
 
@@ -930,29 +1066,35 @@ def fill_ends(no, halts):
     return filled
 
 
-for no, segs in segments.items():
-    expected = set(ours.get(no, []))
-    for seg in segs:
-        place_segment(seg, expected)
-    halts = merge(segs)
+def read_train(no, segs, start=None, align_last=False):
+    """One train's halts from its pages, checked: (halts, problem, repaired, counts)."""
+    global DURONTO, PREMIUM_NONSTOP
+    note = Counter()
+    halts = merge(segs, no, start, align_last, note)
     if len(halts) < 2:
-        report["too short"] += 1
-        continue
+        return None, "too short", "", note
     # short halts print only a departure (or only an arrival): the train stops, dwell unknown
     for h in halts[1:-1]:
         h["arr"] = h["arr"] if h["arr"] is not None else h["dep"]
         h["dep"] = h["dep"] if h["dep"] is not None else h["arr"]
+    # the time printed at either end is the start and the finish, whichever of the a/d rows it sits
+    # nearer (the boxed end times are printed between them)
+    if halts[0]["dep"] is None:
+        halts[0]["dep"] = halts[0]["arr"]
+    if halts[-1]["arr"] is None:
+        halts[-1]["arr"] = halts[-1]["dep"]
     halts[0]["arr"] = None
     halts[-1]["dep"] = None
+    place_ends(no, halts)
     if (halts[0]["dep"] is None or halts[-1]["arr"] is None) and fill_ends(no, halts):
-        report["Vande Bharat ends filled from the summary pages"] += 1
+        note["Vande Bharat ends filled from the summary pages"] += 1
     base = (halts[0]["dep"] // 1440) * 1440 if halts[0]["dep"] is not None else 0
     for h in halts:
         for k in ("arr", "dep"):
             if h[k] is not None:
                 h[k] -= base
-        report["halts"] += 1
-        report["halts without a code"] += not h["code"]
+        note["halts"] += 1
+        note["halts without a code"] += not h["code"]
     upper_name = " ".join(s.get("name", "") for s in segs).upper()
     DURONTO = "DURONTO" in upper_name
     PREMIUM_NONSTOP = bool(re.search(r"HUMSAFAR|RAJDHANI|VANDE|TEJAS|\bAC\b|SUVIDHA|GATIMAAN|SHATABDI", upper_name))
@@ -963,7 +1105,7 @@ for no, segs in segments.items():
         fixed, repaired = repair(halts)
         if fixed:
             halts, problem = fixed, ""
-            report["repaired (misread rows dropped or day fixed)"] += 1
+            note["repaired (misread rows dropped or day fixed)"] += 1
     # rows dropped at the start can leave the first departure on another day: count days from it
     if halts and halts[0]["dep"] is not None:
         base = (halts[0]["dep"] // 1440) * 1440
@@ -971,6 +1113,41 @@ for no, segs in segments.items():
             for k in ("arr", "dep"):
                 if h[k] is not None:
                     h[k] -= base
+    return halts, problem, repaired, note
+
+
+for no, segs in segments.items():
+    expected = set(ours.get(no, []))
+    for seg in segs:
+        place_segment(seg, expected)
+    # Tables don't always print a train's rows in the order it runs them (a junction reached last
+    # can sit at the top of a table), so which page leads, and which shared station lines two
+    # pages up, can go wrong. The book's reading comes first; failing that, each page in turn
+    # leads, lined up on the first or the last station it shares: the first reading that passes
+    # every check is kept, else the book's reading with its fault.
+    # a misread From cell can hide the start: the page whose first halt is one of the train's two
+    # ends by the index is the next thing to try
+    ends, end_names = INDEX_ENDS.get(no, ()), INDEX_END_NAMES.get(no, ())
+    at_an_end = lambda sg: any((sg["halts"][0]["code"] and near(sg["halts"][0]["code"], e)) or same_name(sg["halts"][0]["name"], en)  # noqa: E731
+                               for e, en in zip(ends, end_names))
+    by_page = sorted(segs, key=lambda x: x["page"])
+    tries = [(None, False)]
+    if len(segs) > 1:
+        tries += [(sg, False) for sg in by_page if at_an_end(sg)] + [(sg, al) for al in (False, True) for sg in by_page]
+    chosen = None
+    for start, align_last in tries:
+        got = read_train(no, segs, start, align_last)
+        chosen = chosen or got
+        if not got[1]:
+            chosen = got
+            if start is not None or align_last:
+                report["read by trying another page first"] += 1
+            break
+    halts, problem, repaired, note = chosen
+    report.update(note)
+    if halts is None:
+        report["too short"] += 1
+        continue
     report[f"rejected: {problem}" if problem else "trains that pass every check"] += 1
     ok = not problem
     days = next((s["days"] for s in segs if s["days"]), 0)
