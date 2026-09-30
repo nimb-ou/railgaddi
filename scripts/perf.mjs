@@ -51,7 +51,7 @@ const tapAt = async (sel) => {
 await page.goto(`${BASE}/`, { waitUntil: "networkidle2", timeout: 90000 });
 await wait(3000);
 await step("type in search", async () => {
-  await tapAt("#origin-input");
+  await tapAt("#from-input");
   await page.keyboard.type("bengal", { delay: 120 });
 });
 await step("pick Bengaluru", () => page.keyboard.press("Enter"), 3500);
@@ -68,16 +68,18 @@ await wait(3500);
 await step("open the next train", () => tapAt(".ticket-next"), 2500);
 await step("back to the place", () => tapAt("[data-act=back]"), 2500);
 await step("close the place", () => tapAt("[data-act=close]"), 2500);
-await step("slide 'reach within'", async () => {
-  const r = await page.$eval("#within", (el) => {
-    const b = el.getBoundingClientRect();
-    return [b.left, b.top + b.height / 2, b.width];
-  });
-  await page.mouse.move(r[0] + r[2] - 5, r[1]);
-  await page.mouse.down();
-  for (let i = 0; i < 8; i++) await page.mouse.move(r[0] + r[2] - 5 - i * (r[2] / 10), r[1], { steps: 2 });
-  await page.mouse.up();
+await step("filter: toy trains", async () => {
+  await page.goto(`${BASE}/from/kalka/`, { waitUntil: "load" });
+  await wait(3000);
+  await page.evaluate(() => { window.__ev = []; window.__long = []; });
+  await page.select("select[data-f=kind]", "toy");
 }, 2500);
+await page.goto(`${BASE}/from/bengaluru/`, { waitUntil: "load" });
+await wait(3000);
+await tapAt("#to-input");
+await page.keyboard.type("munnar", { delay: 60 });
+await wait(800);
+await step("open a place without a station", () => page.keyboard.press("Enter"), 3000);
 await step("drag the map", async () => {
   await page.mouse.move(200, 300);
   await page.mouse.down();
@@ -91,8 +93,9 @@ await step("another fact", () => tapAt("[data-act=fact-next]"), 1500);
 await step("open a story", () => tapAt(".story-card"), 2500);
 await page.goto(`${BASE}/from/delhi/`, { waitUntil: "networkidle2", timeout: 90000 });
 await wait(3500);
-await step("open the list", () => tapAt("#list-btn"), 2500);
-await step("surprise me", () => tapAt("#surprise-btn"), 3000);
+await step("surprise me", () => tapAt("[data-act=surprise]"), 3000);
+await step("plan a trip", () => tapAt("#tab-trip"), 2500);
+await step("weather layer", () => tapAt("#weather-btn"), 4000);
 
 console.log("action".padEnd(26), "input->paint ms", "long tasks ms");
 for (const [label, worst, blocked] of results) console.log(label.padEnd(26), String(worst).padStart(8), String(blocked).padStart(14));

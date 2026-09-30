@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS saves (
   user TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   key TEXT NOT NULL,            -- "place:hampi", "route:bengaluru>amritsar"
-  kind TEXT NOT NULL,           -- place | route
+  kind TEXT NOT NULL,           -- place | route | trip
   data TEXT NOT NULL,           -- small JSON: titles, the journey's trains
   at INTEGER NOT NULL,          -- when it was saved or removed, ms; the latest wins
   deleted INTEGER NOT NULL DEFAULT 0,

@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { applyPaths, decodeNetwork, type MetaFile } from "../src/core/network";
 import { buildGuideIndex, type PlacesIndex } from "../src/core/places";
 import { buildSlugs } from "../src/core/slugs";
+import { Spots } from "../src/core/spots";
 
 const file = (f: string) => readFileSync(join(__dirname, "..", "data", f));
 const buf = (b: Buffer) => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer;
@@ -19,3 +20,4 @@ export const place = (slug: string) => {
   if (!p) throw new Error(`no place ${slug}`);
   return p;
 };
+export const spots = new Spots(JSON.parse(file("spots.json").toString()), (slug) => !!slugs.find(slug));

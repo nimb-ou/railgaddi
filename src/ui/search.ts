@@ -6,6 +6,7 @@ import { daysLabel } from "../core/format";
 import type { Network, Place, Train } from "../core/network";
 import type { GuideView } from "../core/places";
 import { searchPlaces, searchTrains } from "../core/search";
+import { searchOnline, type Spot, type Spots } from "../core/spots";
 import { esc } from "./panel";
 import { photoUrl } from "./photos";
 
@@ -21,9 +22,15 @@ export interface SearchOptions {
   empty?: string;
   /** Also find trains by number or name, and open one when picked. */
   onTrain?: (t: Train) => void;
+  /** Also find places without a station (and, failing that, look the name up online). */
+  spots?: () => Spots | null;
+  onSpot?: (s: Spot) => void;
+  online?: boolean;
 }
 
-type Item = { p: Place; t?: undefined } | { t: Train; p?: undefined };
+type Item = { p: Place; t?: undefined; s?: undefined } | { t: Train; p?: undefined; s?: undefined } | { s: Spot; p?: undefined; t?: undefined };
+const fold = (x: string) => x.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+const PIN = `<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M8 15s-5-4.6-5-8.3a5 5 0 0 1 10 0C13 10.4 8 15 8 15z"/><circle cx="8" cy="6.7" r="1.8" fill="#fff"/></svg>`;
 
 let uid = 0;
 
@@ -31,6 +38,8 @@ export class SearchBox {
   private results: Item[] = [];
   private active = -1;
   private id = `s${++uid}`;
+  private asked = ""; // the last name looked up online
+  private lookup = 0;
 
   constructor(
     private input: HTMLInputElement,
@@ -104,11 +113,36 @@ export class SearchBox {
             .map((r) => r.p)
         : found;
       const trains = this.opts.onTrain ? searchTrains(this.net, q) : [];
-      // a number is a train; a name can be either: places first, then a few trains
-      this.results = [...places.slice(0, trains.length ? 5 : 6).map((p) => ({ p })), ...trains.map((t) => ({ t }))];
+      const spots = this.opts.spots?.()?.search(q, 3) ?? [];
+      // a number is a train; a name can be a station, a town without one, or a train. A town
+      // without a station goes first when no station's name starts with what you typed
+      const plain = places.length && fold(places[0].name).startsWith(fold(q));
+      const ps = places.slice(0, trains.length || spots.length ? 4 : 6).map((p) => ({ p }) as Item);
+      const ss = spots.map((x) => ({ s: x }) as Item);
+      this.results = [...(plain ? [...ps, ...ss] : [...ss, ...ps]), ...trains.map((t) => ({ t }) as Item)];
+      this.online(q);
     }
     this.active = this.results.length && q.trim() ? 0 : -1;
     this.render();
+  }
+
+  /** Nothing much here: ask the online place search (once you've paused typing). */
+  private online(q: string) {
+    clearTimeout(this.lookup);
+    const hits = this.results.filter((r) => !r.t).length;
+    if (!this.opts.online || !this.opts.onSpot || q.trim().length < 4 || hits >= 3 || fold(q) === this.asked) return;
+    this.lookup = window.setTimeout(async () => {
+      this.asked = fold(q);
+      const found = await searchOnline(q).catch(() => []);
+      if (this.input.value !== q || !found.length) return;
+      const near = (a: { lat: number | null; lon: number | null }, b: Spot) => a.lat !== null && a.lon !== null && Math.abs(a.lat - b.lat) < 0.08 && Math.abs(a.lon - b.lon) < 0.08;
+      // one of ours already, or the same name in the same state as one of ours
+      const same = (r: Item, f: Spot) => (r.p && near(r.p, f)) || (r.s && (near(r.s, f) || (fold(r.s.name) === fold(f.name) && r.s.state === f.state)));
+      const fresh = found.filter((f) => !this.results.some((r) => same(r, f)));
+      this.results = [...this.results, ...fresh.slice(0, 4).map((s) => ({ s }))];
+      if (this.active < 0 && this.results.length) this.active = 0;
+      this.render();
+    }, 380);
   }
 
   private face(p: Place) {
@@ -137,6 +171,7 @@ export class SearchBox {
     this.close();
     this.input.blur();
     if (it.t) this.opts.onTrain?.(it.t);
+    else if (it.s) this.opts.onSpot?.(it.s);
     else this.onPick(it.p);
   }
 
@@ -148,6 +183,12 @@ export class SearchBox {
     } else {
       this.list.innerHTML = this.results
         .map((it, i) => {
+          if (it.s) {
+            const s = it.s;
+            return `<li role="option" id="${this.id}-${i}" data-i="${i}" aria-selected="${i === this.active}">
+              <span class="s-img s-spot" aria-hidden="true">${PIN}</span><span class="s-name">${esc(s.name)}</span><span class="s-script"></span>
+              <span class="s-meta">${esc(`${s.state ? `${s.state} · ` : ""}${s.fromSearch ? "found online · " : ""}no station: see how to get there`)}</span></li>`;
+          }
           if (it.t) {
             const t = it.t;
             const a = this.net.stations[t.st[0]].name;

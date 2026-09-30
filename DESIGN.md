@@ -1,80 +1,54 @@
-# Railgaddi design: the journey itself
+# Railgaddi design: calm, clear, quick
 
-Railgaddi should feel like an Indian train trip, not like an app about one. Every visual
-element is borrowed from something people see or hold on the journey: the station board, the
-departures board, the coach, the window, the timetable, the ticket, the poster on the platform
-wall. Each borrowed thing has one job, and that job never changes. That consistency is what makes
-the site feel calm and familiar, even with five kinds of object on it.
+Railgaddi is for deciding where to go. Everything on screen should help with that and nothing
+else: the map shows where, one panel beside it says what, and nothing moves unless you asked.
 
-The five design directions explored in September 2026 (station board, night departures, window
-seat, line diagram, travel poster) all live here, each as one of those objects, not as a skin.
+(The first version, September 2026, borrowed the journey's objects: split-flap times, LED
+boards, trains moving on the map, lines spreading out, a landscape passing while things load.
+Each was charming; together they made the site feel slow. They're gone, or quietened into their
+plain forms.)
 
-## The vocabulary
+## Layout
 
-| On the journey | Its one job in Railgaddi | Where |
-|---|---|---|
-| **Station name board**: yellow, black keyline, bold condensed capitals, local scripts above English | **Names of places**. Nothing else is ever yellow. | Logo, the From/To ticket, map labels, place header, where you board and get off |
-| **Split-flap tiles** from a departures board: dark tiles, a hairline split, digits that fold over | **Clock times of departures** | "Next train" on the ticket, a train's or a journey's departure and arrival |
-| **LED board** on a coach's side or over a platform: amber dots, English and Hindi taking turns | **What's departing**: which train this is, or everything leaving a station | A train's header, the list of places from where you start |
-| **Coach livery**: ICF blue (lamp yellow at night) | Railway lines, ink, structure | Routes, text, selected tabs |
-| **Rajdhani red** | **You, and what you picked**. Used sparingly. | Selected place ring, your train on the map, links, "Day 2" |
-| **Printed timetable** (Trains at a Glance): ruled lines, small capitals, tabular figures | Facts and schedules | Train list, dock filters, section headings |
-| **Ticket** with notched edges | One journey's facts: from → to, fastest, trains, distance, next train; a saved route | Place panel, "Ride it" in a story, saved routes |
-| **Route diagram** printed inside a coach: one line, stations as circles, small stops as ticks | **A train's stops** | Train view (the line); the ticket's strip between from and to |
-| **Train window**: rounded, framed, the view sliding past | **Photos of where you're going**, and **waiting** | Place cover; the landscape passing while the timetable or a guide loads |
-| **Railway poster**: flat inks, big condensed name | **Sharing a place** | The poster made when you share |
-| **Postcards** | Places to visit, and journeys worth taking | Sights gallery, Discover, the bucket list |
-| **Timetable notes**: the numbered footnotes of a timetable book | **Facts**, each with its source | Discover ("Note 17"), a place's own fact, the landing page |
-| **Interchange symbol** of a line diagram: the line breaks, a linked pair of rings | **Changing trains** | Journeys with one change: the panel, the ticket strip, the map |
-| **Railway map symbol**: a line with sleeper ties; stations as open circles | The network | Map (ties appear when zoomed in) |
-| **Signals**: green, amber, red | State only, never decoration | "Next train" dot |
+- **One panel** beside the map (a sheet you pull up on phones) holds everything, top to bottom:
+  the brand and a few icons; *Explore* or *Plan a trip*; the From / To fields; then what you're
+  looking at: the places you can reach, a place, a train, a trip, Discover, what you saved.
+- **The map** shows where. Lines from where you start, coloured by ride time; photos of the
+  places worth going to, a few at first and more as you zoom in; the picked place ringed.
+- **Over the map**, top right: the weather layer and zoom. Nothing else floats.
 
-The map itself stays geographic: lines follow the real track. The schematic, time-spaced
-language of the line diagram is kept for the side panel, where it explains one train.
+## Colour
 
-## Palettes
+- **White surfaces**, a pale blue-grey sea, near-white land. Night swaps them for deep slate.
+- **Blue** is trains: the lines, a train's stops, links, the ride you're on.
+- **Red** is you and what you picked: where you start, the picked place, a trip's stops, the
+  pin of a place without a station. One red thing per view, ideally.
+- **Yellow** is the brand mark, and the soft note on things that aren't trains (a place with no
+  station, a toy train). Nothing loud.
+- Ride time on the map is one hue getting lighter the further you'd go, not a rainbow. The
+  weather layer is the one place with a full scale, because temperature has one.
 
-Two times of day, not two "skins":
-
-- **Day**: a printed timetable book. Paper land, pale blue-grey sea, ICF-blue ink, board yellow,
-  Rajdhani red. The default.
-- **Night**: a station after dark. Deep livery blue, lamp-yellow lines, warm cream text.
-  The station boards stay the same yellow, the flap tiles and LED boards stay dark and amber,
-  as they do at night.
-
-Distance on the map is one hue getting lighter the further you'd travel, not a rainbow.
 All colours are CSS variables in `src/ui/style.css`; the canvas map reads the same variables.
-The poster uses its own five inks (navy, teal, terracotta, marigold, paper), because a printed
-poster has its own palette.
 
 ## Type
 
-- **Archivo** for everything. Condensed, heavy capitals for station boards, LED boards and
-  posters (it has a width axis); regular width for reading.
-- **Noto Sans** in each Indian script, for names in Hindi and the local language.
-- Numbers are tabular so times line up like a printed timetable.
+Archivo for everything, at reading width; Noto Sans for Indian scripts. Figures are tabular so
+times line up. Headings are semibold and small; the only big type is a place's name and a
+train's times.
 
 ## Motion
 
-Motion is the train's, and it's slow:
-
-- things **arrive** (a cover photo glides in and stops, like a platform sliding into view),
-  **depart**, and **spread outward** from where you are (the map's lines);
-- flap tiles **fold** once when a time is shown, then stay still;
-- the window's landscape **passes** only while you wait, with far hills slow and poles fast;
-- the ticket's route strip **draws** from where you start to where you're going.
-
-Nothing loops for attention. Everything stops for `prefers-reduced-motion`, and the trains
-moving on the map (by the timetable, three minutes a second) have a pause button.
+Short and only in answer to you: the view moves to what you picked in about half a second; the
+lines from a new start fade in over a quarter of a second; photos appear as they load. Nothing
+loops, nothing moves on its own, and `prefers-reduced-motion` makes all of it instant.
 
 ## Rules
 
-1. Yellow means a place name. If it isn't a place, it isn't yellow.
-2. Red means you or your choice. One red thing per view at most, ideally.
-3. Dark tiles and amber dots mean departures: trains and their times. Nothing else glows.
-   (A train in search results, or a leg of a journey, wears its number on the same dark board.)
-4. Show little at first: about a dozen places as photo bubbles, more as you zoom in. A train's
-   stops before you board and after you get off fold away until asked for.
-5. Structure comes from rules and ruled lines, not from boxes. Cards only where a real object
-   exists (a ticket, a postcard, a board, a window, a poster).
-6. Photos are real (Wikimedia Commons) and always credited, on the poster too.
+1. One place for everything: if it isn't the map, it's in the panel.
+2. Show little at first. A dozen photos, four trains, the stops around yours; more when asked.
+3. Say where facts come from (the timetable, Wikipedia, Open-Meteo) and when they're estimates
+   (road times).
+4. Cards only where there's a real thing (a ticket's facts, a train you could take, a trip's
+   stretch); otherwise ruled lines and space.
+5. Photos are real (Wikimedia Commons) and always credited.
+6. Every view has an address, so it can be shared and the Back button works.

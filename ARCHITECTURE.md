@@ -16,7 +16,7 @@ The build needs nothing but `db/`, so it runs in CI and gives the same bytes eve
 
 ## In the browser
 
-`main.ts` fetches four files in parallel, decodes them, and starts the app. The map is drawn as
+`main.ts` fetches five files in parallel, decodes them, and starts the app. The map is drawn as
 soon as they arrive; the track geometry follows a moment later and the lines re-draw along the
 real track.
 
@@ -25,18 +25,23 @@ real track.
 | `meta.json`: stations, cities, train names, renamed stations, newer trains | 826 kB | 188 kB | first paint |
 | `timetable.bin`: every halt of every train | 1.3 MB | 329 kB | first paint |
 | `places/index.json`: which place has a guide, its photos | 373 kB | 76 kB | first paint |
+| `spots.json`: towns without a station, airports | 116 kB | ~40 kB | first paint |
 | `paths.bin`: stations passed between halts | 848 kB | 121 kB | after first paint |
 | `places/NN.json` ×32: intros and sights | ~40 kB | ~10 kB | when a place opens |
 
 The two binary files ship gzipped too (`scripts/compress-data.mjs`, run before every build):
 hosts compress JSON on the fly, but not always binary files (Cloudflare doesn't by default), so
 the app fetches the `.gz` copies and unpacks them itself (`DecompressionStream`). The map draws
-only when something changes (view, selection, a photo arriving, an animation) and redraws the
-moving trains four to twelve times a second (fewer with the whole country in view, where they
-move less than a pixel a second), so an idle map costs almost no CPU. The land and the faint
-network are a separate canvas under the map, redrawn only when the view moves; station boards
-are drawn once into small images and copied; dots and trains are gathered into a few paths. The offline copy is fetched
-once the page and its photos are in, never alongside them.
+only when something changes (view, selection, a photo arriving, a short fade), so a still map
+costs no CPU. The land, the faint network and the weather layer are a separate canvas under the
+map, moved as a picture while you pan or pinch and redrawn crisp when the view settles; labels
+are drawn once into small images and copied; station dots are gathered into a few paths. The
+offline copy is fetched once the page and its photos are in, never alongside them.
+
+A few things come from outside, only when you ask: the weather (Open-Meteo: a place's week when
+you open it; about 200 points for the map layer, blended smoothly between them on the land), a
+town not in `spots.json` (Open-Meteo's place search, once you pause typing), and a town's summary
+and photo (Wikipedia). Answers are kept for half an hour.
 
 Every file name carries a content hash, so the CDN and browsers can cache it for a year and a new
 timetable is picked up the moment the HTML points at new names. The service worker precaches all
@@ -46,18 +51,21 @@ of it after the first visit, so the whole country works offline; photos are cach
 
 - **`core/`**: pure functions over typed arrays, no DOM. Decoding (`network.ts`), "where can I go
   from here" (`trips.ts`), guides and shards (`places.ts`), ranking photo bubbles (`rank.ts`),
-  search (`search.ts`), addresses (`slugs.ts`). Tested in Node against the real data, and reused
+  search (`search.ts`), addresses (`slugs.ts`), places without a station and the stations and
+  roads to them (`spots.ts`), trips with several stops (`tripplan.ts`: for each stretch the train
+  that runs that day and arrives first, a change, or the road), weather (`weather.ts`). Tested in Node against the real data, and reused
   by the prerender script.
-- **`map/`**: one canvas, redrawn on demand: d3 projection and zoom, routes coloured by ride time,
-  photo bubbles laid out to avoid each other and the UI, trains moving on the timetable clock.
+- **`map/`**: one canvas over a land layer, redrawn on demand: d3 projection and zoom, routes
+  coloured by ride time, photos laid out to avoid each other and the panel, a train's or a
+  trip's route, the roads to a place without a station, and the weather.
 - **`ui/`**: HTML templates and small widgets. Templates are pure functions returning strings with
   every value escaped; interaction is event delegation on `[data-act]`, so there are no inline
   handlers (compatible with a strict Content Security Policy).
-  `boards.ts` has the station's moving parts (flap tiles, LED boards, the landscape passing a
-  window); `poster.ts` draws the share poster on a canvas, in the browser. DESIGN.md says what
-  each object is for.
-- **`app/`**: the controller holds the state (origin, filters, what's open), keeps the address bar
-  in sync (`router.ts`), and moves focus for keyboard and screen-reader users.
+  `home.ts` (home, and the places from where you start), `spot.ts`, `trip.ts` and `weather.ts`
+  are the new views; `poster.ts` draws the share poster on a canvas, in the browser.
+- **`app/`**: the controller holds the state (explore or trip, origin, filters, what's open, the
+  trip), keeps the address bar in sync (`router.ts`), and moves focus for keyboard and
+  screen-reader users.
 
 ### Addresses
 
@@ -67,7 +75,9 @@ of it after the first visit, so the whole country works offline; photos are cach
 /from/bengaluru/to/hampi/          one place and the trains that go there
 /from/bengaluru/to/mysuru/12007/   one train's stops
 /to/hampi/                         a place, before choosing where you start
-?within=360&leave=2h               filters
+/to/munnar/                        a place without a station (?at=32.01,77.32 for one found online)
+/trip/?stops=bengaluru,hampi,goa&nights=0,2,3&date=2026-10-09   a trip
+?within=360&leave=2h&trains=toy    filters (trains: long, local, toy)
 ```
 
 Cities keep their ids as slugs; stations get a slug of their name, and the busier of two stations

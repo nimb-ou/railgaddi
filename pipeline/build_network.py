@@ -29,6 +29,17 @@ TYPE_LABELS = {
     "Spl": "Special", "VB": "Vande Bharat", "AB": "Amrit Bharat",
 }
 
+# The hill railways' little trains: any train that runs only within one of these lines is a toy
+# train, whatever the timetable files it as (the 2017 one calls them Passenger or DEMU).
+HERITAGE = {
+    "Kalka–Shimla Railway": "KLK TSL GMM KOTI SWO DMP KMTI BOF SOL SLR KDZ KANO KEJ SGS TVI JTO SHZ SML",
+    "Darjeeling Himalayan Railway": "NJP SGUJ SN RTG TDH GBE MHN KGN TUNG SAD GHUM DJ",
+    "Nilgiri Mountain Railway": "MTP KXR HLG ADR RNE ONR WEL AVK KXT LOV UAM",
+    "Kangra Valley Railway": "PTK PTKC DLSR KAWL NUPR TLRA BLDL BRMR JWLS HRDR MGRP NGRS BRHL NDBT GULR LNS TRPL JMKR KPLR KGRA KGMR SMLT NGRT CMMG PRAR SLHP PLMX PTRJ PHRH MNHL BJPL BJMR AHJU CTZ JDNX",
+    "Matheran Hill Railway": "NRL JUM WHR AMAN MAE",
+}
+HERITAGE = {line: set(codes.split()) for line, codes in HERITAGE.items()}
+
 # ---------- read db/ ----------
 stations = {}
 for r in read_table("stations"):
@@ -139,7 +150,12 @@ for no in sorted(train_rows):
             short = lambda c: re.sub(r"\s+(Junction|Jn\.?|Terminus|Road|Halt)$", "", stations[c]["name"])  # noqa: E731
             name = f"{short(stops[0][0])} – {short(stops[-1][0])} {TYPE_LABELS.get(t['type'], t['type'])}"
             renamed_local.append(no)
-    trains.append(dict(number=no, name=name, type=t["type"], days=days_mask(t["days"]), src=src, stops=stops))
+    kind = t["type"]
+    codes = {x[0] for x in stops if x[1] is not None or x[2] is not None}  # halts, not the stations it passes
+    # NJP and Pathankot are big stations too: a toy train keeps to its line, and its hill end is on it
+    if kind in ("Pass", "DEMU", "Exp", "Spl") and any(codes <= line and len(codes & line) >= 2 and codes - {"NJP", "SGUJ", "PTK", "PTKC", "KLK", "MTP", "NRL"} for line in HERITAGE.values()):
+        kind = "Toy"
+    trains.append(dict(number=no, name=name, type=kind, days=days_mask(t["days"]), src=src, stops=stops))
 
 newer = read_table("newer_trains")
 SOURCES = {
@@ -148,6 +164,7 @@ SOURCES = {
     "tag2026": "Indian Railways' 2026 timetable (Trains at a Glance)",
 }
 source_keys = sorted({t["src"] for t in trains})
+print(f"toy trains on the hill railways: {sum(1 for t in trains if t['type'] == 'Toy')}")
 print(f"left out: {len(skipped)} seasonal specials and retired trains from the 2017 timetable; "
       f"{len(renamed_local)} local trains named after their own ends")
 print(f"db/: {len(stations)} stations, {len(trains)} trains, {sum(len(v) for v in halts.values())} halts, "

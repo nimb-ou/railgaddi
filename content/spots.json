@@ -1,0 +1,33 @@
+{
+  "note": "Places people travel to that have no railway station of their own, beyond the towns GeoNames lists: famous valleys, resorts and parks (with coordinates checked against Wikipedia), and the names people use for them. pipeline/build_spots.py adds these to the towns.",
+  "extra": [
+    { "name": "Kasol", "state": "Himachal Pradesh", "lat": 32.0100, "lon": 77.3150 },
+    { "name": "McLeod Ganj", "state": "Himachal Pradesh", "lat": 32.2426, "lon": 76.3213 },
+    { "name": "Kaza", "state": "Himachal Pradesh", "lat": 32.2272, "lon": 78.0710, "aka": "Spiti Valley" },
+    { "name": "Khajjiar", "state": "Himachal Pradesh", "lat": 32.5500, "lon": 76.0600 },
+    { "name": "Bir Billing", "state": "Himachal Pradesh", "lat": 32.0450, "lon": 76.7200 },
+    { "name": "Auli", "state": "Uttarakhand", "lat": 30.5286, "lon": 79.5645 },
+    { "name": "Valley of Flowers", "state": "Uttarakhand", "lat": 30.7280, "lon": 79.6050 },
+    { "name": "Kausani", "state": "Uttarakhand", "lat": 29.8431, "lon": 79.6040 },
+    { "name": "Munsyari", "state": "Uttarakhand", "lat": 30.0677, "lon": 80.2394 },
+    { "name": "Sonamarg", "state": "Jammu and Kashmir", "lat": 34.3000, "lon": 75.2900 },
+    { "name": "Tawang", "state": "Arunachal Pradesh", "lat": 27.5861, "lon": 91.8594 },
+    { "name": "Ziro", "state": "Arunachal Pradesh", "lat": 27.5450, "lon": 93.8317 },
+    { "name": "Lachung", "state": "Sikkim", "lat": 27.6895, "lon": 88.7440 },
+    { "name": "Pelling", "state": "Sikkim", "lat": 27.3000, "lon": 88.2300 },
+    { "name": "Kaziranga National Park", "state": "Assam", "lat": 26.6600, "lon": 93.3600, "aka": "Kaziranga" },
+    { "name": "Mawlynnong", "state": "Meghalaya", "lat": 25.2016, "lon": 91.9160 },
+    { "name": "Swaraj Dweep (Havelock Island)", "state": "Andaman and Nicobar Islands", "lat": 11.9760, "lon": 92.9880, "aka": "Havelock" }
+  ],
+  "aliases": {
+    "Coorg": "Madikeri",
+    "Kodagu": "Madikeri",
+    "Ladakh": "Leh",
+    "Spiti": "Kaza",
+    "Andaman": "Port Blair",
+    "Andaman Islands": "Port Blair",
+    "Wayanad": "Kalpetta",
+    "Cherrapunji": "Sohra",
+    "Dharamkot": "McLeod Ganj"
+  }
+}

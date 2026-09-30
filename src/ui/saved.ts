@@ -74,17 +74,17 @@ export function savedHtml(v: SavedView) {
         .map(
           (r) => `<li>
             <a class="saved-route" href="${esc(r.href ?? "#")}" data-act="nav">
-              <span class="sr-ends"><b>${esc(r.from)}</b><i aria-hidden="true">→</i><b>${esc(r.to)}</b></span>
+              <span class="sr-ends"><b>${esc(r.from)}</b>${r.to ? `<i aria-hidden="true">→</i><b>${esc(r.to)}</b>` : ""}</span>
               <span class="sr-note">${esc(r.note)}</span>
             </a>
-            <button class="unsave" type="button" data-act="unsave" data-key="${esc(r.key)}" aria-label="Remove the route ${esc(r.from)} to ${esc(r.to)}">${X}</button>
+            <button class="unsave" type="button" data-act="unsave" data-key="${esc(r.key)}" aria-label="Remove ${esc(r.to ? `the route ${r.from} to ${r.to}` : r.from)}">${X}</button>
           </li>`,
         )
         .join("")}</ol>`
-    : `<p class="empty">No saved routes. Save one from a place's ticket (${BOOKMARK}) or from a journey with a change.</p>`;
+    : `<p class="empty">No saved trips or routes. Save a route from a place (${BOOKMARK}), or a trip from the planner.</p>`;
   return `<div class="panel-scroll">
     <header class="list-head">
-      <h2 id="panel-title" tabindex="-1" class="saved-title">Your trips</h2>
+      <h2 id="panel-title" tabindex="-1" class="saved-title">Saved</h2>
       <button class="round" type="button" data-act="close" aria-label="Close">${CLOSE}</button>
     </header>
     ${accountHtml(v)}
@@ -93,7 +93,7 @@ export function savedHtml(v: SavedView) {
       ${places}
     </section>
     <section aria-labelledby="routes-h">
-      <div class="section-head"><h3 id="routes-h">Saved routes</h3><span class="count">${v.routes.length || ""}</span></div>
+      <div class="section-head"><h3 id="routes-h">Trips and routes</h3><span class="count">${v.routes.length || ""}</span></div>
       ${routes}
     </section>
   </div>`;

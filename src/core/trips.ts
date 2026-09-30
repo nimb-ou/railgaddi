@@ -21,13 +21,23 @@ export interface Destination {
 }
 
 export type Leave = "any" | "2h" | "6h" | "overnight";
+/** Which trains: every one, the long-distance ones, the local ones (passenger, MEMU, DEMU), or the hill railways' toy trains. */
+export type Kind = "all" | "long" | "local" | "toy";
 
 export interface Filters {
   leave: Leave;
   within: number; // max journey minutes; Infinity = any
+  kind?: Kind;
 }
 
-export const ANY: Filters = { leave: "any", within: Infinity };
+export const ANY: Filters = { leave: "any", within: Infinity, kind: "all" };
+
+const LOCAL = new Set(["Pass", "MEMU", "DEMU"]);
+
+/** What kind of train this is, for the "which trains" filter. */
+export function kindOf(t: Train): Exclude<Kind, "all"> {
+  return t.type === "Toy" ? "toy" : LOCAL.has(t.type) ? "local" : "long";
+}
 
 export function departures(net: Network, origin: Place): Map<Place, Destination> {
   const originSet = new Set(origin.stations);
@@ -137,6 +147,7 @@ export function arrivals(net: Network, dest: Place): Map<Place, Destination> {
 
 export function legPasses(leg: Leg, f: Filters, now: number) {
   if (leg.dur > f.within) return false;
+  if (f.kind && f.kind !== "all" && kindOf(leg.train) !== f.kind) return false;
   switch (f.leave) {
     case "any":
       return true;
@@ -211,7 +222,8 @@ export const CHANGE_SAME_STATION = 45;
 export const CHANGE_ACROSS_TOWN = 120;
 
 /** Does this ride leave its boarding halt on weekday `d` (0 = Monday)? Unknown days: yes. */
-function runsOn(leg: Leg, d: number) {
+/** Does this ride board on weekday `d` (0 = Monday)? Unknown running days count as daily. */
+export function runsOn(leg: Leg, d: number) {
   const days = leg.train.days;
   if (!days) return true;
   const onTheWay = Math.floor(leg.train.dep[leg.from] / 1440);

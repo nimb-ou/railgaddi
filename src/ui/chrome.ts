@@ -1,31 +1,28 @@
-// The frame around the map: Day/Night switch, the About dialog, and the pause button for the
-// moving trains (moving content needs one: WCAG 2.2.2).
+// The frame around the map: the Day/Night switch and the About dialog.
 import type { RailMap } from "../map/map";
-import { THEMES, applyTheme, savedTheme, type ThemeId } from "./theme";
+import { applyTheme, savedTheme } from "./theme";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
-
-const ICONS: Record<ThemeId, string> = {
-  day: `<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.6M8 12.9v1.6M1.5 8h1.6M12.9 8h1.6M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M3.4 12.6l1.1-1.1M11.5 4.5l1.1-1.1"/></svg>`,
-  night: `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13 9.8A5.5 5.5 0 0 1 6.2 3a5.5 5.5 0 1 0 6.8 6.8z"/></svg>`,
-};
+const MOON = "M16 11.8A6.5 6.5 0 0 1 8.2 4a6.5 6.5 0 1 0 7.8 7.8z";
+const SUN = "M10 6.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7zM10 1.8v1.6M10 16.6v1.6M1.8 10h1.6M16.6 10h1.6M4.2 4.2l1.1 1.1M14.7 14.7l1.1 1.1M4.2 15.8l1.1-1.1M14.7 5.3l1.1-1.1";
 
 export function applySavedTheme() {
   applyTheme(savedTheme());
 }
 
 export function setupChrome(map: RailMap, onTheme: () => void) {
-  // Day / Night
-  const themes = $("themes");
-  themes.innerHTML = THEMES.map((t) => `<button type="button" role="radio" data-id="${t.id}" aria-label="${t.name}">${ICONS[t.id]}<span>${t.name}</span></button>`).join("");
+  // Day / Night: one button, showing what it switches to
+  const btn = $("theme-btn");
+  const icon = $("theme-icon");
   const mark = () => {
-    for (const b of themes.querySelectorAll<HTMLElement>("button")) b.setAttribute("aria-checked", String(b.dataset.id === document.documentElement.dataset.theme));
+    const night = document.documentElement.dataset.theme === "night";
+    icon.setAttribute("d", night ? SUN : MOON);
+    btn.setAttribute("aria-label", night ? "Switch to light" : "Switch to dark");
+    btn.title = night ? "Light" : "Dark";
   };
   mark();
-  themes.addEventListener("click", (e) => {
-    const b = (e.target as HTMLElement).closest<HTMLElement>("button");
-    if (!b) return;
-    applyTheme(b.dataset.id as ThemeId);
+  btn.addEventListener("click", () => {
+    applyTheme(document.documentElement.dataset.theme === "night" ? "day" : "night");
     mark();
     map.readTheme();
     onTheme();
@@ -33,13 +30,13 @@ export function setupChrome(map: RailMap, onTheme: () => void) {
 
   // About
   const info = $("info");
-  const btn = $("info-btn");
+  const infoBtn = $("info-btn");
   const setInfo = (on: boolean) => {
     info.hidden = !on;
-    btn.setAttribute("aria-expanded", String(on));
+    infoBtn.setAttribute("aria-expanded", String(on));
     if (on) info.querySelector<HTMLElement>("h2")?.focus();
   };
-  btn.addEventListener("click", (e) => {
+  infoBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     setInfo(info.hidden);
   });
@@ -49,26 +46,12 @@ export function setupChrome(map: RailMap, onTheme: () => void) {
     document.getElementById("privacy")?.scrollIntoView({ block: "center" });
   });
   document.addEventListener("click", (e) => {
-    if (!info.hidden && !info.contains(e.target as Node) && e.target !== btn) setInfo(false);
+    if (!info.hidden && !info.contains(e.target as Node) && e.target !== infoBtn) setInfo(false);
   });
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !info.hidden) {
       setInfo(false);
-      btn.focus();
+      infoBtn.focus();
     }
   });
-
-  // the moving trains: a pause button (anything that moves on its own must be pausable)
-  const toggle = $("clock-toggle");
-  const icon = $("clock-icon");
-  const setPlaying = (on: boolean) => {
-    map.playing = on;
-    toggle.setAttribute("aria-pressed", String(on));
-    const label = on ? "Pause the moving trains" : "Play the moving trains";
-    toggle.setAttribute("aria-label", label);
-    toggle.title = label;
-    icon.setAttribute("d", on ? "M4 3h3v10H4zM9 3h3v10H9z" : "M5 3l8 5-8 5z");
-  };
-  toggle.addEventListener("click", () => setPlaying(!map.playing));
-  setPlaying(!window.matchMedia("(prefers-reduced-motion: reduce)").matches);
 }

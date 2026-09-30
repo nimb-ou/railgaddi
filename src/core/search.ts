@@ -68,6 +68,8 @@ export function searchTrains(net: Network, q: string, limit = 3): Train[] {
   if (/^\d{3,5}$/.test(query)) {
     return net.trains.filter((t) => t.no.startsWith(query)).sort((a, b) => a.no.localeCompare(b.no)).slice(0, limit * 2);
   }
+  // "toy train": the hill railways' little trains
+  if (/^toy(\s*trains?)?$/.test(query)) return net.trains.filter((t) => t.type === "Toy").sort((a, b) => a.st.length - b.st.length).slice(0, 8);
   if (query.length < 4 || /^(express|superfast|special|passenger|mail|train|junction)/.test(query)) return [];
   let names = trainNames.get(net);
   if (!names) trainNames.set(net, (names = net.trains.map((t) => fold(t.name))));

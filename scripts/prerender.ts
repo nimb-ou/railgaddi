@@ -14,6 +14,7 @@ import { decodeNetwork, type MetaFile, type Place } from "../src/core/network";
 import { buildGuideIndex, type ArticleDetail, type GuideView, type PlacesIndex } from "../src/core/places";
 import { rankPlaces } from "../src/core/rank";
 import { buildSlugs, titleOf } from "../src/core/slugs";
+import { Spots, nearestAirports, nearestStations } from "../src/core/spots";
 import { arrivals, departures, newerBetween, type Leg } from "../src/core/trips";
 import { photoUrl } from "../src/ui/photos";
 import type { DiscoverData } from "../src/ui/discover";
@@ -31,6 +32,7 @@ const net = decodeNetwork(meta, buf(read("timetable.bin")));
 const ix = JSON.parse(read("places/index.json").toString()) as PlacesIndex;
 const guides = buildGuideIndex(ix, net);
 const slugs = buildSlugs(net, guides);
+const spots = new Spots(JSON.parse(read("spots.json").toString()), (slug) => !!slugs.find(slug));
 const details = new Map<string, ArticleDetail>();
 for (const f of readdirSync(join(ROOT, "data/places")).filter((f) => /^\d\d\.json$/.test(f))) {
   const shard = JSON.parse(read(`places/${f}`).toString()) as { articles: Record<string, ArticleDetail> };
@@ -105,7 +107,7 @@ function render(pg: Page) {
     const small = pg.image.replace(/\/\d+px-([^/]+)$/, "/500px-$1");
     html = html
       .replace(/<b>Railgaddi<\/b>/, `<b>${esc(pg.imageAlt)}</b>`)
-      .replace(/<div class="landscape ls-window"[\s\S]*?<\/svg><\/div>\s*<\/div>/, `<div class="ls-window ls-photo"><img src="${esc(small)}" alt="" fetchpriority="high" referrerpolicy="no-referrer" /></div>`);
+      .replace('<div class="load-art"></div>', `<div class="load-art"><img src="${esc(small)}" alt="" fetchpriority="high" referrerpolicy="no-referrer" /></div>`);
   }
   if (pg.image) {
     // a place photo isn't 1200×630: let platforms read its real size
@@ -277,6 +279,33 @@ for (const st of discover.stories) {
   count++;
 }
 
+// places without a station that people look for: towns of 20,000 and more, and the famous extras
+for (const s of spots.list.filter((x) => x.pop >= 20000 || x.pop === 0)) {
+  const ways = nearestStations(net, s, 4);
+  if (!ways.length) continue;
+  const air = nearestAirports(spots.airports, s, 1)[0];
+  const best = ways[0];
+  render({
+    path: `/to/${s.id}/`,
+    title: `${s.name} by train: the nearest stations · Railgaddi`,
+    description: clip(`${s.name}, ${s.state}, has no railway station. Take a train to ${ways.map((w) => titleOf(w.place, null)).slice(0, 3).join(", ")}, then about ${fmtMins(best.road.mins)} by road. The weather there, and the trains.`),
+    body: `<h1>${esc(s.name)} by train</h1><p>${esc(s.name)} (${esc(s.state)}) has no railway station of its own. The stations to take a train to, and the road from each (estimated):</p>
+      <ol>${ways.map((w) => `<li>${link(path(undefined, w.place), titleOf(w.place, null))}: about ${w.road.km} km, ${fmtMins(w.road.mins)} by road</li>`).join("")}</ol>
+      ${air ? `<p>Nearest airport: ${esc(air.airport.name)} (${esc(air.airport.iata)}), about ${air.road.km} km.</p>` : ""}`,
+  });
+  urls.push(`/to/${s.id}/`);
+  count++;
+}
+
+render({
+  path: "/trip/",
+  title: "Plan a trip by train · Railgaddi",
+  description: "Plan a trip with several stops: the train that runs each day, the nights at each place, the road to places without a station, and the weather when you're there.",
+  body: `<h1>Plan a trip by train</h1><p>Add the places you want to go, in order, and the nights at each. Railgaddi picks the train that runs that day, the road to places without a station, and shows the weather when you're there.</p>`,
+});
+urls.push("/trip/");
+count++;
+
 render({
   path: "/privacy/",
   title: "Privacy · Railgaddi",
@@ -285,7 +314,8 @@ render({
     <p>Railgaddi has no analytics, no advertising and no tracking.</p>
     <p>Places and routes you save are kept in your browser, on your device.</p>
     <p>If you sign in with Google to keep them on every device, Railgaddi stores Google's account number for you, your first name and profile picture (to show who's signed in), and what you saved. It never receives or stores your email address. You can delete your account and everything in it at any time from "Your trips"; signing out keeps a copy on the device you're using.</p>
-    <p>"Nearest station" asks your browser for your location and uses it only on your device, to pick a station; it is never sent anywhere.</p>
+    <p>"Use my location" asks your browser for your location and uses it only on your device, to pick a station; it is never sent anywhere.</p>
+    <p>The weather comes from Open-Meteo: for the places you look at, their coordinates (never yours) are sent to it. A place name you search for that isn't in Railgaddi's own list is looked up with Open-Meteo's place search, and the summary of a place without a station comes from Wikipedia; only the name is sent.</p>
     <p>Photos load from Wikimedia Commons, and Google's sign-in button from Google, under their own privacy policies.</p>
     <p>Questions: <a href="https://github.com/nimb-ou/railgaddi/issues">github.com/nimb-ou/railgaddi/issues</a>.</p>`,
 });

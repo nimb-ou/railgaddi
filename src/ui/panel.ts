@@ -11,7 +11,21 @@ import { esc } from "./esc";
 import { aspect, coverWidth, credit, photoSrcset, photoUrl } from "./photos";
 
 export { esc };
-const FAST = new Set(["Raj", "Shtb", "Drnt", "JShtb", "GR", "SF"]);
+const FAST = new Set(["Raj", "Shtb", "Drnt", "JShtb", "GR", "SF", "VB", "AB"]);
+const LOCAL = new Set(["Pass", "MEMU", "DEMU"]);
+/** The tag's colour: premium and superfast trains, local ones, and the hill railways' toy trains. */
+const tagClass = (t: Train) => (t.type === "Toy" ? "toy" : LOCAL.has(t.type) ? "local" : FAST.has(t.type) ? "fast" : "");
+
+/** The hill railways, told apart by a station only they have. */
+const HERITAGE: [string, string, boolean][] = [
+  ["DJ", "Darjeeling Himalayan Railway", true],
+  ["SML", "Kalka–Shimla Railway", true],
+  ["UAM", "Nilgiri Mountain Railway", true],
+  ["ONR", "Nilgiri Mountain Railway", true],
+  ["JDNX", "Kangra Valley Railway", false],
+  ["BJPL", "Kangra Valley Railway", false],
+  ["MAE", "Matheran Hill Railway", false],
+];
 const ICON = {
   close: `<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M5 5l10 10M15 5L5 15"/></svg>`,
   share: `<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M10 13V3M6.5 6.5 10 3l3.5 3.5M4 11v5h12v-5"/></svg>`,
@@ -55,6 +69,8 @@ export interface PlaceView {
   newer: NewerTrain[]; // trains between origin and here that we know of but have no times for
   /** Where you can come from, when no start is picked or the picked one has no direct train. */
   getHere: GetHere | null;
+  /** The weather there, now and this week (rendered by ui/weather). */
+  weather: string;
   /** Ways with one change from where you start (when there's no direct train, or they're much quicker). */
   changes: Connection[];
   name: (p: Place) => string;
@@ -204,7 +220,7 @@ export function placeHtml(v: PlaceView) {
           return `<button class="row ${v.passes(l) ? "" : "off"}" type="button" data-act="leg" data-i="${legs.indexOf(l)}">
             <span class="dep">${fmtTime(l.dep)}</span>
             <span><span class="tname">${esc(t.name)}</span>
-              <span class="sub">${esc(t.no)}<span class="tag ${FAST.has(t.type) ? "fast" : ""}">${esc(t.typeLabel)}</span>${multi ? ` · from ${net.stations[t.st[l.from]].code}` : ""}${t.days ? ` · <span class="days">${daysAt(t, l.from)}</span>` : ""}</span></span>
+              <span class="sub">${esc(t.no)}<span class="tag ${tagClass(t)}">${esc(t.typeLabel)}</span>${multi ? ` · from ${net.stations[t.st[l.from]].code}` : ""}${t.days ? ` · <span class="days">${daysAt(t, l.from)}</span>` : ""}</span></span>
             <span class="arr">${fmtTime(t.arr[l.to])}${plusDay ? `<sup>+${plusDay}</sup>` : ""}<small>${fmtMins(l.dur)}</small></span>
           </button>`;
         })
@@ -257,6 +273,7 @@ export function placeHtml(v: PlaceView) {
     ${origin && !legs.length ? changesHtml(v.changes, titleOf(origin, null), title, false, v.name) : ""}
     ${v.getHere ? getHereHtml(v.getHere, title, v.changes.length > 0) : ""}
     ${intro}
+    ${v.weather}
     ${v.fact}
     ${sights}
     ${trains}
@@ -395,6 +412,11 @@ export function trainHtml(net: Network, leg: Leg, fromTitle: string, destTitle: 
   const terminus = st(n - 1);
   const hiRoute = origin.hi && terminus.hi ? `${origin.hi} → ${terminus.hi}` : "";
   const plusDay = Math.floor(t.arr[leg.to] / 1440) - Math.floor(t.dep[leg.from] / 1440);
+  const codes = new Set(Array.from(t.st, (s) => net.stations[s].code));
+  const line = t.type === "Toy" ? HERITAGE.find(([c]) => codes.has(c)) : undefined;
+  const heritage = line
+    ? `<p class="tr-heritage"><b>${esc(line[1])}</b>: ${line[2] ? "one of the Mountain Railways of India, a UNESCO World Heritage Site. " : ""}A narrow line into the hills; book early, seats are few.</p>`
+    : "";
   const runs = shiftDays(t.days, Math.floor(t.dep[leg.from] / 1440));
   return `<div class="panel-scroll">
     <div class="train-top">
@@ -404,12 +426,13 @@ export function trainHtml(net: Network, leg: Leg, fromTitle: string, destTitle: 
     <header class="tr-head">
       <h2 id="panel-title" class="vh" tabindex="-1">${esc(t.no)} ${esc(t.name)}</h2>
       ${ledHtml(t.no, t.name, `${origin.name} → ${terminus.name}`, hiRoute)}
-      <p class="tr-kind"><span class="tag ${FAST.has(t.type) ? "fast" : ""}">${esc(t.typeLabel)}</span>${n - 2 > 0 ? `${plural(n - 2, "halt")} between ${esc(origin.name)} and ${esc(terminus.name)}` : ""}</p>
+      <p class="tr-kind"><span class="tag ${tagClass(t)}">${esc(t.typeLabel)}</span>${n - 2 > 0 ? `${plural(n - 2, "halt")} between ${esc(origin.name)} and ${esc(terminus.name)}` : ""}</p>
       <div class="tr-ride">
         <div><small>Departs ${esc(fromTitle)}</small>${flapHtml(fmtTime(t.dep[leg.from]), true)}</div>
         <i class="tr-line" aria-hidden="true"><span>${fmtMins(leg.dur)} · ${fmtKm(leg.km)} km</span></i>
         <div><small>Arrives ${esc(destTitle)}</small>${flapHtml(fmtTime(t.arr[leg.to]), true)}${plusDay > 0 ? `<sup>${plusDay > 1 ? `${plusDay} days later` : "next day"}</sup>` : ""}</div>
       </div>
+      ${heritage}
       <div class="tr-days">${t.days ? `${runs === 127 ? "" : weekHtml(runs)}<span>Leaves ${esc(from.name)} <b>${runs === 127 ? "every day" : /^Except/.test(daysLabel(runs)) ? daysLabel(runs).replace("Except", "every day except") : `on ${daysLabel(runs)}`}</b></span>` : `<span>Running days not known: check before you go</span>`}</div>
     </header>
     <ol class="line" aria-label="Stops" tabindex="-1">${rows.join("")}</ol>

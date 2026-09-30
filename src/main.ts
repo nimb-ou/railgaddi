@@ -9,14 +9,15 @@ import metaUrl from "../data/meta.json?url";
 import pathsUrl from "../data/paths.bin?url";
 import pathsGzUrl from "../data/paths.bin.gz?url";
 import placesUrl from "../data/places/index.json?url";
+import spotsUrl from "../data/spots.json?url";
 import timetableUrl from "../data/timetable.bin?url";
 import timetableGzUrl from "../data/timetable.bin.gz?url";
 import { App } from "./app/app";
 import { parse } from "./app/router";
-import { istNow } from "./core/format";
 import { applyPaths, decodeNetwork, type MetaFile } from "./core/network";
 import { PlaceDetails, buildGuideIndex, type PlacesIndex } from "./core/places";
 import { buildSlugs } from "./core/slugs";
+import { Spots } from "./core/spots";
 import indiaUrl from "./assets/geo/india.json?url";
 import statesUrl from "./assets/geo/state-lines.json?url";
 import { RailMap } from "./map/map";
@@ -46,24 +47,25 @@ async function binary(plain: string, gz: string): Promise<ArrayBuffer> {
 
 async function boot() {
   applySavedTheme();
-  const [meta, timetable, places, india, states] = await Promise.all([
+  const [meta, timetable, places, india, states, spotsData] = await Promise.all([
     get(metaUrl, "json") as Promise<MetaFile>,
     binary(timetableUrl, timetableGzUrl),
     get(placesUrl, "json") as Promise<PlacesIndex>,
     get(indiaUrl, "json") as Promise<Topology>,
     get(statesUrl, "json") as Promise<Topology>,
+    get(spotsUrl, "json") as Promise<ConstructorParameters<typeof Spots>[0]>,
   ]);
   const net = decodeNetwork(meta, timetable);
   const guides = buildGuideIndex(places, net);
   const slugs = buildSlugs(net, guides);
+  const spots = new Spots(spotsData, (slug) => !!slugs.find(slug));
   const urls = Object.keys(shardUrls)
     .sort()
     .map((k) => shardUrls[k]);
   const details = new PlaceDetails(urls, places.meta.shards);
 
   const map = new RailMap(document.getElementById("map") as HTMLCanvasElement, net, india, states);
-  map.simMinute = istNow();
-  const app = new App(net, guides, slugs, details, map);
+  const app = new App(net, guides, slugs, details, map, spots);
   setupChrome(map, () => app.refreshColors());
   map.fitIndia(0);
   app.applyRoute(parse(), true);
