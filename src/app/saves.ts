@@ -105,6 +105,7 @@ export class Saves {
 
   /** Is there an account API here, and is someone signed in? Quiet if not. */
   async init() {
+    if (location.hostname.endsWith(".github.io")) return; // static hosting only: no accounts there
     const cfg = await api<{ signIn: { google: string } | null }>("GET", "/config");
     this.clientId = cfg?.signIn?.google ?? null;
     if (!this.clientId) return;
