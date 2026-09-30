@@ -23,7 +23,7 @@ follow-up, and consider a letter to the same office (addresses below).
 > train goes, with photos, what to see there, and the trains that run. It sells nothing, has no
 > advertising, and sends people to NTES and IRCTC for live information and booking.
 >
-> While building the site I have used timings from *Trains at a Glance 2026* for about 2,700
+> While building the site I have used timings from *Trains at a Glance 2026* for about 2,650
 > Mail/Express and premium trains, alongside the 2017 timetable published on data.gov.in for the
 > rest. The book notes that timings may not be reproduced without written permission, so I am
 > writing to request that permission. If you would prefer that I not use them, I will remove
@@ -109,13 +109,13 @@ python3 pipeline/build_network.py && npm test
 
 What the 2026 merge did (September 2026):
 
-- 3,323 trains read from 421 pages; 2,718 pass every check (all stations placed, times running
-  forward, no impossible speeds, no halt over six hours) and replace or join the 2017 timetable:
-  1,813 updated, 905 new. 401 of them pass only after a repair the importer reports: a misread
-  row dropped (a route label read as a station, a junction row from another page; at most two,
-  or a sixth of the train) or a day that was counted twice undone. Another 109 trains whose
-  stops couldn't all be read take the book's running days, when its first and last halts match
-  ours. Running days are now known for 3,018 trains.
+- 3,569 train numbers read from 421 pages (including pages printed both ways round, and pages
+  carrying two tables); 2,665 pass every check (all stations placed, running end to end between
+  the two ends the book's Train Name Index gives, times running forward, believable speeds and
+  gaps between halts) and replace or join the 2017 timetable: 1,777 updated, 888 new. Some pass
+  only after a repair the importer reports: a misread row dropped (at most two, or a sixth of
+  the train) or a day counted twice undone. Trains whose stops couldn't all be read take the
+  book's running days when their ends match ours. Running days are known for 2,949 trains.
 - 13 stations renamed since 2017 take their new codes (Jhansi → Virangana Lakshmibai Jhansi,
   Habibganj → Rani Kamlapati, Mughal Sarai → Deen Dayal Upadhyaya…), listed in
   `db/renames.csv`; they stay in their city, keep their guide, and are found by the old name.

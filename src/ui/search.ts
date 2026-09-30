@@ -2,9 +2,10 @@
 // An ARIA combobox: arrow keys move, Enter picks, Escape closes. The same widget serves every
 // "where" field (from, to, the ticket, the place panel); `context` lets a field rank what makes
 // sense there first, e.g. places with a direct train to where you're going.
-import type { Network, Place } from "../core/network";
+import { daysLabel } from "../core/format";
+import type { Network, Place, Train } from "../core/network";
 import type { GuideView } from "../core/places";
-import { searchPlaces } from "../core/search";
+import { searchPlaces, searchTrains } from "../core/search";
 import { esc } from "./panel";
 import { photoUrl } from "./photos";
 
@@ -18,12 +19,16 @@ export interface SearchOptions {
   /** Rows to show before anything is typed (e.g. the fastest direct trains). */
   suggestions?: () => Place[];
   empty?: string;
+  /** Also find trains by number or name, and open one when picked. */
+  onTrain?: (t: Train) => void;
 }
+
+type Item = { p: Place; t?: undefined } | { t: Train; p?: undefined };
 
 let uid = 0;
 
 export class SearchBox {
-  private results: Place[] = [];
+  private results: Item[] = [];
   private active = -1;
   private id = `s${++uid}`;
 
@@ -52,10 +57,10 @@ export class SearchBox {
         this.active = (this.active + (e.key === "ArrowDown" ? 1 : -1) + this.results.length) % this.results.length;
         this.render();
       } else if (e.key === "Enter") {
-        const p = this.results[Math.max(this.active, 0)];
-        if (p) {
+        const it = this.results[Math.max(this.active, 0)];
+        if (it) {
           e.preventDefault();
-          this.pick(p);
+          this.pick(it);
         }
       } else if (e.key === "Escape") {
         if (!this.list.hidden) {
@@ -69,7 +74,8 @@ export class SearchBox {
       const li = (e.target as HTMLElement).closest<HTMLElement>("li[data-i]");
       if (!li) return;
       e.preventDefault();
-      this.pick(this.results[Number(li.dataset.i)]);
+      const it = this.results[Number(li.dataset.i)];
+      if (it) this.pick(it);
     });
     opts.popular?.addEventListener("click", (e) => {
       if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return; // new tab: let the browser
@@ -77,7 +83,7 @@ export class SearchBox {
       const p = b && net.places.get(b.dataset.id!);
       if (p) {
         e.preventDefault();
-        this.pick(p);
+        this.pick({ p });
       }
     });
   }
@@ -86,17 +92,20 @@ export class SearchBox {
     const q = this.input.value;
     const ctx = this.opts.context;
     if (!q.trim()) {
-      this.results = this.opts.suggestions?.() ?? [];
+      this.results = (this.opts.suggestions?.() ?? []).map((p) => ({ p }));
     } else {
       const found = searchPlaces(this.net, this.guides(), q, ctx ? 40 : 6);
       // the order searchPlaces gives, nudged by what makes sense for this field
-      this.results = ctx
+      const places = ctx
         ? found
             .map((p, i) => ({ p, s: (ctx(p)?.boost ?? 0) * 0.3 - i * 0.3 })) // a direct train lifts a match about ten places
             .sort((a, b) => b.s - a.s)
             .slice(0, 6)
             .map((r) => r.p)
         : found;
+      const trains = this.opts.onTrain ? searchTrains(this.net, q) : [];
+      // a number is a train; a name can be either: places first, then a few trains
+      this.results = [...places.slice(0, trains.length ? 5 : 6).map((p) => ({ p })), ...trains.map((t) => ({ t }))];
     }
     this.active = this.results.length && q.trim() ? 0 : -1;
     this.render();
@@ -122,12 +131,13 @@ export class SearchBox {
       picks.map((p) => `<a class="pill" href="${esc(hrefOf(p))}" data-id="${p.id}">${this.face(p).replace('class="s-img"', "")}${esc(p.name)}</a>`).join("");
   }
 
-  private pick(p: Place) {
+  private pick(it: Item) {
     this.input.value = "";
     this.results = [];
     this.close();
     this.input.blur();
-    this.onPick(p);
+    if (it.t) this.opts.onTrain?.(it.t);
+    else this.onPick(it.p);
   }
 
   private render() {
@@ -137,7 +147,16 @@ export class SearchBox {
       this.list.hidden = !q;
     } else {
       this.list.innerHTML = this.results
-        .map((p, i) => {
+        .map((it, i) => {
+          if (it.t) {
+            const t = it.t;
+            const a = this.net.stations[t.st[0]].name;
+            const b = this.net.stations[t.st[t.st.length - 1]].name;
+            return `<li role="option" id="${this.id}-${i}" data-i="${i}" aria-selected="${i === this.active}" class="s-train">
+              <span class="s-img s-no" aria-hidden="true">${esc(t.no)}</span><span class="s-name">${esc(t.name)}</span><span class="s-script">${esc(t.no)}</span>
+              <span class="s-meta">${esc(`${a} → ${b}${t.days ? ` · ${daysLabel(t.days)}` : ""}`)}</span></li>`;
+          }
+          const p = it.p;
           const codes = p.stations.map((s) => this.net.stations[s].code);
           const note = this.opts.context?.(p)?.note;
           const meta = note ?? (p.isCity ? `${p.state} · ${codes.length} stations` : `${p.state ? p.state + " · " : ""}${codes[0]}`);

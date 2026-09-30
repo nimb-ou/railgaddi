@@ -1,6 +1,6 @@
 // Find a city or station as you type: by name, old name, station code, local script,
 // or the famous place next to it ("Hampi" finds Hosapete).
-import type { Network, Place } from "./network";
+import type { Network, Place, Train } from "./network";
 import type { GuideView } from "./places";
 
 const fold = (s: string) => s.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -30,4 +30,28 @@ export function searchPlaces(net: Network, guides: Map<Place, GuideView>, q: str
     scored.push([score + 0.3 * Math.log10(1 + p.halts) + (p.isCity ? 0.6 : 0), p]);
   }
   return scored.sort((a, b) => b[0] - a[0]).slice(0, limit).map((s) => s[1]);
+}
+
+const PREMIUM = new Set(["Raj", "Shtb", "Drnt", "VB", "JShtb", "GR", "AB"]);
+
+/**
+ * Trains by number ("126" -> 12601…, "12627" -> the Karnataka Express) or by name ("deccan"
+ * -> the Deccan Queen). Names need four letters, so a place search isn't swamped by "express".
+ */
+export function searchTrains(net: Network, q: string, limit = 3): Train[] {
+  const query = fold(q.trim());
+  if (/^\d{3,5}$/.test(query)) {
+    return net.trains.filter((t) => t.no.startsWith(query)).sort((a, b) => a.no.localeCompare(b.no)).slice(0, limit * 2);
+  }
+  if (query.length < 4 || /^(express|superfast|special|passenger|mail|train|junction)/.test(query)) return [];
+  const scored: [number, Train][] = [];
+  for (const t of net.trains) {
+    const name = fold(t.name);
+    const at = name.indexOf(query);
+    if (at < 0) continue;
+    // a word that starts with the query beats one that merely contains it; premium trains first
+    const word = at === 0 || /[\s(–-]/.test(name[at - 1]) ? 2 : 0;
+    scored.push([word + (PREMIUM.has(t.type) ? 1 : 0), t]);
+  }
+  return scored.sort((a, b) => b[0] - a[0] || a[1].no.localeCompare(b[1].no)).slice(0, limit).map((s) => s[1]);
 }

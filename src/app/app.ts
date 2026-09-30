@@ -1,7 +1,7 @@
 // The controller: owns what's picked (where you start, the open place or train, the filters),
 // turns that into map and panel updates, and keeps the address bar in step.
 import { fmtMins, fmtTime, istWeekMinute, plural } from "../core/format";
-import type { Network, Place } from "../core/network";
+import type { Network, Place, Train } from "../core/network";
 import type { ArticleDetail, GuideView, Photo, PlaceDetails } from "../core/places";
 import { rankPlaces } from "../core/rank";
 import { titleOf, type Slugs } from "../core/slugs";
@@ -81,20 +81,25 @@ export class App {
     for (const [p, gv] of guides) if (!this.titlePlace.has(gv.title) || p.isCity) this.titlePlace.set(gv.title, p);
 
     const g = () => guides;
+    const onTrain = (t: Train) => this.openTrainByNumber(t);
     this.search = new SearchBox($("origin-input"), $("suggest"), net, g, (p) => this.chooseFrom(p), {
       popular: $("popular"),
       popularIds: POPULAR,
+      onTrain,
     });
     new SearchBox($("to-input"), $("suggest-to"), net, g, (p) => this.chooseTo(p), {
       empty: "No station, city or famous place by that name",
+      onTrain,
     });
     this.tkFrom = new SearchBox($("tk-from-input"), $("tk-from-list"), net, g, (p) => this.chooseFrom(p), {
       context: (p) => this.fromNote(p),
       suggestions: () => this.suggestFrom(),
+      onTrain,
     });
     this.tkTo = new SearchBox($("tk-to-input"), $("tk-to-list"), net, g, (p) => this.chooseTo(p), {
       context: (p) => this.toNote(p),
       suggestions: () => this.suggestTo(),
+      onTrain,
     });
     this.renderPopular();
     $("tk-from").addEventListener("click", () => this.editTicket("from"));
@@ -746,6 +751,15 @@ export class App {
     const f = short[Math.floor(Math.random() * short.length)];
     el.innerHTML = `<span>Did you know?</span> ${esc(f.text)} <a href="${href({ discover: "" })}">More in Discover →</a>`;
     el.hidden = false;
+  }
+
+  /** A train found by number or name: its whole run, from its first station to its last. */
+  private openTrainByNumber(t: Train) {
+    $("tk-edit").hidden = true;
+    const a = this.net.placeOf[t.st[0]];
+    let b = this.net.placeOf[t.st[t.st.length - 1]];
+    for (let j = t.st.length - 2; b === a && j > 0; j--) b = this.net.placeOf[t.st[j]]; // a round trip: its far end
+    this.goRoute({ origin: this.slugs.of(a), place: this.slugs.of(b), train: t.no });
   }
 
   /** Follow a link inside Discover to a route in the app. */
