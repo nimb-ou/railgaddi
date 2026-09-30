@@ -43,6 +43,11 @@ export function setupChrome(map: RailMap, onTheme: () => void) {
     e.stopPropagation();
     setInfo(info.hidden);
   });
+  // /privacy/ opens the About box at its privacy note
+  if (/\/privacy\/?$/.test(location.pathname)) requestAnimationFrame(() => {
+    setInfo(true);
+    document.getElementById("privacy")?.scrollIntoView({ block: "center" });
+  });
   document.addEventListener("click", (e) => {
     if (!info.hidden && !info.contains(e.target as Node) && e.target !== btn) setInfo(false);
   });

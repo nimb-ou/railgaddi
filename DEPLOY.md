@@ -40,6 +40,10 @@ GitHub Pages is live now at https://nimb-ou.github.io/railgaddi/ and redeploys o
    `https://railgaddi.in/sitemap.xml`. Same at [Bing Webmaster Tools](https://www.bing.com/webmasters)
    (it can import from Google).
 
+7. **Accounts (optional)**: to let people sign in with Google and keep their saved trips on
+   every device, follow [docs/accounts.md](docs/accounts.md). Without it, saving works on each
+   device only.
+
 ## Or keep GitHub Pages with your domain
 
 1. GitHub → *Settings* → *Pages* → *Custom domain* → `railgaddi.in` → Save, then tick

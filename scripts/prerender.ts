@@ -268,6 +268,21 @@ for (const st of discover.stories) {
   count++;
 }
 
+render({
+  path: "/privacy/",
+  title: "Privacy · Railgaddi",
+  description: "Railgaddi has no analytics, advertising or tracking. Saves stay on your device; signing in with Google keeps them on every device, without your email.",
+  body: `<h1>Privacy</h1>
+    <p>Railgaddi has no analytics, no advertising and no tracking.</p>
+    <p>Places and routes you save are kept in your browser, on your device.</p>
+    <p>If you sign in with Google to keep them on every device, Railgaddi stores Google's account number for you, your first name and profile picture (to show who's signed in), and what you saved. It never receives or stores your email address. You can delete your account and everything in it at any time from "Your trips"; signing out keeps a copy on the device you're using.</p>
+    <p>"Nearest station" asks your browser for your location and uses it only on your device, to pick a station; it is never sent anywhere.</p>
+    <p>Photos load from Wikimedia Commons, and Google's sign-in button from Google, under their own privacy policies.</p>
+    <p>Questions: <a href="https://github.com/nimb-ou/railgaddi/issues">github.com/nimb-ou/railgaddi/issues</a>.</p>`,
+});
+urls.push("/privacy/");
+count++;
+
 // ---------------------------------------------------------------- sitemap, robots, 404
 const today = new Date().toISOString().slice(0, 10);
 writeFileSync(

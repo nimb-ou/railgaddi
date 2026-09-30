@@ -19,11 +19,13 @@ seat, line diagram, travel poster) all live here, each as one of those objects, 
 | **Coach livery**: ICF blue (lamp yellow at night) | Railway lines, ink, structure | Routes, text, selected tabs |
 | **Rajdhani red** | **You, and what you picked**. Used sparingly. | Selected place ring, your train on the map, links, "Day 2" |
 | **Printed timetable** (Trains at a Glance): ruled lines, small capitals, tabular figures | Facts and schedules | Train list, dock filters, section headings |
-| **Ticket** with notched edges | One journey's facts: from → to, fastest, trains, distance, next train | Place panel |
+| **Ticket** with notched edges | One journey's facts: from → to, fastest, trains, distance, next train; a saved route | Place panel, "Ride it" in a story, saved routes |
 | **Route diagram** printed inside a coach: one line, stations as circles, small stops as ticks | **A train's stops** | Train view (the line); the ticket's strip between from and to |
 | **Train window**: rounded, framed, the view sliding past | **Photos of where you're going**, and **waiting** | Place cover; the landscape passing while the timetable or a guide loads |
 | **Railway poster**: flat inks, big condensed name | **Sharing a place** | The poster made when you share |
-| **Postcards** | Places to visit | Sights gallery |
+| **Postcards** | Places to visit, and journeys worth taking | Sights gallery, Discover, the bucket list |
+| **Timetable notes**: the numbered footnotes of a timetable book | **Facts**, each with its source | Discover ("Note 17"), a place's own fact, the landing page |
+| **Interchange symbol** of a line diagram: the line breaks, a linked pair of rings | **Changing trains** | Journeys with one change: the panel, the ticket strip, the map |
 | **Railway map symbol**: a line with sleeper ties; stations as open circles | The network | Map (ties appear when zoomed in) |
 | **Signals**: green, amber, red | State only, never decoration | "Next train" dot |
 
@@ -70,6 +72,7 @@ moving on the map (by the timetable, three minutes a second) have a pause button
 1. Yellow means a place name. If it isn't a place, it isn't yellow.
 2. Red means you or your choice. One red thing per view at most, ideally.
 3. Dark tiles and amber dots mean departures: trains and their times. Nothing else glows.
+   (A train in search results, or a leg of a journey, wears its number on the same dark board.)
 4. Show little at first: about a dozen places as photo bubbles, more as you zoom in. A train's
    stops before you board and after you get off fold away until asked for.
 5. Structure comes from rules and ruled lines, not from boxes. Cards only where a real object

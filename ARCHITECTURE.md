@@ -110,6 +110,25 @@ bubble photo, banner, position and an "appeal" score. Each guide's intro and sig
 Photos are stored as Commons thumbnail paths; the app asks for the width the screen needs
 (`ui/photos.ts`), never more than the original.
 
+## Accounts
+
+`worker/index.ts` is the Cloudflare Worker that also serves the static files. Only `/api/*`
+runs code (`run_worker_first`); everything else is a static asset as before. The API checks a
+Google ID token once (`worker/auth.ts`: RS256 against Google's keys, issuer, audience, expiry),
+then keeps a session in an HMAC-signed HttpOnly cookie. Saves live in D1 (`worker/schema.sql`),
+one row per saved place or route, merged per item by time (`src/core/saves.ts`, shared with the
+browser). Without a database or client id, `/api/config` says so and the site keeps saves on the
+device. Setup: [docs/accounts.md](docs/accounts.md).
+
+## Discover
+
+`content/discover.json` holds the journeys and facts, written for Railgaddi with a source for
+each. `pipeline/build_discover.py` checks every station code and train against the timetable,
+adds each story's photo and credit from Commons, and writes `data/discover.json` (35 kB), which
+the app fetches when idle. Facts that name a station also appear on that place's panel. The
+records ("By the numbers") are computed in the browser from the timetable (`src/core/numbers.ts`),
+so they always match it, and double as a check on the data: an absurd record is a data error.
+
 ## Prerendered pages
 
 `scripts/prerender.ts` loads the same data with the same `core/` code and writes an `index.html`

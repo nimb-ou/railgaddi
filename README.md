@@ -8,12 +8,22 @@ it opens up.
 The look follows one idea, the journey itself: station boards name places, coach livery colours
 the lines, and timetables, tickets and route strips carry the facts. See [DESIGN.md](DESIGN.md).
 
+- **Direct trains, and journeys with one change.** Where no train runs straight between two
+  places (Bengaluru to Amritsar), the quickest ways with one change, with running days honoured
+  and time to change trains.
+- **Search** by city, station, code, famous place ("Hampi" finds Hosapete), train number or train
+  name.
+- **Your trips.** A bucket list of places and saved routes, on the device; sign in with Google to
+  keep them everywhere ([docs/accounts.md](docs/accounts.md)).
+- **Discover.** Journeys worth taking, facts about India's railways (each sourced), and records
+  from the timetable.
 - **Fast.** One request per data file, content-hashed and cached forever; the whole timetable is
   a binary file of about 300 kB compressed. Works offline once visited, and installs as an app.
 - **Shareable.** Every view has an address (`/from/bengaluru/to/hampi/`), and the build writes a
   real page for ~3,000 of them with their own title, description and photo for link previews and
   search engines.
-- **Free to run.** A static site: no server, no database, no accounts, no tracking.
+- **Free to run.** Static files on a CDN, plus a small Cloudflare Worker and database for
+  accounts only; no analytics, no tracking.
 
 ## Run it
 
@@ -34,13 +44,16 @@ pipeline/              Python, run offline: raw sources -> data/
 src/
   core/                pure logic, no DOM: timetable decoding, trips, places, search, addresses
   map/map.ts           the canvas map: projection, zoom, routes, photo bubbles, moving trains
-  ui/                  DOM pieces: panel, list, search, dock, chrome, photos, offline, styles
-  app/                 the controller (state, history, panel) and the router
+  ui/                  DOM pieces: panel, list, search, dock, discover, saved, poster, boards, styles
+  app/                 the controller (state, history, panel), the router, saves and sign-in
+worker/                the Cloudflare Worker: static files, and the accounts API (/api/)
+content/discover.json  Discover's journeys and facts, written for Railgaddi, with sources
   main.ts              boot: fetch, decode, wire up
 scripts/
   prerender.ts         after `vite build`: per-view pages, sitemap.xml, robots.txt
   make-icons.mjs       app icons and the link-preview image, rendered with Chrome
   shot.mjs             screenshot any view (design review)
+  qa.mjs               walk the site on a desktop and a phone; report console errors
 test/                  vitest
 ```
 
