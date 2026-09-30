@@ -5,25 +5,49 @@ import type { GuideView } from "./places";
 
 const fold = (s: string) => s.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
+interface Entry {
+  p: Place;
+  name: string;
+  words: string[];
+  codes: string[];
+  aka: string[];
+  guide: string;
+  gv: GuideView | undefined;
+}
+
+// names folded once per network and guide index, not on every keystroke
+const entries = new WeakMap<Map<Place, GuideView>, Entry[]>();
+
+function entriesOf(net: Network, guides: Map<Place, GuideView>): Entry[] {
+  let list = entries.get(guides);
+  if (!list) {
+    list = [];
+    for (const p of net.places.values()) {
+      if (!p.halts) continue;
+      const gv = guides.get(p);
+      const name = fold(p.name);
+      list.push({ p, name, words: name.split(/[\s(-]+/), codes: p.stations.map((s) => net.stations[s].code.toLowerCase()), aka: p.aka.map(fold), guide: gv ? fold(gv.title) : "", gv });
+    }
+    entries.set(guides, list);
+  }
+  return list;
+}
+
 export function searchPlaces(net: Network, guides: Map<Place, GuideView>, q: string, limit = 8): Place[] {
   const query = fold(q.trim());
   if (!query) return [];
+  const raw = q.trim();
   const scored: [number, Place][] = [];
-  for (const p of net.places.values()) {
-    if (!p.halts) continue;
-    const name = fold(p.name);
-    const codes = p.stations.map((s) => net.stations[s].code.toLowerCase());
-    const gv = guides.get(p);
-    const guide = gv ? fold(gv.title) : "";
+  for (const { p, name, words, codes, aka, guide, gv } of entriesOf(net, guides)) {
     let score = 0;
     if (codes.includes(query)) score = 5; // "sbc", "ndls" (but a place called "Goa" beats the station coded GOA)
     else if (name === query) score = 4.6;
     else if (guide === query && !gv!.featured) score = 4.5; // its own guide: "Katra" is Shri Mata Vaishno Devi Katra
-    else if (p.aka.some((a) => fold(a).startsWith(query))) score = 4.3; // Bangalore, Habibganj: the names people know
+    else if (aka.some((a) => a.startsWith(query))) score = 4.3; // Bangalore, Habibganj: the names people know
     else if (name.startsWith(query)) score = 4;
     else if (gv && guide.startsWith(query)) score = 3.2 + Math.min(1, gv.entry.appeal / 40); // "Hampi": famous places first
-    else if (name.split(/[\s(-]+/).some((w) => w.startsWith(query))) score = 3;
-    else if (p.hi.startsWith(q.trim()) || p.local.startsWith(q.trim())) score = 3;
+    else if (words.some((w) => w.startsWith(query))) score = 3;
+    else if (p.hi.startsWith(raw) || p.local.startsWith(raw)) score = 3;
     else if (name.includes(query)) score = 2;
     if (!score) continue;
     // among equally good matches, the busier station and the city first
@@ -32,6 +56,7 @@ export function searchPlaces(net: Network, guides: Map<Place, GuideView>, q: str
   return scored.sort((a, b) => b[0] - a[0]).slice(0, limit).map((s) => s[1]);
 }
 
+const trainNames = new WeakMap<Network, string[]>();
 const PREMIUM = new Set(["Raj", "Shtb", "Drnt", "VB", "JShtb", "GR", "AB"]);
 
 /**
@@ -44,9 +69,11 @@ export function searchTrains(net: Network, q: string, limit = 3): Train[] {
     return net.trains.filter((t) => t.no.startsWith(query)).sort((a, b) => a.no.localeCompare(b.no)).slice(0, limit * 2);
   }
   if (query.length < 4 || /^(express|superfast|special|passenger|mail|train|junction)/.test(query)) return [];
+  let names = trainNames.get(net);
+  if (!names) trainNames.set(net, (names = net.trains.map((t) => fold(t.name))));
   const scored: [number, Train][] = [];
   for (const t of net.trains) {
-    const name = fold(t.name);
+    const name = names[t.i];
     const at = name.indexOf(query);
     if (at < 0) continue;
     // a word that starts with the query beats one that merely contains it; premium trains first

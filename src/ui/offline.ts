@@ -13,9 +13,8 @@ export function registerOffline(app: Toaster) {
   const start = () => {
     const update = registerSW({
       immediate: true,
-      onOfflineReady() {
-        app.toast("Railgaddi now works offline, even on the train", 4000);
-      },
+      // no "ready to work offline" message: it arrives while you're busy searching, and it's said
+      // when it matters, the moment the signal drops (below)
       onNeedRefresh() {
         app.toast("A newer version is ready", 12000, { label: "Reload", run: () => update(true) });
       },
@@ -25,6 +24,6 @@ export function registerOffline(app: Toaster) {
   const later = () => setTimeout(() => (idle ? idle(start, { timeout: 10000 }) : start()), 4000);
   if (document.readyState === "complete") later();
   else window.addEventListener("load", later, { once: true });
-  window.addEventListener("offline", () => app.toast("You're offline. The timetable and places you've opened still work."));
+  window.addEventListener("offline", () => app.toast("You're offline. Railgaddi still works: the timetable and places you've opened are kept.", 5000));
   window.addEventListener("online", () => app.toast("Back online", 1800));
 }

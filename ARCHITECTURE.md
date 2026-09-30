@@ -32,7 +32,10 @@ The two binary files ship gzipped too (`scripts/compress-data.mjs`, run before e
 hosts compress JSON on the fly, but not always binary files (Cloudflare doesn't by default), so
 the app fetches the `.gz` copies and unpacks them itself (`DecompressionStream`). The map draws
 only when something changes (view, selection, a photo arriving, an animation) and redraws the
-moving trains a dozen times a second, so an idle map costs no CPU. The offline copy is fetched
+moving trains four to twelve times a second (fewer with the whole country in view, where they
+move less than a pixel a second), so an idle map costs almost no CPU. The land and the faint
+network are a separate canvas under the map, redrawn only when the view moves; station boards
+are drawn once into small images and copied; dots and trains are gathered into a few paths. The offline copy is fetched
 once the page and its photos are in, never alongside them.
 
 Every file name carries a content hash, so the CDN and browsers can cache it for a year and a new

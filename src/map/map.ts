@@ -136,6 +136,10 @@ export class RailMap {
   private hover: Place | null = null;
   private hoverSight = -1;
   private revealMins = Infinity;
+  private revealSegs: { m: number; b: number; a: number; z: number }[] = [];
+  private revealAt = 0;
+  private laidOut = 0;
+  private revealPaths: Path2D[] = [];
   private revealFrom = 0;
   private maxMins = 1;
   private lastFrame = 0;
@@ -157,6 +161,11 @@ export class RailMap {
     states: Topology,
   ) {
     this.ctx = canvas.getContext("2d")!;
+    // the land and the faint network sit on their own layer, under this canvas: redrawn only when
+    // the view moves, and never copied across frame by frame (a whole-screen copy, on a phone)
+    this.base.className = "map-base";
+    this.base.setAttribute("aria-hidden", "true");
+    canvas.before(this.base);
     this.land = feature(india, Object.values(india.objects)[0]) as unknown as d3.GeoPermissibleObjects;
     this.stateMesh = mesh(states, Object.values(states.objects)[0] as never);
     const n = net.stations.length;
@@ -171,6 +180,7 @@ export class RailMap {
       .scaleExtent([0.2, 320])
       .on("zoom", (e) => {
         this.tf = e.transform;
+        this.lastZoom = performance.now();
         this.dirty = true;
       });
     d3.select(canvas).call(this.zoom).on("dblclick.zoom", null);
@@ -201,6 +211,7 @@ export class RailMap {
       text: v("--text"), muted: v("--muted"), halo: v("--halo"), ring: v("--ring"), board: v("--board"), boardInk: v("--board-ink"),
     };
     this.labelWidth.clear();
+    this.boards.clear();
     this.netStrength = parseFloat(v("--net-strength")) || 1;
     const scale = d3
       .scaleLinear<string>()
@@ -311,6 +322,7 @@ export class RailMap {
     this.baseKey = "";
     this.routeCache = null;
     this.discs.clear();
+    this.boards.clear();
   }
 
   // ---------------------------------------------------------------- public API
@@ -378,6 +390,17 @@ export class RailMap {
       if (animate && !reduceMotion() && origin) {
         this.revealMins = 0;
         this.revealFrom = performance.now() + 900;
+        // every stretch of every route, in the order the spreading lines reach it
+        this.revealSegs = [];
+        for (const r of this.routes) {
+          for (let j = 1; j < r.st.length; j++) {
+            const m = (r.mins[j - 1] + r.mins[j]) / 2;
+            this.revealSegs.push({ m, b: bucketOf(m), a: r.st[j - 1], z: r.st[j] });
+          }
+        }
+        this.revealSegs.sort((p, q) => p.m - q.m);
+        this.revealAt = 0;
+        this.revealPaths = d3.range(BUCKETS).map(() => new Path2D());
       } else {
         this.revealMins = Infinity;
       }
@@ -633,8 +656,8 @@ export class RailMap {
   /**
    * Draw only when something changed: the view (pan, zoom, hover, what's selected, a photo that
    * arrived), an animation under way (lines spreading out, photos fading), or the moving trains,
-   * which move about a pixel a second and are redrawn a dozen times a second. An idle map costs
-   * nothing, which matters on a phone.
+   * which move about a pixel a second and are redrawn four to twelve times a second, by zoom. An
+   * idle map costs nothing, which matters on a phone.
    */
   private frame(now: number) {
     const dt = this.lastFrame ? Math.min(now - this.lastFrame, 100) : 16;
@@ -647,11 +670,16 @@ export class RailMap {
     if (this.revealMins !== Infinity) {
       const p = (now - this.revealFrom) / 2400;
       this.revealMins = p >= 1 ? Infinity : Math.max(0, d3.easeCubicOut(Math.max(0, p)) * this.maxMins);
+      if (p >= 1) this.dirty = true; // the last frame: every line, and photos laid out once more
     }
+    if (this.baseCss && now - this.lastZoom >= 120) this.dirty = true; // the view settled: draw the land crisp
     let fading = false;
     for (const s of this.shown.values()) if (s.alpha !== s.target) fading = true;
     const animating = fading || this.revealMins !== Infinity;
-    if (this.dirty || animating || (moving && now - this.lastDraw > 80)) {
+    // trains move about a pixel a second with the whole country in view: a few redraws a second
+    // are as smooth as many; zoomed in, they cross pixels faster and get more
+    const every = Math.max(80, Math.min(250, 250 / this.tf.k));
+    if (this.dirty || animating || (moving && now - this.lastDraw > every)) {
       this.draw(Math.min(now - this.lastDraw, 100), this.dirty || animating);
       this.dirty = false;
       this.lastDraw = now;
@@ -659,10 +687,37 @@ export class RailMap {
     requestAnimationFrame((t) => this.frame(t));
   }
 
+  /**
+   * The land layer follows the view. While you pan or pinch (or the map flies somewhere) it's
+   * moved and scaled as a picture, which costs nothing, and redrawn crisp a few times a second
+   * and once the view settles: redrawing the coast and every line on each frame of a drag is
+   * the slowest thing a phone does here.
+   */
+  private placeBase(now: number) {
+    const { k, x, y } = this.tf;
+    const b = this.baseTf;
+    const key = `${this.w},${this.h},${this.origin ? 1 : 0}`;
+    const moved = b.k !== k || b.x !== x || b.y !== y;
+    const ratio = k / b.k;
+    const gesture = now - this.lastZoom < 120;
+    if (key !== this.baseKey || (moved && (!gesture || now - this.baseDrawn > 180 || ratio > 1.25 || ratio < 0.8))) {
+      this.baseKey = key;
+      this.baseTf = this.tf;
+      this.baseDrawn = now;
+      this.drawBase();
+    }
+    const sc = k / this.baseTf.k;
+    const tx = x - this.baseTf.x * sc, ty = y - this.baseTf.y * sc;
+    const css = sc === 1 && tx === 0 && ty === 0 ? "" : `translate(${tx}px, ${ty}px) scale(${sc})`;
+    if (css !== this.baseCss) this.base.style.transform = this.baseCss = css;
+  }
+
+  private baseTf = d3.zoomIdentity;
+  private baseDrawn = 0;
+  private baseCss = "";
+  private lastZoom = 0;
+
   private drawBase() {
-    const key = `${this.tf.k.toFixed(4)},${this.tf.x.toFixed(1)},${this.tf.y.toFixed(1)},${this.w},${this.h},${this.origin ? 1 : 0}`;
-    if (key === this.baseKey) return;
-    this.baseKey = key;
     const c = this.baseCtx;
     const { k, x, y } = this.tf;
     c.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
@@ -722,10 +777,11 @@ export class RailMap {
 
   private draw(dt: number, layout = true) {
     const ctx = this.ctx;
-    this.drawBase();
+    this.placeBase(performance.now());
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.drawImage(this.base, 0, 0);
+    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    this.font = "";
 
     if (this.origin) {
       this.drawRoutes();
@@ -733,8 +789,13 @@ export class RailMap {
       this.drawDots();
     }
     this.drawTrains();
-    if (layout) this.layoutBubbles(); // where photos go only changes with the view
+    // where photos go only changes with the view (and, while lines spread out, a few times a second)
+    if (layout && (this.revealMins === Infinity || performance.now() - this.laidOut > 150)) {
+      this.layoutBubbles();
+      this.laidOut = performance.now();
+    }
     this.drawBubbles(dt);
+    if (this.origin) this.drawPicked();
     if (this.sights.length) this.drawSights();
   }
 
@@ -782,21 +843,25 @@ export class RailMap {
       if (close && dim > 0.5) this.ties(() => cache.forEach((p) => ctx.stroke(p)), 1.2 / k);
       ctx.restore();
     } else {
-      // spreading out from the origin, minute by minute of travel
-      ctx.lineWidth = 1.4;
-      ctx.globalAlpha = 0.7;
-      for (const r of this.routes) {
-        for (let j = 1; j < r.st.length; j++) {
-          const m = (r.mins[j - 1] + r.mins[j]) / 2;
-          if (m > this.revealMins) break;
-          ctx.strokeStyle = this.lut[bucketOf(m)];
-          ctx.beginPath();
-          ctx.moveTo(this.tf.applyX(this.sx[r.st[j - 1]]), this.tf.applyY(this.sy[r.st[j - 1]]));
-          ctx.lineTo(this.tf.applyX(this.sx[r.st[j]]), this.tf.applyY(this.sy[r.st[j]]));
-          ctx.stroke();
-        }
+      // spreading out from the origin, minute by minute of travel: each frame adds the newly
+      // reached stretches to one path per colour, and draws those few paths
+      const segs = this.revealSegs;
+      while (this.revealAt < segs.length && segs[this.revealAt].m <= this.revealMins) {
+        const g = segs[this.revealAt++];
+        const path = this.revealPaths[g.b];
+        path.moveTo(this.sx[g.a], this.sy[g.a]);
+        path.lineTo(this.sx[g.z], this.sy[g.z]);
       }
-      ctx.globalAlpha = 1;
+      ctx.save();
+      ctx.setTransform(this.dpr * k, 0, 0, this.dpr * k, this.dpr * x, this.dpr * y);
+      ctx.lineWidth = 1.4 / k;
+      ctx.globalAlpha = 0.7;
+      this.revealPaths.forEach((path, b) => {
+        ctx.strokeStyle = this.lut[b];
+        ctx.stroke(path);
+      });
+      ctx.restore();
+      this.font = "";
     }
     // a place reached only with a change: its quickest way, in livery
     if (focus && !trainFocus && !this.sights.length && this.hintLegs.length) {
@@ -916,35 +981,68 @@ export class RailMap {
     const r = k > 4 ? 3 : k > 1.8 ? 2.3 : 1.7;
     // zoomed out, only the busier stations get a ring; every stop appears as you zoom in
     const minHalts = k >= 3.2 ? 0 : k >= 1.8 ? 25 : k >= 1 ? 70 : 140;
+    // one path per colour (and one for the picked place's ring), not two draws per station
+    const rings = new Path2D();
+    const edges = d3.range(BUCKETS).map(() => new Path2D());
+    let picked: [number, number] | null = null;
     for (const d of this.reach) {
-      if (!this.ok[d.place.anchor] || d.mins > this.revealMins || this.shown.get(d.place)?.alpha === 1) continue;
-      if (d.place.halts < minHalts && d.place !== this.selected && d.place !== this.hover) continue;
-      const x = this.tf.applyX(this.sx[d.place.anchor]);
-      const y = this.tf.applyY(this.sy[d.place.anchor]);
+      const p = d.place;
+      if (!this.ok[p.anchor] || d.mins > this.revealMins || this.shown.get(p)?.alpha === 1) continue;
+      if (p.halts < minHalts && p !== this.selected && p !== this.hover) continue;
+      const x = this.tf.applyX(this.sx[p.anchor]);
+      const y = this.tf.applyY(this.sy[p.anchor]);
       if (x < -5 || y < -5 || x > this.w + 5 || y > this.h + 5) continue;
-      const dim = this.selected && this.selected !== d.place;
-      ctx.globalAlpha = dim ? 0.35 : 1;
+      const rr = p === this.hover ? r + 1.5 : r;
+      if (p === this.selected) picked = [x, y];
+      rings.moveTo(x + rr, y);
+      rings.arc(x, y, rr, 0, TAU);
+      const e = edges[bucketOf(d.mins)];
+      e.moveTo(x + rr, y);
+      e.arc(x, y, rr, 0, TAU);
+    }
+    ctx.globalAlpha = this.selected ? 0.35 : 1;
+    ctx.fillStyle = this.c.ring;
+    ctx.fill(rings);
+    ctx.lineWidth = 1.15;
+    edges.forEach((e, b) => {
+      ctx.strokeStyle = this.lut[b];
+      ctx.stroke(e);
+    });
+    if (picked) {
+      const [x, y] = picked;
+      const d = this.reach.find((d) => d.place === this.selected)!;
+      ctx.globalAlpha = 1;
       ctx.beginPath();
-      ctx.arc(x, y, d.place === this.hover ? r + 1.5 : r, 0, TAU);
+      ctx.arc(x, y, this.selected === this.hover ? r + 1.5 : r, 0, TAU);
       ctx.fillStyle = this.c.ring;
       ctx.fill();
       ctx.lineWidth = 1.15;
       ctx.strokeStyle = this.timeColor(d.mins);
       ctx.stroke();
-      if (d.place === this.selected) {
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = this.c.accent;
-        ctx.beginPath();
-        ctx.arc(x, y, r + 5, 0, TAU);
-        ctx.stroke();
-      }
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = this.c.accent;
+      ctx.beginPath();
+      ctx.arc(x, y, r + 5, 0, TAU);
+      ctx.stroke();
     }
     ctx.globalAlpha = 1;
-    // a place no direct train reaches still gets its ring and board when it's the one you picked
+  }
+
+  /** The picked place when no direct train reaches it (so it has no photo): a ring and its board, on top. */
+  private pickedAlone(): [number, number] | null {
     const sel = this.selected;
-    if (sel && this.ok[sel.anchor] && !this.reach.some((d) => d.place === sel) && !this.shown.get(sel)?.alpha) {
-      const x = this.tf.applyX(this.sx[sel.anchor]);
-      const y = this.tf.applyY(this.sy[sel.anchor]);
+    if (!sel || !this.ok[sel.anchor] || this.sights.length || this.shown.get(sel)?.alpha || this.reach.some((d) => d.place === sel)) return null;
+    return [this.tf.applyX(this.sx[sel.anchor]), this.tf.applyY(this.sy[sel.anchor])];
+  }
+
+  private drawPicked() {
+    const at = this.pickedAlone();
+    if (at) {
+      const ctx = this.ctx;
+      const [x, y] = at;
+      const k = this.tf.k;
+      const r = k > 4 ? 3 : k > 1.8 ? 2.3 : 1.7;
+      const sel = this.selected!;
       ctx.beginPath();
       ctx.arc(x, y, r + 1, 0, TAU);
       ctx.fillStyle = this.c.ring;
@@ -969,8 +1067,15 @@ export class RailMap {
 
   private drawTrains() {
     const ctx = this.ctx;
-    /** A train as a short streak along its line, brightest at the head, fading in and out at the ends. */
-    const streak = (m: Motion, width: number, alpha: number, head: number) => {
+    // Trains as short streaks along their lines, brightest at the head, fading in and out at the
+    // ends. Hundreds of them: gathered into a few paths by how faded they are, and drawn together.
+    const BANDS = 4;
+    let tails: Path2D[] = [], heads: Path2D[] = [];
+    const begin = () => {
+      tails = d3.range(BANDS).map(() => new Path2D());
+      heads = d3.range(BANDS).map(() => new Path2D());
+    };
+    const add = (m: Motion, head: number) => {
       const e = (this.simMinute - m.dep0 + 1440) % 1440;
       const minute = this.kmAt(m, e) !== null ? e : m.end > 1440 && this.kmAt(m, e + 1440) !== null ? e + 1440 : -1;
       if (minute < 0) return;
@@ -979,46 +1084,55 @@ export class RailMap {
       const x = this.tf.applyX(hx), y = this.tf.applyY(hy);
       if (x < -20 || y < -20 || x > this.w + 20 || y > this.h + 20) return;
       const fade = Math.min(1, minute / 12, (m.end - minute) / 12);
+      const band = Math.min(BANDS - 1, Math.floor(fade * BANDS));
       const tailKm = this.kmAt(m, Math.max(0, minute - TAIL)) ?? km;
-      ctx.globalAlpha = alpha * fade;
       if (tailKm < km - 0.2) {
-        // the streak follows the track: sample a few points between tail and head
-        ctx.beginPath();
+        // the streak follows the track: a few points between tail and head
+        const t = tails[band];
         for (let i = 0; i <= 4; i++) {
-          const [px, py] = this.at(m.geom, tailKm + ((km - tailKm) * i) / 4);
+          const [px, py] = i === 4 ? [hx, hy] : this.at(m.geom, tailKm + ((km - tailKm) * i) / 4);
           const sx = this.tf.applyX(px), sy = this.tf.applyY(py);
-          if (i === 0) ctx.moveTo(sx, sy);
-          else ctx.lineTo(sx, sy);
+          if (i === 0) t.moveTo(sx, sy);
+          else t.lineTo(sx, sy);
         }
-        ctx.lineWidth = width;
-        ctx.stroke();
       }
-      ctx.globalAlpha = Math.min(1, alpha * 1.6) * fade;
-      ctx.beginPath();
-      ctx.arc(x, y, head, 0, TAU);
-      ctx.fill();
+      heads[band].moveTo(x + head, y);
+      heads[band].arc(x, y, head, 0, TAU);
+    };
+    const flush = (width: number, alpha: number) => {
+      ctx.lineWidth = width;
+      for (let b = 0; b < BANDS; b++) {
+        const fade = (b + 1) / BANDS;
+        ctx.globalAlpha = alpha * fade;
+        ctx.stroke(tails[b]);
+        ctx.globalAlpha = Math.min(1, alpha * 1.6) * fade;
+        ctx.fill(heads[b]);
+      }
+      ctx.globalAlpha = 1;
     };
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     if (!this.origin) {
       // a calm sample of the country's long-distance trains, moving by the timetable
       ctx.strokeStyle = ctx.fillStyle = this.c.livery;
-      for (const m of this.everyone) streak(m, 1.1, 0.3, 1.1);
-      ctx.globalAlpha = 1;
+      begin();
+      for (const m of this.everyone) add(m, 1.1);
+      flush(1.1, 0.3);
       return;
     }
     if (this.revealMins !== Infinity) return;
     if (this.selectedTrains.length) {
       ctx.strokeStyle = ctx.fillStyle = this.c.accent;
-      for (const x of this.selectedTrains) streak(x.motion, 3, 0.9, 4);
-      ctx.globalAlpha = 1;
+      begin();
+      for (const x of this.selectedTrains) add(x.motion, 4);
+      flush(3, 0.9);
       return;
     }
     // the trains on the lines from here: ink, not the red that means "you" and "picked"
     ctx.strokeStyle = ctx.fillStyle = this.c.ink;
-    const dim = this.selected ? 0.35 : 0.7;
-    for (const r of this.routes) streak(r.motion, 1.6, dim, 1.7);
-    ctx.globalAlpha = 1;
+    begin();
+    for (const r of this.routes) add(r.motion, 1.7);
+    flush(1.6, this.selected ? 0.35 : 0.7);
   }
 
   // ---------------------------------------------------------------- photo bubbles, named on station boards
@@ -1027,13 +1141,21 @@ export class RailMap {
 
   /** Station-board lettering: bold, condensed, capitals. */
   private boardFont(size = 11) {
-    this.ctx.font = `800 ${size}px ${FONT}`;
-    if ("fontStretch" in this.ctx) this.ctx.fontStretch = "condensed";
+    this.setFont(`800 ${size}px ${FONT}`, "condensed");
   }
 
   private plainFont(weight: number, size: number) {
-    this.ctx.font = `${weight} ${size}px ${FONT}`;
-    if ("fontStretch" in this.ctx) this.ctx.fontStretch = "normal";
+    this.setFont(`${weight} ${size}px ${FONT}`, "normal");
+  }
+
+  /** The canvas parses every font it's given, so only hand it a new one. */
+  private font = "";
+  private setFont(font: string, stretch: "condensed" | "normal") {
+    const key = font + stretch;
+    if (key === this.font) return;
+    this.font = key;
+    this.ctx.font = font;
+    if ("fontStretch" in this.ctx) this.ctx.fontStretch = stretch;
   }
 
   private boardWidth(text: string) {
@@ -1041,32 +1163,62 @@ export class RailMap {
     if (w === undefined) {
       this.boardFont();
       w = this.ctx.measureText(text.toUpperCase()).width + 14;
-      this.plainFont(400, 12);
       this.labelWidth.set(text, w);
     }
     return w;
   }
 
   /** A small yellow station board with a black keyline, centred on (x, top). */
-  private stationBoard(text: string, x: number, top: number) {
-    const ctx = this.ctx;
+  private stationBoard(text: string, x: number, top: number, under?: string) {
+    const sprite = this.board(text, under);
+    this.ctx.drawImage(sprite, x - sprite.width / this.dpr / 2, top - 2, sprite.width / this.dpr, sprite.height / this.dpr);
+  }
+
+  /**
+   * The board, and the ride's length under it, drawn once into a small canvas and copied from
+   * then on: lettering is the slowest thing a canvas draws, and photos carry a board each frame.
+   */
+  private boards = new Map<string, HTMLCanvasElement>();
+  private board(text: string, under?: string) {
+    const id = `${text}|${under ?? ""}`;
+    const hit = this.boards.get(id);
+    if (hit) return hit;
     const w = this.boardWidth(text);
-    const h = 18;
-    ctx.fillStyle = this.c.board;
-    ctx.beginPath();
-    ctx.roundRect(x - w / 2, top, w, h, 3);
-    ctx.fill();
-    ctx.strokeStyle = this.c.boardInk;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.roundRect(x - w / 2 + 2, top + 2, w - 4, h - 4, 2);
-    ctx.stroke();
-    this.boardFont();
-    ctx.fillStyle = this.c.boardInk;
-    ctx.textAlign = "center";
-    ctx.fillText(text.toUpperCase(), x, top + 12.8);
-    ctx.textAlign = "start";
-    this.plainFont(400, 12);
+    const under_w = under ? (this.plainFont(700, 11), this.ctx.measureText(under).width + 8) : 0;
+    const W = Math.ceil(Math.max(w, under_w) + 4), H = under ? 40 : 22;
+    const cv = document.createElement("canvas");
+    cv.width = Math.ceil(W * this.dpr);
+    cv.height = Math.ceil(H * this.dpr);
+    const c = cv.getContext("2d")!;
+    c.scale(this.dpr, this.dpr);
+    const x = W / 2, top = 2, h = 18;
+    c.fillStyle = this.c.board;
+    c.beginPath();
+    c.roundRect(x - w / 2, top, w, h, 3);
+    c.fill();
+    c.strokeStyle = this.c.boardInk;
+    c.lineWidth = 1;
+    c.beginPath();
+    c.roundRect(x - w / 2 + 2, top + 2, w - 4, h - 4, 2);
+    c.stroke();
+    c.font = `800 11px ${FONT}`;
+    if ("fontStretch" in c) c.fontStretch = "condensed";
+    c.fillStyle = this.c.boardInk;
+    c.textAlign = "center";
+    c.fillText(text.toUpperCase(), x, top + 12.8);
+    if (under) {
+      c.font = `700 11px ${FONT}`;
+      if ("fontStretch" in c) c.fontStretch = "normal";
+      c.lineJoin = "round";
+      c.lineWidth = 3;
+      c.strokeStyle = this.c.halo;
+      c.strokeText(under, x, top + 31);
+      c.fillStyle = this.c.ink;
+      c.fillText(under, x, top + 31);
+    }
+    if (this.boards.size > 400) this.boards.clear();
+    this.boards.set(id, cv);
+    return cv;
   }
 
   private layoutBubbles() {
@@ -1078,6 +1230,11 @@ export class RailMap {
     if (this.origin && this.ok[this.origin.anchor]) {
       const ox = this.tf.applyX(this.sx[this.origin.anchor]), oy = this.tf.applyY(this.sy[this.origin.anchor]);
       boxes.push([ox - 28, oy - 28, ox + 28, oy + 6]);
+    }
+    const alone = this.pickedAlone();
+    if (alone) {
+      const half = this.boardWidth(this.selectedTitle || this.selected!.name) / 2;
+      boxes.push([alone[0] - Math.max(half, 10), alone[1] - 10, alone[0] + Math.max(half, 10), alone[1] + 32]);
     }
     const placed = new Map<Place, [number, number]>();
     const off = R + 8;
@@ -1219,20 +1376,7 @@ export class RailMap {
       // its name on a station board, and how long the ride is
       if (pop > 0.6) {
         ctx.globalAlpha = s.alpha * Math.min(1, (pop - 0.6) * 2.5);
-        const top = y + r + 5;
-        this.stationBoard(s.c.title, bx, top);
-        if (s.c.mins !== null) {
-          this.plainFont(700, 11);
-          ctx.textAlign = "center";
-          ctx.lineJoin = "round";
-          ctx.lineWidth = 3;
-          ctx.strokeStyle = this.c.halo;
-          const t = fmtMins(s.c.mins);
-          ctx.strokeText(t, bx, top + 31);
-          ctx.fillStyle = this.c.ink;
-          ctx.fillText(t, bx, top + 31);
-          ctx.textAlign = "start";
-        }
+        this.stationBoard(s.c.title, bx, y + r + 5, s.c.mins !== null ? fmtMins(s.c.mins) : undefined);
       }
     }
     ctx.globalAlpha = 1;

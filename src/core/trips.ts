@@ -226,14 +226,28 @@ function runsOn(leg: Leg, d: number) {
 export function connections(out: Map<Place, Destination>, into: Map<Place, Destination>, origin: Place, dest: Place, limit = 6): Connection[] {
   const best: Connection[] = [];
   const quickest = (legs: Leg[]) => [...legs].sort((a, b) => a.dur - b.dur).slice(0, 24);
+  // the places you could change at, likeliest first: the quickest two rides with the shortest change
+  const vias: [Place, Destination, Destination, number][] = [];
   for (const [via, a] of out) {
     if (via === origin || via === dest) continue;
     const b = into.get(via);
-    if (!b) continue;
+    if (b) vias.push([via, a, b, a.fastest + CHANGE_SAME_STATION + b.fastest]);
+  }
+  vias.sort((x, y) => x[3] - y[3]);
+  // quickest first, but a change across town, or a wait of more than six hours, counts against it
+  const score = (c: Connection) => c.total + (c.crossTown ? 60 : 0) + Math.max(0, c.wait - 360) / 2;
+  let bestScore = Infinity;
+  for (const [via, a, b, atLeast] of vias) {
+    // too slow to be shown whatever the timetable (nothing much slower than the best is, below)
+    if (atLeast > bestScore * 1.6 + 240) break;
     let top: Connection | null = null;
     const totals: number[] = [];
+    const seconds = quickest(b.legs);
     for (const l1 of quickest(a.legs)) {
-      for (const l2 of quickest(b.legs)) {
+      for (const l2 of seconds) {
+        // rides sorted quickest first: once even the shortest change can't come within 3h of this
+        // place's best, no later pair can either
+        if (top && l1.dur + CHANGE_SAME_STATION + l2.dur > top.total + 180) break;
         if (l2.train === l1.train) continue; // the same train: that would be a direct ride
         const cross = l1.train.st[l1.to] !== l2.train.st[l2.from];
         const change = cross ? CHANGE_ACROSS_TOWN : CHANGE_SAME_STATION;
@@ -282,10 +296,9 @@ export function connections(out: Map<Place, Destination>, into: Map<Place, Desti
     }
     if (!top) continue;
     top.others = totals.filter((t) => t <= top!.total + 180).length - 1;
+    bestScore = Math.min(bestScore, score(top));
     best.push(top);
   }
-  // quickest first, but a change across town, or a wait of more than six hours, counts against it
-  const score = (c: Connection) => c.total + (c.crossTown ? 60 : 0) + Math.max(0, c.wait - 360) / 2;
   best.sort((x, y) => score(x) - score(y) || y.via.halts - x.via.halts);
   // one per city is plenty; and nothing absurdly slower than the best
   const out2: Connection[] = [];

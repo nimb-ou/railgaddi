@@ -54,6 +54,8 @@ scripts/
   make-icons.mjs       app icons and the link-preview image, rendered with Chrome
   shot.mjs             screenshot any view (design review)
   qa.mjs               walk the site on a desktop and a phone; report console errors
+  perf.mjs             time common actions (input to paint) on a phone-speed CPU, or --desktop
+  profile.mjs          CPU profile of one action (pick, tap, close, type), by function
 test/                  vitest
 ```
 

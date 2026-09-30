@@ -193,7 +193,8 @@ export class App {
     this.dock.set(this.filters);
     const origin = (r.origin && this.slugs.find(r.origin)) || null;
     const place = (r.place && this.slugs.find(r.place)) || null;
-    if (origin !== this.origin) this.setOrigin(origin, { push: false, fly: !place, animate: true });
+    // the address says what's open: don't carry the current place across (back, forward, links)
+    if (origin !== this.origin) this.setOrigin(origin, { push: false, fly: !place, animate: true, keep: false });
     else this.refresh(false);
     const o = this.open;
     const here = !!(place && o && "place" in o && o.place === place);
@@ -237,9 +238,9 @@ export class App {
 
   // ---------------------------------------------------------------- where you start
 
-  setOrigin(p: Place | null, o: { push: boolean; fly?: boolean; animate?: boolean; focusSearch?: boolean }) {
+  setOrigin(p: Place | null, o: { push: boolean; fly?: boolean; animate?: boolean; focusSearch?: boolean; keep?: boolean }) {
     // the place you were looking at stays open: now with the trains from where you start
-    const keep = this.destination();
+    const keep = o.keep === false ? null : this.destination();
     this.origin = p;
     if (p) {
       this.remember(p);
@@ -342,9 +343,11 @@ export class App {
 
   /** Changes worth showing on a place: all when there's no direct train, else only much quicker ones. */
   private changesShown(dest: Place): Connection[] {
-    const all = this.changesFor(dest);
     const direct = this.dests.get(dest);
-    if (!direct) return all;
+    if (!direct) return this.changesFor(dest);
+    // a change only beats a direct train on long rides (and working it out takes a moment)
+    if (direct.fastest < 360) return [];
+    const all = this.changesFor(dest);
     const cutoff = direct.fastest * 0.8 - 60;
     return all.filter((c) => c.total < cutoff).slice(0, 3);
   }
@@ -800,6 +803,11 @@ export class App {
     this.transition(() => this.renderPanel(true));
     this.setPanelOpen(true);
     this.dock.setListOpen(true);
+    // on a phone the list is a sheet over most of the map: frame the places in what's left above it
+    if (narrow()) requestAnimationFrame(() => {
+      this.layout();
+      this.map.fitRoutes();
+    });
   }
 
   closePanel(o: { push: boolean; refit?: boolean }) {
@@ -813,7 +821,7 @@ export class App {
     this.map.showSights([]);
     if (wasTarget) this.refresh(false); // leaving the ways into a place: back to the whole country
     else this.syncChrome();
-    if (o.refit !== false && was && "place" in was) {
+    if (o.refit !== false && was && ("place" in was || (was.kind === "list" && narrow()))) {
       if (this.origin) this.map.fitRoutes();
       else this.map.fitIndia();
     }
@@ -1410,10 +1418,12 @@ export class App {
     }
   }
 
+  private pinAt = "";
   private trackPin() {
     if (this.origin && !this.pin.hidden) {
       const p = this.map.screenOf(this.origin);
-      if (p) this.pin.style.transform = `translate(${p[0] - 26}px, ${p[1] - 24}px)`;
+      const at = p ? `translate(${Math.round(p[0] - 26)}px, ${Math.round(p[1] - 24)}px)` : "";
+      if (at && at !== this.pinAt) this.pin.style.transform = this.pinAt = at; // only when it moved: no style work on a still map
     }
     requestAnimationFrame(() => this.trackPin());
   }
