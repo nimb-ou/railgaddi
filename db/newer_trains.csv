@@ -5,6 +5,7 @@ numbers,name,type,from,to,days,per_week,minutes,km,stops,src
 11431/11432,Pune–Danapur Amrit Bharat Express,AB,PUNE,DNR,,1,2045,1748,21,wikipedia:Pune–Danapur Amrit Bharat Express
 11631/11632,Bhopal–Dhanbad Express,,BPL,DHN,,1,1405,1195,32,wikipedia:Bhopal–Dhanbad Express
 11633/11634,Bhopal–Chopan Weekly Express,,BPL,CPU,,1,835,723,17,wikipedia:Bhopal–Chopan Weekly Express
+11665/11666,Rani Kamalapati–Agartala Weekly Express,,RKMP,AGTL,,1,3125,2482,40,wikipedia:Rani Kamalapati–Agartala Weekly Express
 11754/11753,Rewa–Itwari Special,,REWA,ITR,,3,845,601,7,wikipedia:Rewa–Itwari Special
 12063/12064,Haridwar–Una Link Janshatabdi Express,,HW,UHL,,3,445,368,12,wikipedia:Haridwar–Una Link Janshatabdi Express
 12789/12790,Kumta–Kacheguda Superfast Express,,KT,KCG,,2,1980,1688,35,wikipedia:Kumta–Kacheguda Superfast Express
@@ -12,6 +13,7 @@ numbers,name,type,from,to,days,per_week,minutes,km,stops,src
 13035/13036,Upasana Express,,HWH,DDN,,2,1750,1589,20,wikipedia:Upasana Express
 13037/13038,Kumbh Express,,HWH,DDN,,5,1750,1589,25,wikipedia:Kumbh Express
 13041/13042,Himgiri Superfast Express,,HWH,JAT,,3,2205,2023,30,wikipedia:Himgiri Superfast Express
+13047/13048,Vibhuti Express,,HWH,PRRB,Daily,7,955,885,32,wikipedia:Vibhuti Express
 13065/13066,Howrah–Anand Vihar Terminal Amrit Bharat Express,AB,HWH,ANVT,,1,1660,1455,27,wikipedia:Howrah–Anand Vihar Terminal Amrit Bharat Express
 13227/13228,Saharsa–Rajendra Nagar Terminal Intercity Express,,SHC,RJQ,Daily,7,,212,15,wikipedia:Saharsa–Rajendra Nagar Terminal Intercity Express
 13353/13354,Rajgir–Patna Intercity Express,,RGD,PNBE,Daily,7,235,99,13,wikipedia:Rajgir–Patna Intercity Express
@@ -41,12 +43,17 @@ numbers,name,type,from,to,days,per_week,minutes,km,stops,src
 16107/16108,Tambaram–Santragachi Amrit Bharat Express,AB,TBM,SRC,,1,1725,1668,28,wikipedia:Tambaram–Santragachi Amrit Bharat Express
 16119/16120,Podanur–Dhanbad Amrit Bharat Express,AB,PTJ,DHN,,1,2745,2199,36,wikipedia:Podanur–Dhanbad Amrit Bharat Express
 16121/16122,Tambaram – Thiruvananthapuram Central Amrit Bharat Express,AB,TBM,TVC,,1,870,768,17,wikipedia:Tambaram – Thiruvananthapuram Central Amrit Bharat Express
+16223/16224,SMVT Bengaluru–Radhikapur Express,,SMVB,RDP,,1,2830,2454,49,wikipedia:SMVT Bengaluru–Radhikapur Express
 16281/16282,Mysuru–Ajmer Express,,MYS,AII,,1,2675,2337,36,wikipedia:Mysuru–Ajmer Express (via Kotturu)
+16319/16320,Thiruvananthapuram North–SMVT Bengaluru Humsafar Express,,TVCN,SMVB,,2,1000,826,12,wikipedia:Thiruvananthapuram North–SMVT Bengaluru Humsafar Express
 16329/16330,Nagercoil Junction–Mangaluru Junction Amrit Bharat Express,AB,NCJ,MAJN,,1,1040,693,21,wikipedia:Nagercoil Junction–Mangaluru Junction Amrit Bharat Express
 16357/16358,Nagercoil–Charlapalli Amrit Bharat Express,AB,NCJ,CHZ,,1,1710,1412,30,wikipedia:Nagercoil–Charlapalli Amrit Bharat Express
 16363/16364,Ernakulam–Velankanni Express,,ERS,VLNK,,1,1065,703,10,wikipedia:Ernakulam–Velankanni Express (via Tiruchchirappalli)
+16505/16506,KSR Bangalore–Gandhidham Express,,GIMB,SBC,,1,2290,1954,30,wikipedia:KSR Bangalore–Gandhidham Express
+16585/16586,SMVT Bengaluru–Murdeshwar Express,,SMVB,MRDW,Daily,7,690,447,25,wikipedia:SMVT Bengaluru–Murdeshwar Express
 16707/16708,Mangaluru–Tirunelveli Express,,MAJN,TEN,,1,1125,751,22,wikipedia:Mangaluru–Tirunelveli Express
 16807/16808,Tambaram–Tiruchchirappalli Express,,TBM,TPJ,,5,430,377,15,wikipedia:Tambaram–Tiruchchirappalli Express
+17041/17042,Charlapalli – Thiruvananthapuram North Amrit Bharat Express,AB,CHZ,TVCN,,1,1890,1488,31,wikipedia:Charlapalli – Thiruvananthapuram North Amrit Bharat Express
 17045/17046,Charlapalli–Anakapalle Express,,CHZ,AKP,,1,800,651,16,wikipedia:Charlapalli–Anakapalle Express (via Warangal)
 17047/17048,Charlapalli–Tiruchanur Express,,CHZ,TCNR,,1,815,643,2,wikipedia:Charlapalli–Tiruchanur Express (via Warangal)
 17049/17050,Hubballi–Hyderabad Express,,UBL,HYB,Daily,7,840,664,20,wikipedia:Hubballi–Hyderabad Express
@@ -74,7 +81,9 @@ numbers,name,type,from,to,days,per_week,minutes,km,stops,src
 18039/18040,Puri–Shalimar Express,,SHM,PURI,,1,530,497,11,wikipedia:Puri–Shalimar Express
 18041/18042,Shalimar–Chennai Central Express,,SHM,MAS,,1,1125,1644,18,wikipedia:Shalimar–Chennai Central Express
 18063/18064,Santragachi–Yelahanka AC Express,,SRC,YNK,,1,2130,1882,28,wikipedia:Santragachi–Yelahanka AC Express
+18509/18510,Visakhapatnam–SMVT Bengaluru Express,,VSKP,SMVB,,1,1350,1072,18,wikipedia:Visakhapatnam–SMVT Bengaluru Express
 18513/18514,Kirandul–Visakhapatnam Express,,KRDL,VSKP,Daily,7,743,471,10,wikipedia:Kirandul–Visakhapatnam Express
+18523/18524,Visakhapatnam–Banaras Express,,VSKP,BSBS,,2,1745,1405,40,wikipedia:Visakhapatnam–Banaras Express
 18527/18528,Visakhapatnam–Charlapalli Express,,VSKP,CHZ,,1,870,683,14,wikipedia:Visakhapatnam–Charlapalli Express
 18551/18552,Visakhapatnam–Kirandul Express,,VSKP,KRDL,Daily,7,835,469,13,wikipedia:Visakhapatnam–Kirandul Express
 18633/18634,Patna–Ranchi AC Express,,PNBE,RNC,,1,623,424,10,wikipedia:Patna–Ranchi AC Express
@@ -93,6 +102,8 @@ numbers,name,type,from,to,days,per_week,minutes,km,stops,src
 20153/20154,Mumbai CSMT–Rewa Weekly Superfast Express,,CSMT,REWA,,1,1215,1213,18,wikipedia:Mumbai CSMT–Rewa Weekly Superfast Express
 20159/20160,Coimbatore–Jabalpur Weekly Superfast Express,,CBE,JBP,,1,2380,2054,33,wikipedia:Coimbatore–Jabalpur Weekly Superfast Express
 20177/20178,Asarva (Ahmedabad)–Agra Cantonment Superfast Express,,ASV,AGC,,5,975,892,15,wikipedia:Asarva (Ahmedabad)–Agra Cantonment Superfast Express
+20435/20436,Lokmanya Tilak Terminus–Prayagraj Amrit Bharat Express,AB,LTT,PRYJ,,1,1160,1342,7,wikipedia:Lokmanya Tilak Terminus–Prayagraj Amrit Bharat Express
+20437/20438,Prayagraj–Udhna (Surat) Amrit Bharat Express,AB,PRYJ,UDN,,1,1365,1440,16,wikipedia:Prayagraj–Udhna (Surat) Amrit Bharat Express
 20604/20603,Nagercoil–New Jalpaiguri Amrit Bharat Express,AB,NCJ,NJP,,1,3240,3102,45,wikipedia:Nagercoil–New Jalpaiguri Amrit Bharat Express
 20610/20609,Tiruchchirappalli–New Jalpaiguri Amrit Bharat Express,AB,TPJ,NJP,,1,2835,2622,41,wikipedia:Tiruchchirappalli–New Jalpaiguri Amrit Bharat Express
 20625/20626,MGR Chennai Central–Bhagat Ki Kothi Superfast Express,,MAS,BGKT,,1,2430,2351,30,wikipedia:MGR Chennai Central–Bhagat Ki Kothi Superfast Express
@@ -101,14 +112,16 @@ numbers,name,type,from,to,days,per_week,minutes,km,stops,src
 20955/20956,Surat–Mahuva Superfast Express,,ST,MHV,,5,670,631,14,wikipedia:Surat–Mahuva Superfast Express
 20973/20974,Firozpur–Rameswaram Humsafar Express,,FZR,RMM,,1,3600,3544,41,wikipedia:Firozpur–Rameswaram Humsafar Express
 20993/20994,Jaipur–Udaipur City Superfast Express,,JP,UDZ,Daily,7,440,429,13,wikipedia:Jaipur–Udaipur City Superfast Express
-21801/21802,Jhansi–Indore Link Express,,VGLJ,INDB,,4,870,659,11,wikipedia:Jhansi–Indore Link Express
 22075/22076,Charlapalli–Gorakhpur Amrit Bharat Express,AB,CHZ,GKP,,1,1960,1811,21,wikipedia:Charlapalli–Gorakhpur Amrit Bharat Express
 22173/22174,Jabalpur–Chanda Fort Intercity Superfast Special,,JBP,CAF,,3,510,475,5,wikipedia:Jabalpur–Chanda Fort Intercity Superfast Special
 22211/22212,Ajmer–Hazrat Nizamuddin Duronto Express,,AII,NZM,,2,405,1346,,wikipedia:Ajmer–Hazrat Nizamuddin Duronto Express
 22363/22364,Dhanbad–Coimbatore Amrit Bharat Express,AB,DHN,CBE,,1,3020,2976,41,wikipedia:Dhanbad–Coimbatore Amrit Bharat Express
+22365/22366,Danapur–SMVT Bengaluru Superfast Express,,DNR,SMVB,Daily,7,2865,2681,22,wikipedia:Danapur–SMVT Bengaluru Superfast Express
 22449/22450,Poorvottar Sampark Kranti Express,,GHY,NDLS,,2,1935,1900,13,wikipedia:Poorvottar Sampark Kranti Express
+22549/22550,Gorakhpur–Prayagraj Vande Bharat Express,VB,GKP,PRYJ,"Mon,Tue,Wed,Thu,Fri,Sun",6,450,500,4,wikipedia:Gorakhpur–Prayagraj Vande Bharat Express
 22701/22702,Visakhapatnam–Guntur Uday Express,,VSKP,GNT,,5,460,384,8,wikipedia:Visakhapatnam–Guntur Uday Express
 25909/25910,Jivachh Link Express,,DBG,NTSK,Daily,7,2035,1434,43,wikipedia:Jivachh Link Express
+26506/26505,Banaras–Khajuraho Vande Bharat Express,VB,BSBS,KURJ,"Mon,Tue,Wed,Fri,Sat,Sun",6,470,465,5,wikipedia:Banaras–Khajuraho Vande Bharat Express
 26903/26904,Surat – Udaipur City Vande Bharat Express,VB,ST,UDZ,"Mon,Wed,Thu,Fri,Sat,Sun",6,470,690,9,wikipedia:Surat – Udaipur City Vande Bharat Express
 27575/27576,Kamakhya–Howrah Vande Bharat Sleeper Express,VB,HWH,KYQ,,6,840,968,13,wikipedia:Kamakhya–Howrah Vande Bharat Sleeper Express
 28011/28012,Visakhapatnam–Hazur Sahib Nanded Superfast Express,,NED,VSKP,,3,1020,861,11,wikipedia:Visakhapatnam–Hazur Sahib Nanded Superfast Express
