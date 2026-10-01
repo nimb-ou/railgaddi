@@ -16,18 +16,26 @@ The build needs nothing but `db/`, so it runs in CI and gives the same bytes eve
 
 ## In the browser
 
-`main.ts` fetches five files in parallel, decodes them, and starts the app. The map is drawn as
-soon as they arrive; the track geometry follows a moment later and the lines re-draw along the
-real track.
+`main.ts` starts in two steps. First the stations, the guides' index, the map outline and the
+places without a station arrive (in parallel) and the app starts: the landing page, the map and
+the search work with these alone. The timetable and the trains' names come next, at a lower
+priority (`decodeStations`, then `applyTimetable`). An address with trains in it (`/from/…`, a
+trip, Discover) waits for both; on the landing page, picking a station before the timetable is in
+says "Loading the timetable…" and carries on when it lands (`App.whenReady`). On a phone on slow
+4G that has the landing page ready in about 3 s instead of 6. The track geometry follows a moment
+later and the lines re-draw along the real track.
 
-| File | Raw | Brotli | When |
+| File | Raw | Gzip | When |
 |---|---|---|---|
-| `meta.json`: stations, cities, train names, renamed stations, newer trains | 826 kB | 188 kB | first paint |
-| `timetable.bin`: every halt of every train | 1.3 MB | 329 kB | first paint |
-| `places/index.json`: which place has a guide, its photos | 373 kB | 76 kB | first paint |
-| `spots.json`: towns without a station, airports | 116 kB | ~40 kB | first paint |
-| `paths.bin`: stations passed between halts | 848 kB | 121 kB | after first paint |
+| `meta.json`: stations, cities, renamed stations | 479 kB | 157 kB | first |
+| `places/index.json`: which place has a guide, its photos | 368 kB | ~100 kB | first |
+| `spots.json`: towns without a station, their roads, airports | ~200 kB | ~60 kB | first |
+| `timetable.bin`: every halt of every train | 1.3 MB | 397 kB | next (first, for an address with trains) |
+| `trains.json`: each train's number, name and source; newer trains | 352 kB | ~65 kB | with the timetable |
+| `paths.bin`: stations passed between halts | 819 kB | 218 kB | after first paint |
 | `places/NN.json` ×32: intros and sights | ~40 kB | ~10 kB | when a place opens |
+
+`scripts/boot.mjs` measures a cold first visit on a throttled phone (Slow or Fast 4G, CPU ×4).
 
 The two binary files ship gzipped too (`scripts/compress-data.mjs`, run before every build):
 hosts compress JSON on the fly, but not always binary files (Cloudflare doesn't by default), so
@@ -42,6 +50,12 @@ A few things come from outside, only when you ask: the weather (Open-Meteo: a pl
 you open it; about 200 points for the map layer, blended smoothly between them on the land), a
 town not in `spots.json` (Open-Meteo's place search, once you pause typing), and a town's summary
 and photo (Wikipedia). Answers are kept for half an hour.
+
+Road distances from a place without a station to the stations near it are real for the places
+people look up (about 1,300: the famous ones, towns of 20,000 and more, hill towns of 5,000 and
+more): `pipeline/fetch_roads.py` asks an OSRM router (OpenStreetMap data) once, and
+`build_spots.py` writes the answers into `spots.json`. Times by road are the router's, allowing a
+third more for traffic and ghats. Anywhere else, the road is estimated from the straight line.
 
 Every file name carries a content hash, so the CDN and browsers can cache it for a year and a new
 timetable is picked up the moment the HTML points at new names. The service worker precaches all

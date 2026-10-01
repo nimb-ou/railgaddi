@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { meta, net } from "./load";
+import { names, net } from "./load";
 
 describe("timetable", () => {
   it("decodes every train in the file", () => {
-    expect(net.trains.length).toBe(meta.trains.length);
+    expect(net.trains.length).toBe(names.trains.length);
     expect(net.trains.length).toBeGreaterThan(6000);
   });
 

@@ -116,7 +116,13 @@ how to undo it if permission is refused ([docs/permission-requests.md](docs/perm
 ```bash
 pipeline/fetch_geo.sh                          # GeoNames towns and OurAirports, into raw/geo/
 python3 pipeline/build_spots.py                # -> data/spots.json
+python3 pipeline/fetch_roads.py                # real road distances (OSRM, 1 request a second) -> raw/roads.json
+python3 pipeline/build_spots.py                # again, with the roads
 ```
+
+Station states come from where the station is (datameet's state boundaries), not from the older
+sources, which predate Telangana: `python3 pipeline/fix_states.py`, after any importer that
+rewrites `db/stations.csv`.
 
 ### Places and photos
 
@@ -144,6 +150,11 @@ Every Wikimedia response is cached in `raw/`, so re-runs only ask for what is ne
 - **150 trains** known from Wikipedia are listed between their end stations but aren't on the
   map, because their halts and times aren't in either timetable.
 - About 160 stations have no known position; their trains list them, but they aren't drawn.
+- **Road distances** are real (OpenStreetMap, routed with OSRM) for about 1,300 places without
+  a station that people look up; elsewhere they're estimated from the straight line. Times by
+  road are estimates everywhere.
+- **Suburban trains** (Mumbai, Kolkata, Chennai locals, Hyderabad MMTS) aren't in either
+  timetable. A town whose only station has local trains says so rather than claiming it has none.
 
 ## Next
 
@@ -158,4 +169,5 @@ Every Wikimedia response is cached in `raw/`, so re-runs only ask for what is ne
 5. Current times for local trains: MEMU, DEMU and passenger trains, and the toy trains, are on
    the 2017 timetable (the 2026 book leaves them out; many were renumbered in 2020). The Matheran
    toy train isn't in either timetable yet.
-6. Real road times (the estimates use the straight-line distance), and buses to hill towns.
+6. Buses to hill towns, and real road distances for the hill stations the toy trains reach
+   (Darjeeling, Shimla, Ooty), which still use estimates when you go the rest of the way by road.

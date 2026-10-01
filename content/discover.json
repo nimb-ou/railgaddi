@@ -1,5 +1,5 @@
 {
-  "_about": "Discover: journeys worth taking, and facts about India's railways. Written for Railgaddi from the sources listed with each item (checked September 2026). pipeline/build_discover.py adds photos and writes data/discover.json. Stations are station codes; rides open the route in the app.",
+  "_about": "Discover: journeys worth taking, and facts about India's railways. Written for Railgaddi from the sources listed with each item (checked September 2026, again on 1 October 2026). pipeline/build_discover.py adds photos and writes data/discover.json. Stations are station codes; rides open the route in the app.",
   "stories": [
     {
       "slug": "konkan-railway",
@@ -65,7 +65,7 @@
       "article": "Nilgiri Mountain Railway",
       "body": [
         "The Nilgiri Mountain Railway climbs from Mettupalayam, in the plains of Tamil Nadu, to Udhagamandalam (Ooty) in the Nilgiri hills. It took 45 years from the first plans in 1854 to the opening of the line to Coonoor in 1899; it reached Ooty in 1908.",
-        "Between Kallar and Coonoor the gradient is too steep for wheels alone, so the locomotive engages a toothed rack laid between the rails: it's the only rack railway in India. The steam engines on this section were built in Switzerland, and climbing, the train moves at about 15 km/h.",
+        "Between Kallar and Coonoor the gradient is too steep for wheels alone, so the locomotive engages a toothed rack laid between the rails: it's the only rack railway in India. Most of its steam engines were built in Switzerland (the newest at Golden Rock, in Tiruchirappalli), and climbing, the train moves at about 15 km/h.",
         "That's the point. The ride takes around five hours for 46 km, through tunnels and forest and past tea gardens, and in 2005 UNESCO added the line to the Mountain Railways of India World Heritage Site."
       ],
       "rides": [
@@ -91,7 +91,7 @@
       "article": "Darjeeling Himalayan Railway",
       "photo": "Darjeeling Himalayan Railway,toy train (2).jpg",
       "body": [
-        "Before 1881, getting from Kolkata to Darjeeling took five or six days, the last stretch by cart. The Darjeeling Himalayan Railway, built between 1879 and 1881, runs 88 km from the plains near Siliguri up to about 2,200 metres, on track just two feet (610 mm) wide.",
+        "Until 1878, getting from Kolkata to Darjeeling took five or six days, the last stretch by bullock cart and palanquin. The Darjeeling Himalayan Railway, built between 1879 and 1881, runs 88 km from the plains near Siliguri up to about 2,200 metres, on track just two feet (610 mm) wide.",
         "To climb that far on such a narrow line, it zig-zags: the train runs forward, reverses up the next leg, then runs forward again, gaining height along the hillside. It also turns full circles; the Batasia Loop, built in 1919, wraps the line around a garden with the Kanchenjunga range behind it.",
         "Ghum, just before Darjeeling, is India's highest railway station at 2,260 m (not the world's highest, whatever some brochures say). In 1999 the DHR became the first railway in India to be named a UNESCO World Heritage Site."
       ],
@@ -202,9 +202,9 @@
       "article": "Vivek Express",
       "photo": "Vivek Superfast Express.jpg",
       "body": [
-        "The Vivek Express from Dibrugarh in Assam to Kanniyakumari, the southern tip of the mainland, runs the longest route on Indian Railways: about 4,155 km in a little over three days, with 57 stops in between.",
+        "The Vivek Express from Dibrugarh in Assam to Kanniyakumari, the southern tip of the mainland, runs the longest route on Indian Railways: about 4,100 km in a little over three days.",
         "It crosses eight states on the way: Assam, Nagaland, West Bengal, Bihar, Odisha, Andhra Pradesh, Kerala and Tamil Nadu, and passes through Jharkhand without stopping. The route takes in the Brahmaputra plains, the Bengal delta, the length of India's east coast, and Kerala's backwaters before the final run to the cape. The trains were launched in 2013 to mark the 150th birth anniversary of Swami Vivekananda.",
-        "The runner-up is almost as epic: the Himsagar Express runs about 3,790 km from Kanniyakumari to Shri Mata Vaishno Devi Katra in Jammu and Kashmir, through twelve states, once a week."
+        "The runner-up is almost as epic: the Himsagar Express runs about 3,720 km from Kanniyakumari to Shri Mata Vaishno Devi Katra in Jammu and Kashmir, through twelve states, once a week."
       ],
       "rides": [
         {
@@ -261,7 +261,7 @@
       "article": "Araku Valley",
       "photo": "ARAKU VALLEY BY TRAIN.jpg",
       "body": [
-        "The line from Visakhapatnam to Kirandul was built to carry iron ore from the mines of Bastar to the port, climbing through the Eastern Ghats. The Koraput–Araku–Waltair section was completed in 1982.",
+        "The line from Visakhapatnam to Kirandul was built in the 1960s, with Japanese help, to carry iron ore from the mines of Bastar to the port, climbing through the Eastern Ghats. It opened in 1966–67.",
         "On the way up to Araku the train threads 58 tunnels and crosses 84 major bridges, with the Borra Caves not far from the line. Araku itself is a valley of coffee estates and tribal villages, cool when the coast is steaming.",
         "The morning passenger from Visakhapatnam takes about four hours to Araku."
       ],
@@ -338,7 +338,7 @@
       "photo": "Golden Temple Mail with WAP-7 entering Ghaziabad Junction.jpg",
       "body": [
         "Before Partition, passengers arriving in Bombay by steamer from Europe could step off at Ballard Pier and onto the Frontier Mail, bound for Peshawar on the North-West Frontier. It ran under that name from 1928; before air-conditioning, slabs of ice were used to cool its first-class coaches.",
-        "In 1996 it was renamed the Golden Temple Mail, after the shrine at its end of the line. It now runs daily between Mumbai (Bandra Terminus) and Amritsar, the fastest daily train between the two."
+        "In 1996 it was renamed the Golden Temple Mail, after the shrine at its end of the line. It still runs daily between Mumbai and Amritsar, about 1,890 km in 29 hours."
       ],
       "rides": [
         {
@@ -468,7 +468,7 @@
     },
     {
       "cat": "History",
-      "text": "The Samjhauta Express began on 22 July 1976, after the Simla Agreement, running about 50 km between Amritsar and Lahore.",
+      "text": "The Samjhauta Express began on 22 July 1976, after the Simla Agreement, and ran about 50 km between Amritsar and Lahore. It hasn't run since 2019.",
       "stations": [
         "ASR",
         "ATT"
@@ -486,12 +486,12 @@
     },
     {
       "cat": "History",
-      "text": "Chittaranjan Locomotive Works turned out its first steam locomotives on 26 January 1950, the day India became a republic.",
+      "text": "Chittaranjan Locomotive Works began building steam locomotives on 26 January 1950, the day India became a republic. Its first was dedicated to the nation that November.",
       "source": "https://en.wikipedia.org/wiki/Chittaranjan_Locomotive_Works"
     },
     {
       "cat": "Trains",
-      "text": "The Vivek Express from Dibrugarh to Kanniyakumari runs India's longest train route: about 4,155 km, with 57 stops, in a little over three days.",
+      "text": "The Vivek Express from Dibrugarh to Kanniyakumari runs India's longest train route: about 4,100 km, in a little over three days.",
       "stations": [
         "DBRG",
         "CAPE"
@@ -500,7 +500,7 @@
     },
     {
       "cat": "Trains",
-      "text": "The weekly Himsagar Express runs about 3,790 km from Kanniyakumari to Shri Mata Vaishno Devi Katra, through twelve states.",
+      "text": "The weekly Himsagar Express runs about 3,720 km from Kanniyakumari to Shri Mata Vaishno Devi Katra, through twelve states.",
       "stations": [
         "CAPE",
         "SVDK"
@@ -509,7 +509,7 @@
     },
     {
       "cat": "Trains",
-      "text": "The first Vande Bharat began carrying passengers on 15 February 2019. The trainsets, built by the Integral Coach Factory in Chennai, reached 183 km/h in trials.",
+      "text": "The first Vande Bharat, New Delhi to Varanasi, was flagged off on 15 February 2019. The trainsets, built by the Integral Coach Factory in Chennai, reached 183 km/h in trials.",
       "stations": [
         "MAS"
       ],
@@ -652,7 +652,7 @@
     },
     {
       "cat": "Track",
-      "text": "About 99% of India's broad-gauge network is electrified (October 2025).",
+      "text": "More than 99% of India's broad-gauge network is electrified: 99.2% by November 2025.",
       "source": "https://en.wikipedia.org/wiki/Indian_Railways"
     },
     {
@@ -690,7 +690,7 @@
     },
     {
       "cat": "Stations",
-      "text": "Ib, in Odisha, has the shortest station name on Indian Railways, after the Ib river. Coal was discovered by accident there in 1900, while the railway was building a bridge.",
+      "text": "Ib, in Odisha, named after the Ib river, shares the shortest station name on Indian Railways with Od, in Gujarat: two letters. Coal was discovered by accident there in 1900, while the railway was building a bridge.",
       "stations": [
         "IB"
       ],
@@ -731,7 +731,7 @@
     },
     {
       "cat": "Stations",
-      "text": "Howrah is India's largest railway complex: 23 platforms, and every day about 250 long-distance trains and 500 suburban ones.",
+      "text": "Howrah has more platforms than any other station in India, 23, and handles about 600 trains and more than a million passengers a day.",
       "stations": [
         "HWH"
       ],
@@ -824,7 +824,7 @@
     },
     {
       "cat": "Quirky",
-      "text": "Before the Darjeeling railway opened in 1881, the journey from Kolkata to Darjeeling took five to six days, the last stretch by bullock cart and palanquin.",
+      "text": "Until 1878 the journey from Kolkata to Darjeeling took five or six days: train, a steam ferry across the Ganges, then bullock cart and palanquin. The railway to Siliguri cut it to two days, and from 1881 the toy train ran the rest of the way up.",
       "stations": [
         "DJ"
       ],

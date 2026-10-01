@@ -69,6 +69,12 @@ export interface GuideView {
 
 const THUMB = "https://upload.wikimedia.org/wikipedia/commons/thumb/";
 
+/**
+ * A guide worth suggesting as somewhere to go: any Wikivoyage guide, or a page put together from
+ * Wikidata landmarks with at least three of them (one lake in a suburb isn't a destination).
+ */
+export const worthwhile = (gv: GuideView | null | undefined): gv is GuideView => !!gv && (gv.entry.src !== "wd" || gv.entry.n >= 3);
+
 export function photo(key: string, raw: RawPhoto): Photo {
   return {
     t: raw.t.startsWith("http") ? raw.t : THUMB + raw.t,

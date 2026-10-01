@@ -175,8 +175,12 @@ GUIDE_LL = {t: (lat, lon) for t, lat, lon in GUIDES}
 # Guide pages that are regions, itineraries or infrastructure rather than somewhere to go.
 NOT_A_PLACE = re.compile(
     r"\b(district|division|region|pradesh|karnataka|kerala|goa$|rajasthan|gujarat|maharashtra|bengal|"
-    r"walk|itinerary|station|airport|heritage|circuit|trail|township|college)\b"
-    r"|^(north|south|east|west|central|northern|southern|eastern|western|north\w+|south\w+)\s",
+    r"telangana|punjab|haryana|bihar|odisha|jharkhand|chhattisgarh|uttarakhand|assam|tamil nadu|"
+    r"phrasebook|walk|itinerary|station|airport|heritage|circuit|trail|township|college|parganas|"
+    r"kongu nadu|saurashtra|bundelkhand|birbhum|nadia|malwa|marwar|mewar|konkan|malabar|doaba|"
+    r"purvanchal|awadh|vidarbha|marathwada|khandesh|rayalaseema|tulu nadu)\b"
+    r"|^(north|south|east|west|central|northern|southern|eastern|western|north\w+|south\w+|"
+    r"purba|paschim|dakshin|uttar)\s",
     re.I,
 )
 
@@ -253,7 +257,9 @@ for t in titles:
 print("guides known:", len(articles), "of", len(titles))
 
 # forget links to guides we couldn't get, so those stations can still become places from landmarks
-known = lambda t: t and resolve(t) in articles  # noqa: E731
+# a town's guide that Wikivoyage has merged into its district's ("Balurghat" -> "Dakshin
+# Dinajpur") isn't a destination either
+known = lambda t: t and resolve(t) in articles and not NOT_A_PLACE.search(resolve(t))  # noqa: E731
 for code, (primary, nearby) in list(station_links.items()):
     primary = resolve(primary) if known(primary) else None
     nearby = [r for r in dict.fromkeys(resolve(t) for t in nearby if known(t)) if r != primary]
@@ -484,8 +490,15 @@ for i, code in enumerate(S["code"]):
 print("places made from landmarks:", len(pseudo), "e.g.", [t for t in pseudo if "Shravan" in t][:2])
 
 # ---------------------------------------------------------------- 5. photos
+# a map, a flag or a word in a script isn't a photo of somewhere to go
+NOT_A_PHOTO = re.compile(r"\.svg$|\bmaps?\b|locator|outline|\bin [A-Z][^()]* \(India\)|\bflag\b|\bseal\b|\blogo\b|emblem", re.I)
+
+
 def icon_of(a):
-    return claim(a["qid"], "P18") or a["lead"]
+    for f in (claim(a["qid"], "P18"), a["lead"]):
+        if f and not NOT_A_PHOTO.search(f):
+            return f
+    return None
 
 
 files = set()
@@ -561,7 +574,8 @@ for title, a in articles.items():
     banner = claim(a["qid"], "P948")
     out_articles[title] = {
         "x": a["x"],
-        "icon": photo_key(icon_of(a)),
+        # its own photo, else its best sight's
+        "icon": photo_key(icon_of(a)) or next((s["img"] for s in items if s.get("img")), None),
         "banner": photo_key(banner),
         "ll": [a["lat"], a["lon"]] if a["lat"] is not None else None,
         "sights": items,
@@ -569,7 +583,7 @@ for title, a in articles.items():
         "appeal": len(listings.get(title, [])) + 3 * sum(1 for s in items if s.get("img")) + (6 if banner else 0),
     }
 for title, a in pseudo.items():
-    out_articles[title] = {"x": a["x"], "icon": photo_key(a["lead"]), "banner": None, "ll": [a["lat"], a["lon"]],
+    out_articles[title] = {"x": a["x"], "icon": photo_key(a["lead"]) if a["lead"] and not NOT_A_PHOTO.search(a["lead"]) else None, "banner": None, "ll": [a["lat"], a["lon"]],
                            "sights": [sight_out(s) for s in sights[title]], "appeal": round(a["appeal"], 1), "src": "wd"}
 
 # ---------------------------------------------------------------- write: an index for the map, details in shards

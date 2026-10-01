@@ -66,14 +66,23 @@ function hopHtml(v: TripView, leg: PlannedLeg, i: number) {
   }
   const chosen = leg.ride;
   const tm = leg.times[leg.chosen];
+  const day = (m: number) => Math.floor(m / 1440);
+  const sameDay = leg.times.every((x) => day(x.depart) === day(tm.depart));
   const others = leg.options.length > 1
-    ? `<details><summary>${plural(leg.options.length - 1, "other train")} that day</summary>${leg.options
-        .map((r, k) => `<button class="alt" type="button" data-act="trip-alt" data-leg="${i}" data-k="${k}" aria-pressed="${r === chosen}">${fmtTime(rideDep(r))} · ${rideLine(r)} · ${fmtMins(rideMins(r))}</button>`)
+    ? `<details><summary>${plural(leg.options.length - 1, "other train")}${sameDay ? " that day" : ""}</summary>${leg.options
+        .map((r, k) => `<button class="alt" type="button" data-act="trip-alt" data-leg="${i}" data-k="${k}" aria-pressed="${r === chosen}">${sameDay ? "" : `${v.dayOf(leg.times[k].depart)}, `}${fmtTime(rideDep(r))} · ${rideLine(r)} · ${fmtMins(rideMins(r))}</button>`)
         .join("")}</details>`
+    : "";
+  // no train the day you meant to leave: say so, rather than quietly adding a night
+  const setOff = tm.depart - (leg.roadBefore ? leg.roadBefore.road.mins + 30 : 0);
+  const later = day(setOff) - day(leg.ready);
+  const wait = later > 0
+    ? `<div class="road wait">No train that day from ${esc(v.name(leg.rail.a))}: this is the first, ${later === 1 ? "a day" : `${later} days`} later.</div>`
     : "";
   return `<div class="hop"><div class="hop-card">
     ${rideLine(chosen)}
     <div class="hop-when"><span>${v.dayOf(tm.depart)}, ${fmtTime(tm.depart % 1440)} → ${Math.floor(tm.arrive / 1440) > Math.floor(tm.depart / 1440) ? `${v.dayOf(tm.arrive)}, ` : ""}${fmtTime(tm.arrive % 1440)}</span><b>${fmtMins(tm.arrive - tm.depart)}</b></div>
+    ${wait}
     ${road.map((r) => `<div class="road">${r}</div>`).join("")}
     ${others}
     <button class="link-btn" type="button" data-act="trip-train" data-leg="${i}">See the stops →</button>

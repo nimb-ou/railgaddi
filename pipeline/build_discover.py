@@ -26,7 +26,7 @@ UA = "Railgaddi/1.0 (https://github.com/nimb-ou/railgaddi; non-commercial train-
 content = json.loads((ROOT / "content" / "discover.json").read_text())
 meta = json.loads((ROOT / "data" / "meta.json").read_text())
 codes = set(meta["stations"]["code"])
-trains = {t[0] for t in meta["trains"]}
+trains = {t[0] for t in json.loads((ROOT / "data" / "trains.json").read_text())["trains"]}
 problems = []
 
 

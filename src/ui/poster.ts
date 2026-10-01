@@ -118,8 +118,10 @@ function fit(c: CanvasRenderingContext2D, text: string, style: string, max: numb
 }
 
 export async function drawPoster(info: PosterInfo): Promise<HTMLCanvasElement> {
+  // the condensed width is only used here: the rest of the site loads the lighter weight-only font
+  await import("@fontsource-variable/archivo/wdth.css").catch(() => {});
   await Promise.all(
-    [document.fonts?.load(`900 100px ${FONT}`), document.fonts?.load(`700 30px ${FONT}`), info.script ? document.fonts?.load(`700 36px ${SCRIPTS}`, info.script) : null].map((p) => p?.catch(() => {})),
+    [document.fonts?.load(`900 condensed 100px ${FONT}`), document.fonts?.load(`900 100px ${FONT}`), document.fonts?.load(`700 30px ${FONT}`), info.script ? document.fonts?.load(`700 36px ${SCRIPTS}`, info.script) : null].map((p) => p?.catch(() => {})),
   );
   const cv = document.createElement("canvas");
   cv.width = W;

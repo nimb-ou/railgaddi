@@ -1,7 +1,8 @@
-// Boot: fetch the core data in parallel, decode it, start the app, then stream in the
-// detailed route geometry. Every data file is content-hashed by the build, so browsers and the
-// CDN can keep it forever and only fetch what changed.
-import "@fontsource-variable/archivo/wdth.css";
+// Boot: fetch the stations, guides and map in parallel and start the app; the timetable (the
+// largest file) comes at a lower priority, and the landing page doesn't wait for it. Then stream
+// in the detailed route geometry. Every data file is content-hashed by the build, so browsers and
+// the CDN can keep it forever and only fetch what changed.
+import "@fontsource-variable/archivo/wght.css"; // the condensed width is only for share posters: they load it themselves
 import "./ui/fonts.css";
 import "./ui/style.css";
 import type { Topology } from "topojson-specification";
@@ -10,11 +11,13 @@ import pathsUrl from "../data/paths.bin?url";
 import pathsGzUrl from "../data/paths.bin.gz?url";
 import placesUrl from "../data/places/index.json?url";
 import spotsUrl from "../data/spots.json?url";
+import roadsUrl from "../data/roads.json?url";
 import timetableUrl from "../data/timetable.bin?url";
+import trainsUrl from "../data/trains.json?url";
 import timetableGzUrl from "../data/timetable.bin.gz?url";
 import { App } from "./app/app";
 import { parse } from "./app/router";
-import { applyPaths, decodeNetwork, type MetaFile } from "./core/network";
+import { applyPathsSoftly, applyTimetableSoftly, decodeStations, type MetaFile, type TrainsFile } from "./core/network";
 import { PlaceDetails, buildGuideIndex, type PlacesIndex } from "./core/places";
 import { buildSlugs } from "./core/slugs";
 import { Spots } from "./core/spots";
@@ -26,19 +29,19 @@ import { registerOffline } from "./ui/offline";
 
 const shardUrls = import.meta.glob<string>("../data/places/[0-9][0-9].json", { query: "?url", import: "default", eager: true });
 
-async function get(url: string, as: "json"): Promise<unknown>;
-async function get(url: string, as: "buffer"): Promise<ArrayBuffer>;
-async function get(url: string, as: "json" | "buffer") {
-  const r = await fetch(url);
+async function get(url: string, as: "json", priority?: RequestPriority): Promise<unknown>;
+async function get(url: string, as: "buffer", priority?: RequestPriority): Promise<ArrayBuffer>;
+async function get(url: string, as: "json" | "buffer", priority: RequestPriority = "auto") {
+  const r = await fetch(url, { priority });
   if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`);
   return as === "json" ? r.json() : r.arrayBuffer();
 }
 
 /** A binary data file: the gzipped copy, unpacked here (a third of the size on any host). */
-async function binary(plain: string, gz: string): Promise<ArrayBuffer> {
-  if (!("DecompressionStream" in window)) return get(plain, "buffer");
-  const r = await fetch(gz);
-  if (!r.ok) return get(plain, "buffer");
+async function binary(plain: string, gz: string, priority: RequestPriority = "auto"): Promise<ArrayBuffer> {
+  if (!("DecompressionStream" in window)) return get(plain, "buffer", priority);
+  const r = await fetch(gz, { priority });
+  if (!r.ok) return get(plain, "buffer", priority);
   const buf = await r.arrayBuffer();
   const b = new Uint8Array(buf, 0, 2);
   if (b[0] !== 0x1f || b[1] !== 0x8b) return buf; // the host already unpacked it (Content-Encoding: gzip)
@@ -47,18 +50,30 @@ async function binary(plain: string, gz: string): Promise<ArrayBuffer> {
 
 async function boot() {
   applySavedTheme();
-  const [meta, timetable, places, india, states, spotsData] = await Promise.all([
+  // An address with trains in it needs the timetable straight away; the landing page asks for it
+  // once the map and search have arrived, so on a slow connection they come first.
+  const first = parse();
+  const needsTrains = !!(first.origin || first.place || first.trip || first.discover !== undefined);
+  const trainsData = (priority: RequestPriority) =>
+    Promise.all([binary(timetableUrl, timetableGzUrl, priority), get(trainsUrl, "json", priority) as Promise<TrainsFile>]);
+  let timetable: Promise<[ArrayBuffer, TrainsFile]> | null = needsTrains ? trainsData("auto") : null;
+  timetable?.catch(() => {}); // reported below, where it's awaited
+  // real roads to places without a station: straight away for a link to a place, else later
+  const roadsData = () => get(roadsUrl, "json", "low") as Promise<(string | null)[]>;
+  const earlyRoads = first.place ? roadsData() : null;
+  earlyRoads?.catch(() => {});
+  const [meta, places, india, states, spotsData] = await Promise.all([
     get(metaUrl, "json") as Promise<MetaFile>,
-    binary(timetableUrl, timetableGzUrl),
     get(placesUrl, "json") as Promise<PlacesIndex>,
     get(indiaUrl, "json") as Promise<Topology>,
     get(statesUrl, "json") as Promise<Topology>,
     get(spotsUrl, "json") as Promise<ConstructorParameters<typeof Spots>[0]>,
   ]);
-  const net = decodeNetwork(meta, timetable);
+  const net = decodeStations(meta);
   const guides = buildGuideIndex(places, net);
   const slugs = buildSlugs(net, guides);
   const spots = new Spots(spotsData, (slug) => !!slugs.find(slug));
+  if (earlyRoads) await earlyRoads.then((r) => spots.attachRoads(r)).catch(() => {});
   const urls = Object.keys(shardUrls)
     .sort()
     .map((k) => shardUrls[k]);
@@ -68,14 +83,38 @@ async function boot() {
   const app = new App(net, guides, slugs, details, map, spots);
   setupChrome(map, () => app.refreshColors());
   map.fitIndia(0);
-  app.applyRoute(parse(), true);
+  if (import.meta.env.DEV) Object.assign(window, { __map: map, __net: net, __app: app });
+  const loading = document.getElementById("loading")!;
+  timetable ??= trainsData("low");
+  const ready = timetable.then(async ([buf, names]) => {
+    await applyTimetableSoftly(net, meta, buf, names); // a slice at a time: typing stays quick
+    map.refreshNetwork();
+    app.timetableReady();
+  });
+  // the landing page (and a place without a station, with nowhere to start from) needs only the
+  // stations; anything with trains in it waits for the timetable
+  if (first.origin || (first.place && !app.spotOnly(first)) || first.trip || first.discover !== undefined) await ready;
+  app.applyRoute(first, true);
+  loading.classList.add("done");
   // canvas labels are measured in the web font: re-measure once it has arrived
   document.fonts?.ready.then(() => {
     map.readTheme();
     app.settle();
   });
-  document.getElementById("loading")!.classList.add("done");
-  if (import.meta.env.DEV) Object.assign(window, { __map: map, __net: net, __app: app });
+  ready.catch((err) => {
+    console.error(err);
+    app.toast("Couldn't load the timetable. Check your connection and reload.", 60000);
+  });
+  await ready.catch(() => {});
+  if (!net.ready) return;
+  if (!spots.roadsLoaded) {
+    roadsData()
+      .then((r) => {
+        spots.attachRoads(r);
+        app.roadsReady();
+      })
+      .catch(() => {}); // the estimates stand in
+  }
 
   // lines along the track (not straight between halts) arrive a moment later, once the place's
   // photo has had the connection to itself
@@ -88,8 +127,8 @@ async function boot() {
   idle(
     () =>
       binary(pathsUrl, pathsGzUrl)
-        .then((buf) => {
-          applyPaths(net, buf);
+        .then(async (buf) => {
+          await applyPathsSoftly(net, buf);
           app.networkDetailed();
         })
         .catch((err) => console.warn("Route geometry unavailable; drawing straight lines between halts.", err)),

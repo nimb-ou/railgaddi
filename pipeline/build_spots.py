@@ -4,7 +4,14 @@ Kodaikanal, Munnar, Manali, Gangtok, Leh: people go there by train and then by r
 town in GeoNames (population 1,000 and over) this keeps the ones more than 8 km from any station
 that three or more trains stop at, plus the famous places in content/spots.json that aren't
 towns (Kasol, the Valley of Flowers). The site works out the nearest stations itself, from the
-timetable, so this only has to say where each place is.
+timetable, so this only has to say where each place is, plus:
+
+  - its population, unless GeoNames's figure is plainly a district's (a district seat of "1.7
+    million"): those are written negative, so the site ranks by them but doesn't show them;
+  - the station it does have, if one within 4 km has only local trains (Kolkata's suburbs,
+    narrow-gauge halts): "Barasat Junction", so the site doesn't say there's no station at all;
+  - the real road distances and times to its stations, from raw/roads.json (fetch_roads.py),
+    in data/roads.json, in the same order (the site fetches it after the page is up).
 
     pipeline/fetch_geo.sh                 # GeoNames towns and OurAirports, into raw/geo/
     python3 pipeline/build_spots.py       # -> data/spots.json
@@ -38,9 +45,22 @@ for r in csv.DictReader(open(ROOT / "db" / "halts.csv")):
         seen.add(k)
         trains_at[r["station"]] += 1
 served = []
+local = []  # stations with fewer trains: (lat, lon, name)
 for r in csv.DictReader(open(ROOT / "db" / "stations.csv")):
     if r["lat"] and trains_at[r["code"]] >= 3:
         served.append((float(r["lat"]), float(r["lon"])))
+    elif r["lat"]:
+        local.append((float(r["lat"]), float(r["lon"]), r["name"]))
+codes_served = {r["code"] for r in csv.DictReader(open(ROOT / "db" / "stations.csv")) if trains_at[r["code"]] >= 3}
+for e in json.load(open(ROOT / "raw" / "osm_stations.json"))["elements"]:
+    t = e.get("tags", {})
+    if t.get("station") in ("subway", "monorail", "light_rail") or t.get("subway") == "yes" or "metro" in t.get("network", "").lower():
+        continue
+    if t.get("ref") and t["ref"].upper() not in codes_served and t.get("name"):
+        local.append((e["lat"], e["lon"], t.get("name:en") or t["name"]))
+local_grid = defaultdict(list)
+for q in local:
+    local_grid[(int(q[0] * 2), int(q[1] * 2))].append(q)
 grid = defaultdict(list)
 for p in served:
     grid[(int(p[0] * 2), int(p[1] * 2))].append(p)
@@ -54,6 +74,19 @@ def nearest_station_km(p):
             for q in grid[(gy + dy, gx + dx)]:
                 best = min(best, hav(p, q))
     return best
+
+
+def local_station(p):
+    """The nearest station within 4 km that only local trains stop at (or none)."""
+    best = (4.0, "")
+    gy, gx = int(p[0] * 2), int(p[1] * 2)
+    for dy in (-1, 0, 1):
+        for dx in (-1, 0, 1):
+            for q in local_grid[(gy + dy, gx + dx)]:
+                d = hav(p, q)
+                if d < best[0]:
+                    best = (d, re.sub(r"\s+railway station$", "", q[2], flags=re.I))
+    return best[1]
 
 
 states = {}
@@ -74,7 +107,9 @@ for line in open(GEO / "cities1000.txt", encoding="utf-8"):
         continue
     name, lat, lon, pop = f[2], float(f[4]), float(f[5]), int(f[14] or 0)
     state = STATE_FIX.get(states.get(f[10], ""), states.get(f[10], ""))
-    towns.append({"name": name, "state": state, "lat": lat, "lon": lon, "pop": pop})
+    # GeoNames gives some district seats their district's population: rank by it, don't show it
+    doubtful = pop >= 150000 and f[7] not in ("PPLA", "PPLC")
+    towns.append({"name": name, "state": state, "lat": lat, "lon": lon, "pop": pop, "doubtful": doubtful})
 
 extra = json.load(open(ROOT / "content" / "spots.json"))
 for e in extra["extra"]:
@@ -114,14 +149,29 @@ for r in csv.DictReader(open(GEO / "airports.csv", encoding="utf-8")):
         airports.append([r["iata_code"], re.sub(r"\s+Airport$", "", r["name"]), r["municipality"], round(float(r["latitude_deg"]), 4), round(float(r["longitude_deg"]), 4)])
 print(f"airports with scheduled flights: {len(airports)}")
 
+roads = json.loads((ROOT / "raw" / "roads.json").read_text()) if (ROOT / "raw" / "roads.json").exists() else {}
+with_roads = 0
+for t in kept:
+    t["local"] = local_station((t["lat"], t["lon"]))
+    r = roads.get(f"{round(t['lat'], 4)},{round(t['lon'], 4)}")
+    t["roads"] = ";".join(f"{k} {km} {mins}" for k, km, mins in r) if r is not None else None
+    with_roads += r is not None
+print(f"with real roads: {with_roads}; with only a local station: {sum(1 for t in kept if t['local'])}")
+
 state_list = sorted({t["state"] for t in kept})
 out = {
     "meta": {"sources": "GeoNames (CC BY 4.0), OurAirports (public domain), content/spots.json"},
     "states": state_list,
-    # name, state, lat, lon, population, other names
-    "spots": [[t["name"], state_list.index(t["state"]), round(t["lat"], 4), round(t["lon"], 4), t["pop"], t["aka"]] for t in kept],
+    # name, state, lat, lon, population (negative: not to be shown), other names, the station it
+    # has with only local trains
+    "spots": [[t["name"], state_list.index(t["state"]), round(t["lat"], 4), round(t["lon"], 4), -t["pop"] if t.get("doubtful") else t["pop"], t["aka"], t["local"]] for t in kept],
     "airports": sorted(airports),
 }
 path = ROOT / "data" / "spots.json"
 path.write_text(json.dumps(out, ensure_ascii=False, separators=(",", ":")))
 print(f"wrote {path} ({path.stat().st_size // 1024} kB)")
+# each place's roads, in the same order: "CODE km mins;@IATA km mins" (station or airport, km, the
+# router's minutes); null where not fetched (the site estimates)
+roads_path = ROOT / "data" / "roads.json"
+roads_path.write_text(json.dumps([t["roads"] for t in kept], separators=(",", ":")))
+print(f"wrote {roads_path} ({roads_path.stat().st_size // 1024} kB)")

@@ -94,6 +94,7 @@
 
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; }
+body.waiting, body.waiting * { cursor: progress; }
 body {
   background: var(--sea);
   color: var(--text);
@@ -566,6 +567,7 @@ section .dest-list li a { padding-left: 0; padding-right: 0; }
 .hop-card .hop-when { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: 2px; }
 .hop-card .hop-when span { color: var(--muted); }
 .hop-card .road { margin-top: 4px; color: var(--muted); }
+.hop-card .road.wait { color: var(--caution); font-weight: 560; }
 .hop-card details { margin-top: 6px; }
 .hop-card summary { cursor: pointer; color: var(--livery); font-weight: 600; }
 .hop-card .alt { display: block; width: 100%; margin-top: 4px; padding: 6px 8px; border: 0; border-radius: 8px; background: var(--paper); text-align: left; font-size: 12.5px; }

@@ -1,3 +1,21 @@
 code,field,value,reason
 SBC,name,KSR Bengaluru,"the name on tickets and boards; OpenStreetMap has the long form, Krantivira Sangolli Rayanna (Bengaluru)"
 SHRN,name,Sant Hirdaram Nagar,"OpenStreetMap's name ends in ""Railway Station"""
+TCR,name,Thrissur,"OpenStreetMap's node for this station carries the name of a bank (""Canara Bank"")"
+TCR,hi,त्रिशूर,the Hindi name without the bank's name run into it
+SCL,name,Silchar,"the station's name in the timetable; OpenStreetMap has ""Bhasha Shahid"", from a proposed renaming"
+RDDE,name,Rathdhana,"the station's name in the timetable; OpenStreetMap has a neighbouring village, Barota"
+BUGY,name,Bugia,"the station's name in the timetable; OpenStreetMap has ""MASANIWALA"""
+SME,name,Shivamogga Town,"OpenStreetMap's name has the station code in it (""Shivamogga - SME"")"
+BDGM,name,Budgam,"OpenStreetMap's name ends in ""station"""
+IDJ,name,Idalhond,OpenStreetMap's name starts with a lower-case L for the I
+BBPM,name,Balabhadrapuram,OpenStreetMap's name has a capital I for the l
+JOB,name,Asalpur Jobner,OpenStreetMap's name has a capital I for the l
+SGKM,name,Srungavruksham,"the station's name in the timetable; OpenStreetMap's is lower-case and spelt ""sringavruksham"""
+PDPH,name,Padapahar Junction,OpenStreetMap's name runs the words together
+JRBM,state,Manipur,"Jiribam is in Manipur; the station is a few hundred metres from the Assam border, so fix_states.py keeps the source's state"
+DLK,state,West Bengal,"Dalkhola is in Uttar Dinajpur, West Bengal, beside the Bihar border"
+BHNG,state,Arunachal Pradesh,"Bhalukpong is in West Kameng, Arunachal Pradesh, on the Assam border"
+MNDP,state,Meghalaya,"Mendipathar, in North Garo Hills, is Meghalaya's first station"
+CRZ,state,Goa,Caranzol is in Goa on the Braganza Ghat line
+DWF,state,Goa,"Dudhsagar falls and its station are in Goa, by the Karnataka border"

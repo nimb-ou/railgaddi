@@ -1,7 +1,8 @@
 // Which places earn a photo bubble on the map, best first. The map shows as many as fit.
 import type { Place } from "./network";
-import type { GuideView, Photo } from "./places";
+import { worthwhile, type GuideView, type Photo } from "./places";
 import { titleOf } from "./slugs";
+import { km } from "./spots";
 import type { Leg } from "./trips";
 
 export interface BubbleCandidate {
@@ -23,13 +24,20 @@ export const ICONIC = [
 ];
 const iconic = new Map(ICONIC.map((t, i) => [t, ICONIC.length - i]));
 
+/** A neighbourhood of the city you start from (Bellandur, from Bengaluru) isn't a trip. */
+export function sameTown(a: Place | null, b: Place) {
+  if (!a || a.lat === null || a.lon === null || b.lat === null || b.lon === null) return false;
+  return km({ lat: a.lat, lon: a.lon }, { lat: b.lat, lon: b.lon }) < 20;
+}
+
 export function rankPlaces(
   guides: Map<Place, GuideView>,
   reach: Map<Place, Leg[]> | null, // null: nothing picked yet, show inspiration
+  hub: Place | null = null, // where the rides start (or end)
 ): BubbleCandidate[] {
   const out: (BubbleCandidate & { guide: string })[] = [];
   const add = (place: Place, gv: GuideView, mins: number | null, score: number) => {
-    if (!gv.icon) return;
+    if (!gv.icon || !worthwhile(gv)) return;
     const fame = iconic.get(gv.title);
     out.push({
       place,
@@ -44,7 +52,7 @@ export function rankPlaces(
     for (const [place, legs] of reach) {
       const gv = guides.get(place);
       const mins = Math.min(...legs.map((l) => l.dur));
-      if (!gv || mins < 30) continue; // a neighbourhood of your own city isn't a trip
+      if (!gv || mins < 30 || sameTown(hub, place)) continue; // a neighbourhood of your own city isn't a trip
       add(place, gv, mins, Math.log1p(gv.entry.appeal) + 0.35 * Math.log1p(legs.length) + (place.isCity ? 0.4 : 0));
     }
   } else {

@@ -6,7 +6,7 @@ import { daysLabel } from "../core/format";
 import type { Network, Place, Train } from "../core/network";
 import type { GuideView } from "../core/places";
 import { searchPlaces, searchTrains } from "../core/search";
-import { searchOnline, type Spot, type Spots } from "../core/spots";
+import { km, searchOnline, type Spot, type Spots } from "../core/spots";
 import { esc } from "./panel";
 import { photoUrl } from "./photos";
 
@@ -130,7 +130,10 @@ export class SearchBox {
   private online(q: string) {
     clearTimeout(this.lookup);
     const hits = this.results.filter((r) => !r.t).length;
-    if (!this.opts.online || !this.opts.onSpot || q.trim().length < 4 || hits >= 3 || fold(q) === this.asked) return;
+    // a station, city or town that's exactly what you typed ("bombay" is Mumbai): no need to look further
+    const f = fold(q.trim());
+    const exact = this.results.some((r) => (r.p && (fold(r.p.name) === f || r.p.aka.some((a) => fold(a) === f))) || (r.s && (fold(r.s.name) === f || r.s.aka.some((a) => fold(a) === f))));
+    if (!this.opts.online || !this.opts.onSpot || q.trim().length < 4 || hits >= 3 || exact || fold(q) === this.asked) return;
     this.lookup = window.setTimeout(async () => {
       this.asked = fold(q);
       const found = await searchOnline(q).catch(() => []);
@@ -138,7 +141,10 @@ export class SearchBox {
       const near = (a: { lat: number | null; lon: number | null }, b: Spot) => a.lat !== null && a.lon !== null && Math.abs(a.lat - b.lat) < 0.08 && Math.abs(a.lon - b.lon) < 0.08;
       // one of ours already, or the same name in the same state as one of ours
       const same = (r: Item, f: Spot) => (r.p && near(r.p, f)) || (r.s && (near(r.s, f) || (fold(r.s.name) === fold(f.name) && r.s.state === f.state)));
-      const fresh = found.filter((f) => !this.results.some((r) => same(r, f)));
+      // a place found online that has a station of its own isn't "a place without a station"
+      const served = (f: Spot) =>
+        [...this.net.places.values()].some((p) => p.halts >= 3 && p.lat !== null && p.lon !== null && Math.abs(p.lat - f.lat) < 0.06 && Math.abs(p.lon - f.lon) < 0.06 && km(f, { lat: p.lat, lon: p.lon }) < 6);
+      const fresh = found.filter((f) => !this.results.some((r) => same(r, f)) && !served(f));
       this.results = [...this.results, ...fresh.slice(0, 4).map((s) => ({ s }))];
       if (this.active < 0 && this.results.length) this.active = 0;
       this.render();

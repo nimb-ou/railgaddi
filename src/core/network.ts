@@ -86,9 +86,13 @@ export interface MetaFile {
     halts: number[];
   };
   cities: { id: string; name: string; hi: string; local: string; aka: string[]; state: string; stations: number[] }[];
-  trains: [string, string, number?][];
   sources?: [string, string][];
   renamed?: Record<string, [string, string]>;
+}
+
+/** data/trains.json: each train's number, name and source, in timetable order, and newer trains. */
+export interface TrainsFile {
+  trains: [string, string, number?][];
   newer?: [string, string, string, number, number, number, number, number, number, number, string][];
 }
 
@@ -100,6 +104,8 @@ export interface Network {
   placeOf: Place[]; // per station index
   trainsAt: number[][]; // per station index: trains that halt there
   newer: NewerTrain[];
+  /** true once the timetable has arrived: until then the network has stations and places only */
+  ready: boolean;
   /** true once the route geometry (paths.bin) has been applied */
   detailed: boolean;
 }
@@ -149,28 +155,18 @@ function layLine(stations: Station[], t: Train, passes?: (h: number) => ArrayLik
   t.geom = { st: Int32Array.from(st), km: Float32Array.from(km) };
 }
 
-export function decodeNetwork(meta: MetaFile, timetable: ArrayBuffer): Network {
-  checkMagic(timetable, "RGTT", 4);
-  const dv = new DataView(timetable);
-  const nT = dv.getUint32(8, true);
-  const nH = dv.getUint32(12, true);
-  let o = 16;
-  const start = new Uint32Array(timetable, o, nT + 1);
-  o += 4 * (nT + 1);
-  const hStation = new Uint16Array(timetable, o, nH);
-  o += 2 * nH;
-  const dArr = new Uint16Array(timetable, o, nH);
-  o += 2 * nH;
-  const dDep = new Uint16Array(timetable, o, nH);
-  o += 2 * nH;
-  const dDist = new Uint16Array(timetable, o, nH);
-  o += 2 * nH;
-  const tType = new Uint8Array(timetable, o, nT);
-  o += nT;
-  const tDays = new Uint8Array(timetable, o, nT);
-  o += nT;
-  const hFlags = new Uint8Array(timetable, o, nH);
+/** Both halves at once (tests, the prerender). */
+export function decodeNetwork(meta: MetaFile, timetable: ArrayBuffer, names: TrainsFile): Network {
+  const net = decodeStations(meta);
+  applyTimetable(net, meta, timetable, names);
+  return net;
+}
 
+/**
+ * Stations and places, from meta.json alone: enough to draw the map, search for places and show
+ * the landing page while the timetable (the largest download) is still on its way.
+ */
+export function decodeStations(meta: MetaFile): Network {
   const S = meta.stations;
   const stations: Station[] = S.code.map((code, i) => ({
     i,
@@ -184,50 +180,6 @@ export function decodeNetwork(meta: MetaFile, timetable: ArrayBuffer): Network {
     halts: S.halts[i],
     was: meta.renamed?.[code],
   }));
-
-  // times and distances are stored as differences from the previous halt (mod 2^16)
-  const ARR = new Int32Array(nH);
-  const DEP = new Int32Array(nH);
-  const DIST = new Int32Array(nH);
-  const KM = new Float32Array(nH);
-  const trainsAt: number[][] = stations.map(() => []);
-  const trains: Train[] = new Array(nT);
-  for (let t = 0; t < nT; t++) {
-    const a0 = start[t];
-    const a1 = start[t + 1];
-    let dep = 0;
-    let dist = 0;
-    for (let h = a0; h < a1; h++) {
-      const first = h === a0;
-      const last = h === a1 - 1;
-      const arr = first ? -1 : (dep + dArr[h]) & NONE;
-      dep = last ? -1 : first ? dDep[h] : (arr + dDep[h]) & NONE;
-      dist = (dist + dDist[h]) & NONE;
-      ARR[h] = arr;
-      DEP[h] = dep;
-      DIST[h] = dist;
-      trainsAt[hStation[h]].push(t);
-    }
-    const [code, label] = meta.types[tType[t]];
-    const train: Train = {
-      i: t,
-      no: meta.trains[t][0],
-      name: meta.trains[t][1],
-      type: code,
-      typeLabel: label,
-      st: hStation.subarray(a0, a1),
-      arr: ARR.subarray(a0, a1),
-      dep: DEP.subarray(a0, a1),
-      dist: DIST.subarray(a0, a1),
-      km: KM.subarray(a0, a1),
-      geom: { st: new Int32Array(0), km: new Float32Array(0) },
-      days: tDays[t],
-      source: meta.sources?.[meta.trains[t][2] ?? 0]?.[1] ?? meta.meta.timetable,
-      approx: hFlags.subarray(a0, a1),
-    };
-    layLine(stations, train);
-    trains[t] = train;
-  }
 
   // places: curated multi-station cities, then every other station on its own
   const places = new Map<string, Place>();
@@ -271,14 +223,116 @@ export function decodeNetwork(meta: MetaFile, timetable: ArrayBuffer): Network {
     placeOf[s.i] = p;
   }
 
-  const newer: NewerTrain[] = (meta.newer ?? []).map(([numbers, name, type, from, to, days, perWeek, minutes, km, stops, src]) => ({
+  return { meta: meta.meta, stations, trains: [], places, placeOf, trainsAt: stations.map(() => []), newer: [], ready: false, detailed: false };
+}
+
+/** Every train's halts and times, from timetable.bin and trains.json, into a network decoded by decodeStations. */
+export function applyTimetable(net: Network, meta: MetaFile, timetable: ArrayBuffer, names: TrainsFile) {
+  for (const _ of timetableSteps(net, meta, timetable, names)); // eslint-disable-line no-empty
+}
+
+/** The same, a slice at a time, so a tap or a keystroke never waits behind it (the browser). */
+export async function applyTimetableSoftly(net: Network, meta: MetaFile, timetable: ArrayBuffer, names: TrainsFile) {
+  for (const _ of timetableSteps(net, meta, timetable, names)) await pause();
+}
+
+/** Let the browser handle input and paint before carrying on. */
+function pause() {
+  const sch = (globalThis as { scheduler?: { yield?: () => Promise<void> } }).scheduler;
+  return sch?.yield ? sch.yield() : new Promise<void>((r) => setTimeout(r, 0));
+}
+
+const SLICE = 400; // trains decoded between pauses: a few milliseconds each on a slow phone
+
+function* timetableSteps(net: Network, meta: MetaFile, timetable: ArrayBuffer, names: TrainsFile) {
+  checkMagic(timetable, "RGTT", 4);
+  const dv = new DataView(timetable);
+  const nT = dv.getUint32(8, true);
+  const nH = dv.getUint32(12, true);
+  let o = 16;
+  const start = new Uint32Array(timetable, o, nT + 1);
+  o += 4 * (nT + 1);
+  const hStation = new Uint16Array(timetable, o, nH);
+  o += 2 * nH;
+  const dArr = new Uint16Array(timetable, o, nH);
+  o += 2 * nH;
+  const dDep = new Uint16Array(timetable, o, nH);
+  o += 2 * nH;
+  const dDist = new Uint16Array(timetable, o, nH);
+  o += 2 * nH;
+  const tType = new Uint8Array(timetable, o, nT);
+  o += nT;
+  const tDays = new Uint8Array(timetable, o, nT);
+  o += nT;
+  const hFlags = new Uint8Array(timetable, o, nH);
+
+  const { stations, trainsAt } = net;
+  // times and distances are stored as differences from the previous halt (mod 2^16)
+  const ARR = new Int32Array(nH);
+  const DEP = new Int32Array(nH);
+  const DIST = new Int32Array(nH);
+  const KM = new Float32Array(nH);
+  const trains: Train[] = new Array(nT);
+  for (let t = 0; t < nT; t++) {
+    if (t && t % SLICE === 0) yield;
+    const a0 = start[t];
+    const a1 = start[t + 1];
+    let dep = 0;
+    let dist = 0;
+    for (let h = a0; h < a1; h++) {
+      const first = h === a0;
+      const last = h === a1 - 1;
+      const arr = first ? -1 : (dep + dArr[h]) & NONE;
+      dep = last ? -1 : first ? dDep[h] : (arr + dDep[h]) & NONE;
+      dist = (dist + dDist[h]) & NONE;
+      ARR[h] = arr;
+      DEP[h] = dep;
+      DIST[h] = dist;
+      trainsAt[hStation[h]].push(t);
+    }
+    const [code, label] = meta.types[tType[t]];
+    const train: Train = {
+      i: t,
+      no: names.trains[t][0],
+      name: names.trains[t][1],
+      type: code,
+      typeLabel: label,
+      st: hStation.subarray(a0, a1),
+      arr: ARR.subarray(a0, a1),
+      dep: DEP.subarray(a0, a1),
+      dist: DIST.subarray(a0, a1),
+      km: KM.subarray(a0, a1),
+      geom: { st: new Int32Array(0), km: new Float32Array(0) },
+      days: tDays[t],
+      source: meta.sources?.[names.trains[t][2] ?? 0]?.[1] ?? meta.meta.timetable,
+      approx: hFlags.subarray(a0, a1),
+    };
+    layLine(stations, train);
+    trains[t] = train;
+  }
+
+  net.trains = trains;
+  net.newer = (names.newer ?? []).map(([numbers, name, type, from, to, days, perWeek, minutes, km, stops, src]) => ({
     numbers, name, type, from, to, days, perWeek, minutes, km, stops, src,
   }));
-  return { meta: meta.meta, stations, trains, places, placeOf, trainsAt, newer, detailed: false };
+  net.ready = true;
+}
+
+/** Does any train other than a hill railway's toy train stop here? (Toy-train halts aren't where people change to the road.) */
+export function onMainLine(net: Network, p: Place) {
+  return p.stations.some((i) => net.trainsAt[i].some((t) => net.trains[t].type !== "Toy"));
 }
 
 /** Add the stations each train passes between halts, so lines follow the track instead of chords. */
 export function applyPaths(net: Network, paths: ArrayBuffer) {
+  for (const _ of pathSteps(net, paths)); // eslint-disable-line no-empty
+}
+
+export async function applyPathsSoftly(net: Network, paths: ArrayBuffer) {
+  for (const _ of pathSteps(net, paths)) await pause();
+}
+
+function* pathSteps(net: Network, paths: ArrayBuffer) {
   checkMagic(paths, "RGTP", 1);
   const dv = new DataView(paths);
   const nH = dv.getUint32(8, true);
@@ -288,11 +342,23 @@ export function applyPaths(net: Network, paths: ArrayBuffer) {
   const offset = new Uint32Array(nH + 1);
   for (let h = 0; h < nH; h++) offset[h + 1] = offset[h] + count[h];
   let h0 = 0;
+  // lay every line first, then swap them in: the map never draws a half-detailed network
+  const lines: { geom: Geom; km: Float32Array }[] = [];
   for (const t of net.trains) {
+    if (t.i && t.i % SLICE === 0) yield;
     const base = h0;
+    const old = { geom: t.geom, km: Float32Array.from(t.km) };
     layLine(net.stations, t, (j) => pass.subarray(offset[base + j], offset[base + j + 1]));
+    lines.push({ geom: t.geom, km: Float32Array.from(t.km) });
+    t.geom = old.geom; // the old line stays until every train has its new one
+    t.km.set(old.km);
     h0 += t.st.length;
   }
   if (h0 !== nH) throw new Error("Route geometry doesn't match the timetable");
+  // the swap: every line and the distances along it, at once
+  net.trains.forEach((t, k) => {
+    t.geom = lines[k].geom;
+    t.km.set(lines[k].km);
+  });
   net.detailed = true;
 }

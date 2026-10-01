@@ -10,7 +10,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { daysLabel, fmtKm, fmtMins, fmtTime, plural, shiftDays } from "../src/core/format";
-import { decodeNetwork, type MetaFile, type Place } from "../src/core/network";
+import { decodeNetwork, onMainLine, type MetaFile, type Place, type TrainsFile } from "../src/core/network";
 import { buildGuideIndex, type ArticleDetail, type GuideView, type PlacesIndex } from "../src/core/places";
 import { rankPlaces } from "../src/core/rank";
 import { buildSlugs, titleOf } from "../src/core/slugs";
@@ -28,11 +28,12 @@ const PAIRS_PER_CITY = 30;
 const read = (f: string) => readFileSync(join(ROOT, "data", f));
 const buf = (b: Buffer) => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer;
 const meta = JSON.parse(read("meta.json").toString()) as MetaFile;
-const net = decodeNetwork(meta, buf(read("timetable.bin")));
+const net = decodeNetwork(meta, buf(read("timetable.bin")), JSON.parse(read("trains.json").toString()) as TrainsFile);
 const ix = JSON.parse(read("places/index.json").toString()) as PlacesIndex;
 const guides = buildGuideIndex(ix, net);
 const slugs = buildSlugs(net, guides);
 const spots = new Spots(JSON.parse(read("spots.json").toString()), (slug) => !!slugs.find(slug));
+spots.attachRoads(JSON.parse(read("roads.json").toString()));
 const details = new Map<string, ArticleDetail>();
 for (const f of readdirSync(join(ROOT, "data/places")).filter((f) => /^\d\d\.json$/.test(f))) {
   const shard = JSON.parse(read(`places/${f}`).toString()) as { articles: Record<string, ArticleDetail> };
@@ -281,15 +282,16 @@ for (const st of discover.stories) {
 
 // places without a station that people look for: towns of 20,000 and more, and the famous extras
 for (const s of spots.list.filter((x) => x.pop >= 20000 || x.pop === 0)) {
-  const ways = nearestStations(net, s, 4);
+  const main = nearestStations(net, s, 4, (p) => onMainLine(net, p));
+  const ways = main.length ? main : nearestStations(net, s, 4);
   if (!ways.length) continue;
   const air = nearestAirports(spots.airports, s, 1)[0];
   const best = ways[0];
   render({
     path: `/to/${s.id}/`,
     title: `${s.name} by train: the nearest stations · Railgaddi`,
-    description: clip(`${s.name}, ${s.state}, has no railway station. Take a train to ${ways.map((w) => titleOf(w.place, null)).slice(0, 3).join(", ")}, then about ${fmtMins(best.road.mins)} by road. The weather there, and the trains.`),
-    body: `<h1>${esc(s.name)} by train</h1><p>${esc(s.name)} (${esc(s.state)}) has no railway station of its own. The stations to take a train to, and the road from each (estimated):</p>
+    description: clip(`${s.name}, ${s.state}, has ${s.local ? "only a local station" : "no railway station"}. Take a train to ${ways.map((w) => titleOf(w.place, null)).slice(0, 3).join(", ")}, then about ${fmtMins(best.road.mins)} by road. The weather there, and the trains.`),
+    body: `<h1>${esc(s.name)} by train</h1><p>${esc(s.name)} (${esc(s.state)}) has ${s.local ? `only a local station (${esc(s.local)})` : "no railway station of its own"}. The stations to take a train to, and the road from each${best.road.real ? "" : " (estimated)"}:</p>
       <ol>${ways.map((w) => `<li>${link(path(undefined, w.place), titleOf(w.place, null))}: about ${w.road.km} km, ${fmtMins(w.road.mins)} by road</li>`).join("")}</ol>
       ${air ? `<p>Nearest airport: ${esc(air.airport.name)} (${esc(air.airport.iata)}), about ${air.road.km} km.</p>` : ""}`,
   });

@@ -1129,6 +1129,11 @@ export class RailMap {
       ctx.stroke();
     }
     ctx.restore();
+    // labels below their station, else above, right or left: never on top of one another
+    const pinHalf = this.boardWidth(sp.name) / 2;
+    const taken: [number, number, number, number][] = [[x - 11, y - 30, x + 11, y], [x - pinHalf, y + 2, x + pinHalf, y + 26]];
+    const free = (b: [number, number, number, number]) =>
+      b[0] > 4 && b[2] < this.w - 4 && b[1] > 4 && b[3] < this.h - 4 && !taken.some((o) => b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]);
     for (const t of sp.to) {
       const sx = this.tf.applyX(this.sx[t.anchor]), sy = this.tf.applyY(this.sy[t.anchor]);
       ctx.beginPath();
@@ -1138,7 +1143,15 @@ export class RailMap {
       ctx.lineWidth = 2;
       ctx.strokeStyle = this.c.livery;
       ctx.stroke();
-      this.stationBoard(t.label, sx, sy + 8);
+      taken.push([sx - 6, sy - 6, sx + 6, sy + 6]);
+    }
+    for (const t of sp.to) {
+      const sx = this.tf.applyX(this.sx[t.anchor]), sy = this.tf.applyY(this.sy[t.anchor]);
+      const half = this.boardWidth(t.label) / 2;
+      const spots: [number, number][] = [[sx, sy + 8], [sx, sy - 30], [sx + half + 10, sy - 11], [sx - half - 10, sy - 11]];
+      const at = spots.find(([cx, top]) => free([cx - half, top, cx + half, top + 22])) ?? spots[0];
+      taken.push([at[0] - half, at[1], at[0] + half, at[1] + 22]);
+      this.stationBoard(t.label, at[0], at[1]);
     }
     this.pin(x, y, this.c.accent, sp.name);
   }

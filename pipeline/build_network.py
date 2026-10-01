@@ -1,4 +1,4 @@
-"""Build what the site loads (data/meta.json, data/timetable.bin, data/paths.bin) from
+"""Build what the site loads (data/meta.json, data/trains.json, data/timetable.bin, data/paths.bin) from
 Railgaddi's own database in db/. Needs nothing else: no network, no raw downloads, so it runs
 in CI and gives the same bytes every time.
 
@@ -74,36 +74,92 @@ VOCAB = Counter(w.lower() for r in list(stations.values()) + list(train_rows.val
 
 
 def mend(n):
-    """ "Varanasi New Del hi" -> "Varanasi New Delhi": the book's column headings wrap long names
-    mid-word. Two pieces are one word again when together they make a known name and one of them
-    isn't a word on its own."""
-    words = n.split()
+    """ "Varanasi New Del hi" -> "Varanasi New Delhi", "Ahmed abad-Bhuj" -> "Ahmedabad-Bhuj": the
+    book's column headings wrap long names mid-word. Two pieces are one word again when together
+    they make a known name and one of them isn't a word on its own. Pieces are runs of letters,
+    so a break next to a hyphen or a bracket mends too."""
+    parts = re.split(r"(\s+)", n)
     out = []
-    for w in words:
-        if out and out[-1].isalpha() and w.isalpha() and w[0].islower() | (len(w) <= 3):
-            joined = (out[-1] + w).lower()
-            if VOCAB[joined] and (VOCAB[out[-1].lower()] < 2 or VOCAB[w.lower()] < 2 or w[0].islower()):
-                out[-1] = out[-1] + w.lower()
-                continue
+    for w in parts:
+        if out and len(out) >= 2 and out[-1].isspace():
+            prev = re.search(r"[A-Za-z]+$", out[-2])
+            head = re.match(r"[A-Za-z]+", w)
+            if prev and head:
+                a, b = prev.group(0), head.group(0)
+                joined = (a + b).lower()
+                if VOCAB[joined] and (VOCAB[a.lower()] < 2 or VOCAB[b.lower()] < 2 or b[0].islower()) and (b[0].islower() or len(b) <= 3):
+                    out.pop()  # the space
+                    out[-1] = out[-1] + b.lower() + w[len(b):]
+                    continue
         out.append(w)
-    return " ".join(out)
+    return "".join(out)
+
+
+# the source's own misspellings and breaks that the vocabulary can't mend
+SPELLING = [
+    (r"\bJan Sha ?tabadi\b", "Jan Shatabdi"), (r"\bKaniyaku ?mari\b", "Kanniyakumari"),
+    (r"\bVishakhapata ?nam\b|\bVisakapatnam\b", "Visakhapatnam"), (r"\bKe ?cheguda\b", "Kacheguda"),
+    (r"\bYel ?hanka\b", "Yelahanka"), (r"\bTiuchi ?chirapalli\b", "Tiruchchirappalli"),
+    (r"\bVasco-?d[ae]- ?Gama\b|\bVascode-Gama\b|\bVasco-da- Gama\b", "Vasco da Gama"),
+    (r"\bThiruvanan ?thpuram\b|\bThiruvananth ?puram\b|\bThiruvanantha-puram\b|\bThiruvanatha ?puram\b", "Thiruvananthapuram"),
+    (r"\bRmeswa-ram\b", "Rameswaram"), (r"\bSupefast\b", "Superfast"), (r"\bBengauru\b", "Bengaluru"),
+    (r"\bYeswan ?thapur\b|\bYeswanth ?pur\b|\bYeshvantapur\b|\bYesvantapur\b", "Yesvantpur"),
+    (r"\bCharmi ?nar\b", "Charminar"), (r"\bSitamar ?ahi\b", "Sitamarhi"), (r"\bHubblli\b", "Hubballi"),
+    (r"\bVIjaywada\b", "Vijayawada"), (r"\bGuddur\b", "Gudur"), (r"\bNagarcil\b", "Nagercoil"),
+    (r"\bNizammudin\b", "Nizamuddin"), (r"\bAmedkar\b", "Ambedkar"), (r"\bBareilley\b", "Bareilly"),
+    (r"\bLokmaya\b", "Lokmanya"), (r"\bBadgam station\b", "Budgam"), (r"\bShakthi ?nagar\b|\bShakti nagar\b", "Shaktinagar"),
+    (r"\bDauramMadhepura\b", "Dauram Madhepura"), (r"\bKasGanj\b", "Kasganj"), (r"\bAgraFort\b", "Agra Fort"),
+    (r"\bAlipur ?Duar\b", "Alipurduar"), (r"\bRajendraNagar\b", "Rajendra Nagar"), (r"\bNewDelhi\b", "New Delhi"),
+    (r"\bBangaloreCity\b", "Bangalore City"), (r"\bKolkataChitpur\b", "Kolkata Chitpur"), (r"\bParliVaijnath\b", "Parli Vaijnath"),
+    (r"\bBrahmputra\b", "Brahmaputra"), (r"\bKanchanjungha\b", "Kanchenjunga"), (r"\bTata Nagar\b", "Tatanagar"),
+    (r"\(push-Pull\)", "(Push-Pull)"), (r"\bFast Pass\b", "Fast Passenger"), (r"’", "'"),
+]
+# single-word misspellings in the sources (found by comparing every word with the station names)
+TYPOS = {
+    "expres": "Express", "passenge": "Passenger", "howarh": "Howrah", "vandae": "Vande", "gorakpur": "Gorakhpur",
+    "lokmany": "Lokmanya", "bangaluru": "Bengaluru", "ahemedabad": "Ahmedabad", "ahmadabad": "Ahmedabad",
+    "ahmedbad": "Ahmedabad", "secunderbad": "Secunderabad", "nizamudin": "Nizamuddin", "ermakulam": "Ernakulam",
+    "satabdi": "Shatabdi", "hamsafar": "Humsafar", "humsafer": "Humsafar", "jothpur": "Jodhpur", "jodpur": "Jodhpur",
+    "ferozpur": "Firozpur", "kachiguda": "Kacheguda", "tiruchichirappalli": "Tiruchchirappalli", "vijaywada": "Vijayawada",
+    "jasidh": "Jasidih", "rohila": "Rohilla", "bhavnager": "Bhavnagar", "sahrsa": "Saharsa", "jalpaguri": "Jalpaiguri",
+    "tirunelvel": "Tirunelveli", "tirnunelveli": "Tirunelveli", "darbanga": "Darbhanga", "praygraj": "Prayagraj",
+    "kamkhya": "Kamakhya", "nagarcoil": "Nagercoil", "dehardun": "Dehradun", "dahradun": "Dehradun",
+    "sharanpur": "Saharanpur", "rajjkot": "Rajkot", "patliputa": "Patliputra", "siiguri": "Siliguri",
+    "rishkesh": "Rishikesh", "kazipeth": "Kazipet", "santargachi": "Santragachi", "kochuvel": "Kochuveli",
+    "sengottail": "Sengottai", "vashno": "Vaishno", "jaislmer": "Jaisalmer", "hazarat": "Hazrat",
+    "shajahanpur": "Shahjahanpur", "jhsrsuguda": "Jharsuguda", "chhatratati": "Chhatrapati",
+    "machilipatanam": "Machilipatnam", "banglore": "Bangalore",
+}
+SMALL = {"and", "to", "via", "of", "the", "ki", "ka", "ke", "da", "de"}
+CAPS = {"memu": "MEMU", "demu": "DEMU", "dmu": "DMU", "emu": "EMU", "ac": "AC", "a/c": "AC", "ltt": "LTT", "cst": "CSMT", "csmt": "CSMT",
+        "sf": "Superfast", "exp": "Express", "pass": "Passenger", "spl": "Special", "intercity": "Intercity", "mgr": "MGR", "ksr": "KSR", "sssp": "SSSP"}
 
 
 def display_name(n):
     """How a train's name is shown: the older timetable abbreviates and shouts ("VASCO-DA-GAMA -
-    Howrah Amaravati Exp"); db/ keeps the names as sourced."""
+    Howrah Amaravati Exp"), the book wraps names mid-word; db/ keeps the names as sourced."""
     n = mend(n)
+    for pat, rep in SPELLING:
+        n = re.sub(pat, rep, n)
+    n = re.sub(r"[A-Za-z]+", lambda m: TYPOS.get(m.group(0).lower(), m.group(0)), n)
     n = re.sub(r"\bS/?F\.?\s+Exp(ress)?\.?(?=$|\s)", "Superfast Express", n)
-    n = re.sub(r"\bExp\.?(?=$|\s)", "Express", n)
-    n = re.sub(r"\bSpl\.?(?=$|\s)", "Special", n)
-    n = re.sub(r"\bPass\.?$", "Passenger", n)
+    n = re.sub(r"(?<=\w)\(", " (", n)  # "Passenger(Shuttle)"
+    n = re.sub(r"\)(?=\w)", ") ", n)  # "(via Varanasi)Express"
+    n = re.sub(r"\s*/\s*", " / ", n)  # "Bandra (T)/ Haridwar"
+    n = re.sub(r"\s+-\s*|\s*-\s+", "–", n)  # "Coimbatore Jn - Nagercoil", "Aurangabad- Guntur"
     words = []
     for w in n.split():
-        letters = re.sub(r"[^A-Za-z]", "", w)
-        if letters.isupper() and len(letters) >= 5 and w not in KEEP_CAPS:
-            w = "-".join(part.capitalize() for part in w.split("-"))
+        letters = re.sub(r"[^A-Za-z/]", "", w)
+        key = letters.lower()
+        if key in CAPS and re.fullmatch(r"[A-Za-z/]+\.?", w):
+            w = CAPS[key]
+        elif letters.isupper() and len(letters) >= 5 and w not in KEEP_CAPS:
+            w = re.sub(r"[A-Za-z]+", lambda m: m.group(0).capitalize(), w)  # "(PUSH-PULL)" -> "(Push-Pull)"
+        elif letters.islower() and len(letters) >= 3 and key not in SMALL:
+            w = w[0].upper() + w[1:]
         words.append(w)
-    return re.sub(r"\s+", " ", " ".join(words)).strip()
+    n = re.sub(r"\s+", " ", " ".join(words)).strip()
+    return re.sub(r"\bVasco[ -]Da[ -]Gama\b", "Vasco da Gama", n)
 
 
 def seasonal_2017(no, t):
@@ -140,7 +196,10 @@ for no in sorted(train_rows):
         sys.exit(f"train {no}: times go backwards (use +1, +2 for later days)")
     src = f"{t['src']}-unlisted" if no in unlisted else t["src"]
     name = display_name(t["name"])
-    if t["src"] == "ogd2017" and t["type"] in ("Pass", "MEMU", "DEMU"):
+    if re.fullmatch(r"(?i)rb\s*\d+", name.strip()):
+        short = lambda c: re.sub(r"\s+(Junction|Jn\.?|Terminus|Road|Halt)$", "", stations[c]["name"])  # noqa: E731
+        name = f"{short(stops[0][0])} – {short(stops[-1][0])} Rail Bus"
+    elif t["src"] == "ogd2017" and t["type"] in ("Pass", "MEMU", "DEMU"):
         # the older timetable sometimes files a local train under another's name ("Karimganj
         # Dullabcherra Passenger" for Kurseong to Darjeeling): if it names none of its own
         # stations, call it by its ends
@@ -313,8 +372,12 @@ meta = {
     "cities": out_cities,
     # station code -> [its code and name before a rename]: guides and searches made with the old ones still find it
     "renamed": {current(r["old"]): [r["old"], r["old_name"]] for r in renames.values() if current(r["old"]) in idx},
-    # where each train's times come from: index into "sources"
+    # where each train's times come from: index into "sources" (in trains.json)
     "sources": [[k, SOURCES.get(k, k)] for k in source_keys],
+}
+# the trains' numbers and names travel with the timetable, not with the stations: the landing page
+# needs the stations straight away and the trains only once you pick somewhere
+train_names = {
     "trains": [[t["number"], t["name"], source_keys.index(t["src"])] for t in trains],
     # trains we know run but whose halts we don't have yet: shown as a note, not on the map
     "newer": [[n["numbers"], n["name"], n["type"], idx.get(n["from"], -1), idx.get(n["to"], -1), days_mask(n["days"]),
@@ -323,13 +386,14 @@ meta = {
 }
 OUT.mkdir(parents=True, exist_ok=True)
 (OUT / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, separators=(",", ":")))
+(OUT / "trains.json").write_text(json.dumps(train_names, ensure_ascii=False, separators=(",", ":")))
 (OUT / "timetable.bin").write_bytes(timetable)
 (OUT / "paths.bin").write_bytes(paths)
-for f in ("meta.json", "timetable.bin", "paths.bin"):
+for f in ("meta.json", "trains.json", "timetable.bin", "paths.bin"):
     print(f"  {f}: {(OUT / f).stat().st_size / 1e3:.0f} kB")
 print(f"trains {n_trains}, halts {n_halts}, pass-through points {len(pass_station)}, stations {len(used)}")
 if CHECK:
-    stale = [f for f in ("meta.json", "timetable.bin", "paths.bin") if (OUT / f).read_bytes() != (ROOT / "data" / f).read_bytes()]
+    stale = [f for f in ("meta.json", "trains.json", "timetable.bin", "paths.bin") if (OUT / f).read_bytes() != (ROOT / "data" / f).read_bytes()]
     if stale:
         sys.exit(f"data/ is out of date with db/ ({', '.join(stale)}): run python3 pipeline/build_network.py")
     print("data/ matches db/")

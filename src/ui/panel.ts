@@ -9,6 +9,7 @@ import { flapHtml, landscapeHtml, ledHtml } from "./boards";
 import { BOOKMARK, HEART } from "./saved";
 import { esc } from "./esc";
 import { aspect, coverWidth, credit, photoSrcset, photoUrl } from "./photos";
+import { waysHtml, type WayView } from "./spot";
 
 export { esc };
 const FAST = new Set(["Raj", "Shtb", "Drnt", "JShtb", "GR", "SF", "VB", "AB"]);
@@ -73,6 +74,8 @@ export interface PlaceView {
   weather: string;
   /** Ways with one change from where you start (when there's no direct train, or they're much quicker). */
   changes: Connection[];
+  /** No direct train: a train to a main-line station near here, then the road (Darjeeling via New Jalpaiguri). */
+  roadWays: WayView[];
   name: (p: Place) => string;
   saved: { place: boolean; route: boolean };
   fact: string; // a "Did you know?" note about this place, if there is one
@@ -208,6 +211,11 @@ export function placeHtml(v: PlaceView) {
   let trains = "";
   if (origin && legs.length) {
     const multi = origin.stations.length > 1;
+    const multiTo = v.place.stations.length > 1;
+    const short = (i: number) => esc(net.stations[i].name.replace(/\s+(Junction|Jn\.?)$/i, ""));
+    // a city with several stations: which one the train leaves from (and gets in to)
+    const ends = (t: Train, l: Leg) =>
+      multi && multiTo ? ` · ${short(t.st[l.from])} → ${short(t.st[l.to])}` : multi ? ` · from ${short(t.st[l.from])}` : multiTo ? ` · to ${short(t.st[l.to])}` : "";
     const matching = legs.filter(v.passes);
     const shown = v.showAllTrains ? legs : (matching.length ? matching : legs).slice(0, 4);
     trains = `<section class="trains" aria-labelledby="trains-h">
@@ -220,7 +228,7 @@ export function placeHtml(v: PlaceView) {
           return `<button class="row ${v.passes(l) ? "" : "off"}" type="button" data-act="leg" data-i="${legs.indexOf(l)}">
             <span class="dep">${fmtTime(l.dep)}</span>
             <span><span class="tname">${esc(t.name)}</span>
-              <span class="sub">${esc(t.no)}<span class="tag ${tagClass(t)}">${esc(t.typeLabel)}</span>${multi ? ` · from ${net.stations[t.st[l.from]].code}` : ""}${t.days ? ` · <span class="days">${daysAt(t, l.from)}</span>` : ""}</span></span>
+              <span class="sub">${esc(t.no)}<span class="tag ${tagClass(t)}">${esc(t.typeLabel)}</span>${ends(t, l)}${t.days ? ` · <span class="days">${daysAt(t, l.from)}</span>` : ""}</span></span>
             <span class="arr">${fmtTime(t.arr[l.to])}${plusDay ? `<sup>+${plusDay}</sup>` : ""}<small>${fmtMins(l.dur)}</small></span>
           </button>`;
         })
@@ -270,8 +278,13 @@ export function placeHtml(v: PlaceView) {
   return `<div class="panel-scroll">
     ${coverHtml}
     ${ticket}
+    ${v.roadWays.length ? `<section aria-labelledby="road-h">
+      <div class="section-head"><h3 id="road-h">No direct train from ${esc(titleOf(origin!, null))}</h3></div>
+      <p class="gh-lede">Most people take a train to a main-line station near ${esc(title)}, then a taxi or bus. Quickest first; road times are estimates.</p>
+      ${waysHtml(v.roadWays, true)}
+    </section>` : ""}
     ${origin && !legs.length ? changesHtml(v.changes, titleOf(origin, null), title, false, v.name) : ""}
-    ${v.getHere ? getHereHtml(v.getHere, title, v.changes.length > 0) : ""}
+    ${v.getHere ? getHereHtml(v.getHere, title, v.changes.length > 0 || v.roadWays.length > 0) : ""}
     ${intro}
     ${v.weather}
     ${v.fact}

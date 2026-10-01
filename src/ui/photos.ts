@@ -48,8 +48,13 @@ export function credit(p: Photo) {
 }
 
 const images = new Map<string, HTMLImageElement | "failed">();
+const tries = new Map<string, number>();
 
-/** The image if it has loaded; otherwise starts loading it and calls `ready` when done. */
+/**
+ * The image if it has loaded; otherwise starts loading it and calls `ready` when done. Commons
+ * turns away bursts now and then: a failed photo is asked for again a little later (twice), so
+ * the map doesn't keep a blank where a photo should be.
+ */
 export function loadedImage(url: string, ready: () => void): HTMLImageElement | null {
   const hit = images.get(url);
   if (hit === "failed") return null;
@@ -59,7 +64,17 @@ export function loadedImage(url: string, ready: () => void): HTMLImageElement | 
   img.crossOrigin = "anonymous"; // Commons sends CORS headers: cacheable offline, canvas stays clean
   img.referrerPolicy = "no-referrer";
   img.onload = ready;
-  img.onerror = () => images.set(url, "failed");
+  img.onerror = () => {
+    images.set(url, "failed");
+    const n = (tries.get(url) ?? 0) + 1;
+    tries.set(url, n);
+    if (n <= 2) {
+      setTimeout(() => {
+        images.delete(url);
+        ready(); // draw again, which asks for it again
+      }, n * 4000 + Math.random() * 2000);
+    }
+  };
   img.src = url;
   images.set(url, img);
   return null;

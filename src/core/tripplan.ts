@@ -1,7 +1,7 @@
 // A trip with several stops: how long you stay at each, and for every stretch between them the
 // train that runs that day and gets you there first (or the best way with one change), with the
 // road to and from places that have no station. Dates are India dates; times are minutes.
-import type { Network, Place } from "./network";
+import { onMainLine, type Network, type Place } from "./network";
 import { km, nearestStations, road, type Spot, type StationChoice } from "./spots";
 import { connections, runsOn, type Connection, type Destination, type Leg } from "./trips";
 
@@ -27,6 +27,7 @@ export interface PlannedLeg {
   chosen: number; // which option the plan uses
   depart: number; // minutes since the trip's first day 00:00 (the train leaving, or the road)
   arrive: number;
+  ready: number; // the earliest you'd set off (after your nights): a later train means a longer stay
   trainMins: number;
   km: number;
 }
@@ -59,8 +60,9 @@ export interface PlanTools {
 
 /** The station to use for a stop: the place itself, or a place without a station's best station. */
 function stationsFor(net: Network, s: Stop): StationChoice[] {
-  if (s.kind === "place") return [{ place: s.place, straight: 0, road: { km: 0, mins: 0 } }];
-  return nearestStations(net, s.spot, 3);
+  if (s.kind === "place") return [{ place: s.place, straight: 0, road: { km: 0, mins: 0, real: true } }];
+  const main = nearestStations(net, s.spot, 3, (p) => onMainLine(net, p));
+  return main.length ? main : nearestStations(net, s.spot, 3);
 }
 
 /**
@@ -80,7 +82,7 @@ export function planTrip(t: PlanTools, stops: TripStop[], startDay: number, star
       const day = Math.floor(arrivals[i] / DAY) + Math.max(0, stops[i].nights);
       ready = Math.max(arrivals[i] + 60, day * DAY + 6 * 60);
     }
-    const leg = planLeg(t, a, b, ready, startDay);
+    const leg = { ...planLeg(t, a, b, ready, startDay), ready };
     // a train picked from the others that day: the rest of the trip follows from it
     const k = choice[i] ?? 0;
     if (k > 0 && leg.options[k]) {
@@ -117,7 +119,7 @@ function planLeg(t: PlanTools, a: Stop, b: Stop, ready: number, startDay: number
       if (sa.place === sb.place) {
         // both ends share a station (a town and the hills above it): road only
         const mins = sa.road.mins + sb.road.mins;
-        const leg: PlannedLeg = { from: a, to: b, rail: null, roadBefore: a.kind === "spot" ? sa : null, roadAfter: b.kind === "spot" ? sb : null, ride: null, options: [], times: [], chosen: 0, depart: ready, arrive: ready + mins, trainMins: 0, km: 0 };
+        const leg: PlannedLeg = { from: a, to: b, rail: null, roadBefore: a.kind === "spot" ? sa : null, roadAfter: b.kind === "spot" ? sb : null, ride: null, options: [], times: [], chosen: 0, depart: ready, arrive: ready + mins, ready, trainMins: 0, km: 0 };
         if (!best || leg.arrive < best.arrive) best = leg;
         continue;
       }
@@ -135,6 +137,7 @@ function planLeg(t: PlanTools, a: Stop, b: Stop, ready: number, startDay: number
         options: rides.map((r) => r.ride),
         times: rides.map((r) => ({ depart: r.depart, arrive: r.arrive })),
         chosen: 0,
+        ready,
         depart: first ? first.depart - (a.kind === "spot" ? sa.road.mins + 30 : 0) : ready,
         // no train within a week: the plan carries on as if you got there by evening, and says so
         arrive: first ? first.arrive + after : ready + 12 * 60 + after,

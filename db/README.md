@@ -26,6 +26,11 @@ The first halt has only a departure, the last only an arrival, and times never g
 **Days** are the days a train leaves its origin: `Daily`, or a comma list such as `Mon,Thu`. Empty
 means not known. The site shifts them for halts reached after midnight.
 
+**States** are where the station is on the map (`fix_states.py`), not what the older sources
+said: they predate Telangana and Ladakh and put a few hundred stations in the wrong state (Dhanbad
+in West Bengal). A station within about a kilometre of a border keeps its source's state; a few
+known ones are corrected by hand in `station_overrides.csv`.
+
 **Sources** are named in `src` and `days_src`: `ogd2017`, `tag2026`, `wikipedia`, `override`. Importers never
 overwrite an `override` or a better source.
 
@@ -49,6 +54,7 @@ an arrival) and says which train is wrong.
 | `import_wikipedia.py` | English Wikipedia train infoboxes: running days, newer trains | CC BY-SA 4.0 |
 | `route_paths.py` | OpenStreetMap railway track: the stations a train passes between halts (`paths.csv`) | ODbL |
 | `merge_tag.py` (after `import_tag.py`) | Indian Railways, *Trains at a Glance* 2026 | © Indian Railways; used on the decision recorded in `docs/permissions/tag2026.md` |
+| `fix_states.py` (after any importer that rewrites `stations.csv`) | datameet/maps state boundaries (Survey of India): each station's state, and its name in that state's language from OpenStreetMap | CC BY 2.5 IN; ODbL |
 
 See [SOURCES.md](../SOURCES.md) for every source considered and why.
 

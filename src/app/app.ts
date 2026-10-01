@@ -3,9 +3,9 @@
 // Everything happens in one panel beside the map (a sheet on phones): search at the top, below it
 // the places you can reach, a place, a train, a trip.
 import { fmtMins, fmtTime, istWeekMinute, plural } from "../core/format";
-import type { Network, Place, Train } from "../core/network";
-import type { ArticleDetail, GuideView, Photo, PlaceDetails } from "../core/places";
-import { rankPlaces } from "../core/rank";
+import { onMainLine, type Network, type Place, type Train } from "../core/network";
+import { worthwhile, type ArticleDetail, type GuideView, type Photo, type PlaceDetails } from "../core/places";
+import { rankPlaces, sameTown } from "../core/rank";
 import { titleOf, type Slugs } from "../core/slugs";
 import { nearestAirports, nearestStations, type Spot, type Spots } from "../core/spots";
 import { planTrip, stopLatLon, stopName, type Plan, type Stop, type TripStop } from "../core/tripplan";
@@ -209,11 +209,62 @@ export class App {
     this.setupGrip();
   }
 
+  // ---------------------------------------------------------------- the timetable arriving
+
+  private waiting: (() => void) | null = null;
+
+  /**
+   * Run now if the timetable is here; otherwise once it is. The landing page doesn't wait for it,
+   * so on a slow connection someone may pick a station first: say so, and carry on when it comes.
+   */
+  private whenReady(fn: () => void) {
+    if (this.net.ready) return fn();
+    this.waiting = fn; // the last thing asked for
+    document.body.classList.add("waiting");
+    this.toast("Loading the timetable…", 120000);
+  }
+
+  timetableReady() {
+    document.body.classList.remove("waiting");
+    this.depCache.clear();
+    this.arrCache.clear();
+    this.changeCache.clear();
+    const fn = this.waiting;
+    this.waiting = null;
+    if (fn) {
+      $("toast").hidden = true;
+      fn();
+    } else if (this.open?.kind === "spot") this.roadsReady(); // its stations: main-line ones, now they're known
+    else if (!this.open || this.open.kind === "place") this.refresh(false);
+  }
+
+  /** The real roads to places without a station arrived: show them where they're on screen. */
+  roadsReady() {
+    if (this.open?.kind === "spot") {
+      const s = this.open.spot;
+      this.map.setSpot(s, this.spotWays(s, false).map((w) => ({ place: this.net.places.get(w.placeId)!, label: `${w.station} · ${fmtMins(w.roadMins)}` })));
+      this.renderPanel(false);
+    } else if (this.mode === "trip") {
+      this.replan();
+      this.renderPanel(false);
+    }
+  }
+
+  /** An address that only needs the stations: a place without a station, nowhere to start from. */
+  spotOnly(r: Route) {
+    return !r.origin && !!r.place && !this.slugs.find(r.place) && !!this.spotOf(r.place, r.at);
+  }
+
   /** Put the app in the state an address describes (first load, back/forward). */
   applyRoute(r: Route, first: boolean) {
+    if (!this.net.ready && (r.origin || (r.place && !this.spotOnly(r)) || r.trip || r.discover !== undefined)) {
+      return this.whenReady(() => this.applyRoute(r, first));
+    }
+    // measure the panel (the sheet, on phones) before framing anything on the map: a shared link
+    // to a place must show the place, not leave it under the sheet
+    if (first) this.settle();
     if (r.discover !== undefined) {
       // Discover leaves the map as it is: where you start stays where you start
-      if (first) this.settle();
       this.setMode("explore", false);
       this.openDiscover(r.discover || null, { push: false });
       return;
@@ -226,7 +277,6 @@ export class App {
         return stop ? [{ stop, nights: r.trip!.nights[i] ?? 0 }] : [];
       });
       this.trip = { stops, date: r.trip.date || this.trip.date || this.defaultDate(), choice: [] };
-      if (first) this.settle();
       this.setMode("trip", false);
       if (missing.length) this.toast(`Couldn't find ${missing.map((m) => `“${m.replace(/-/g, " ")}”`).join(", ")}.`, 5000);
       return;
@@ -263,7 +313,7 @@ export class App {
     } else if (this.open) {
       this.closePanel({ push: false, refit: !first });
     }
-    if (first) this.settle();
+    if (first) this.layout();
     const missing = (r.origin && !origin ? r.origin : null) ?? (r.place && !place && !spot ? r.place : null);
     if (missing) {
       // an old or mistyped link: say so, and show the address of what we could open
@@ -284,6 +334,7 @@ export class App {
   // ---------------------------------------------------------------- explore or plan
 
   private setMode(mode: "explore" | "trip", push: boolean, render = true) {
+    if (mode === "trip" && !this.net.ready) return this.whenReady(() => this.setMode(mode, push, render));
     const was = this.mode;
     this.mode = mode;
     $("tab-explore").setAttribute("aria-selected", String(mode === "explore"));
@@ -320,6 +371,7 @@ export class App {
   // ---------------------------------------------------------------- where you start
 
   setOrigin(p: Place | null, o: { push: boolean; fly?: boolean; animate?: boolean; focusSearch?: boolean; keep?: boolean }) {
+    if (p && !this.net.ready) return this.whenReady(() => this.setOrigin(p, o));
     // the place you were looking at stays open: now with the trains from where you start
     const keep = o.keep === false ? null : this.destination();
     this.origin = p;
@@ -351,12 +403,14 @@ export class App {
   }
 
   private chooseFrom(p: Place) {
+    if (!this.net.ready) return this.whenReady(() => this.chooseFrom(p));
     if (this.mode === "trip") this.setMode("explore", false, false);
     if (p === this.destination()) this.closePanel({ push: false, refit: false }); // "from" the place you were looking at
     this.setOrigin(p, { push: true });
   }
 
   private chooseTo(p: Place) {
+    if (!this.net.ready) return this.whenReady(() => this.chooseTo(p));
     if (this.mode === "trip") this.setMode("explore", false, false);
     if (p === this.origin) {
       this.toast(`That's where you start. Pick somewhere to go.`);
@@ -367,7 +421,7 @@ export class App {
 
   /** "From Munnar": the best station near it. */
   private startNear(s: Spot) {
-    const best = nearestStations(this.net, s, 1)[0];
+    const best = nearestStations(this.net, s, 1, (p) => this.mainLine(p))[0] ?? nearestStations(this.net, s, 1)[0];
     if (!best) return this.toast(`No station with trains near ${s.name}.`);
     this.toast(`${s.name} has no station: starting from ${this.name(best.place)}, about ${best.road.km} km away`, 4500);
     this.chooseFrom(best.place);
@@ -466,7 +520,7 @@ export class App {
 
   private suggestTo(): Place[] {
     if (!this.origin) return [];
-    return rankPlaces(this.guides, this.reach).slice(0, 6).map((c) => c.place);
+    return rankPlaces(this.guides, this.reach, this.origin).slice(0, 6).map((c) => c.place);
   }
 
   /** Places with a direct train to `dest`: cities first, then the rest, each quickest first. */
@@ -515,7 +569,7 @@ export class App {
     const home = this.origin ? this.guides.get(this.origin)?.title : undefined;
     const pool = [...this.reach.keys()]
       .map((p) => ({ p, gv: this.guides.get(p) }))
-      .filter(({ p, gv }) => gv?.icon && gv.title !== home && p !== this.destination());
+      .filter(({ p, gv }) => worthwhile(gv) && gv.icon && gv.title !== home && p !== this.destination());
     if (!pool.length) return this.toast("Nothing with a guide within these filters. Try a longer ride.");
     const weight = (x: (typeof pool)[number]) => Math.sqrt(1 + x.gv!.entry.appeal);
     let r = Math.random() * pool.reduce((a, x) => a + weight(x), 0);
@@ -596,7 +650,7 @@ export class App {
     this.reachTrains = trains.size;
     const reach = [...byPlace].map(([place, legs]) => ({ place, mins: Math.min(...legs.map((l) => l.dur)) }));
     this.map.setOrigin(hub, trains, reach, animate, !this.origin && !!target);
-    this.map.setCandidates(rankPlaces(this.guides, hub ? byPlace : null));
+    this.map.setCandidates(rankPlaces(this.guides, hub ? byPlace : null, hub));
     this.syncChrome();
     if (render && this.mode === "explore" && (!this.open || this.open.kind === "place")) this.renderPanel(false);
     if (this.weatherOn) this.paintWeather();
@@ -613,6 +667,7 @@ export class App {
   // ---------------------------------------------------------------- the panel
 
   openPlace(p: Place, o: { push: boolean }) {
+    if (!this.net.ready) return this.whenReady(() => this.openPlace(p, o));
     if (p === this.origin) return;
     if (this.mode === "trip") this.setMode("explore", false, false);
     if (!this.open) this.returnFocus = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
@@ -629,11 +684,11 @@ export class App {
     if (!this.origin) this.refresh(before !== p, false);
     this.renderPanel(true);
     this.syncChrome();
+    if (narrow()) this.expandSheet(false); // half the screen for the place, half for the map
     if (this.origin) this.map.focusOn(p);
     else requestAnimationFrame(() => this.map.fitCore());
     if (o.push) this.sync("push");
     this.describe();
-    if (narrow()) this.expandSheet(false);
   }
 
   private openTrain(leg: Leg, o: { push: boolean }, journey?: Connection, fromTrip = false) {
@@ -708,7 +763,7 @@ export class App {
     if (!at) return null;
     const [lat, lon] = at.split(",").map(Number);
     const name = slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-    return this.spots.adopt({ id: "", name, state: "", lat, lon, pop: 0, aka: [], fromSearch: true }, (x) => !!this.slugs.find(x));
+    return this.spots.adopt({ id: "", name, state: "", lat, lon, pop: 0, popShown: false, aka: [], local: "", roads: null, fromSearch: true }, (x) => !!this.slugs.find(x));
   }
 
   private stopOf(slug: string): Stop | null {
@@ -731,7 +786,8 @@ export class App {
     const ways = this.spotWays(s, false);
     this.spotQuick = s;
     this.map.setSpot(s, ways.map((w) => ({ place: this.net.places.get(w.placeId)!, label: `${w.station} · ${fmtMins(w.roadMins)}` })));
-    this.map.focusPoints([s], ways.map((w) => this.net.places.get(w.placeId)!).filter(Boolean), 10);
+    if (narrow()) this.expandSheet(false);
+    this.map.focusPoints([s], ways.map((w) => this.net.places.get(w.placeId)!).filter(Boolean), 16);
     this.loadSummary(s);
     this.renderPanel(true);
     if (this.origin) {
@@ -745,15 +801,17 @@ export class App {
     this.syncChrome();
     if (o.push) this.sync("push");
     this.describe();
-    if (narrow()) this.expandSheet(false);
   }
 
   private spotQuick: Spot | null = null; // a place without a station just opened: its ways with a change come next
 
   /** The stations to take a train to for a place without one; from where you start, the whole way, quickest first. */
-  private spotWays(s: Spot, withChanges = true): WayView[] {
+  private spotWays(s: { lat: number; lon: number; roads?: Spot["roads"] }, withChanges = true, accept?: (p: Place) => boolean): WayView[] {
     const origin = this.origin;
-    const ways = nearestStations(this.net, s, 4).map((c): WayView => {
+    // a hill railway's halts (Joginder Nagar for Kasol) aren't where anyone changes to the road:
+    // main-line stations, unless there are none
+    const main = nearestStations(this.net, s, 4, accept ?? ((p) => this.mainLine(p)));
+    const ways = (main.length ? main : nearestStations(this.net, s, 4, accept)).map((c): WayView => {
       let train: WayView["train"] = null;
       if (origin && origin !== c.place) {
         const d = this.departuresFrom(origin).get(c.place);
@@ -776,6 +834,24 @@ export class App {
     });
     if (origin) ways.sort((a, b) => (a.total ?? Infinity) - (b.total ?? Infinity));
     return origin ? ways.filter((w) => w.total !== null).concat(ways.filter((w) => w.total === null)) : ways;
+  }
+
+  /** Does any train other than a hill railway's toy train stop here? */
+  private mainLine(p: Place) {
+    return onMainLine(this.net, p);
+  }
+
+  /**
+   * No direct train from where you start (Darjeeling from Mysuru): the way most people go, a
+   * train to a main-line station near it and then the road, when that beats any change of trains.
+   */
+  private roadWays(place: Place): WayView[] {
+    if (!this.origin || place.lat === null || place.lon === null) return [];
+    const ways = this.spotWays({ lat: place.lat, lon: place.lon }, true, (p) => p !== place && p.halts >= 6 && this.mainLine(p))
+      .filter((w) => w.total !== null && w.train && w.train.mins > 0);
+    const best = this.changesShown(place)[0]?.total ?? Infinity;
+    if (!ways.length || ways[0].total! >= best) return [];
+    return ways.filter((w) => w.total! <= ways[0].total! * 1.4 + 120).slice(0, 3); // not the long way round
   }
 
   /** A short description and a photo, from Wikipedia (only the place's name is sent). */
@@ -895,6 +971,7 @@ export class App {
 
   /** Discover (journeys, facts, records), or one journey's story. */
   private async openDiscover(slug: string | null, o: { push: boolean }) {
+    if (!this.net.ready) return this.whenReady(() => this.openDiscover(slug, o));
     const d = await this.loadDiscover();
     if (!d) return this.toast("Couldn't load Discover. Check your connection.");
     if (this.mode === "trip") this.setMode("explore", false, false);
@@ -1330,6 +1407,7 @@ export class App {
         newer: this.origin ? newerBetween(this.net, this.origin, place) : [],
         getHere: this.getHere(place, !!o.allFrom, !!o.choosing),
         changes: this.origin ? this.changesShown(place) : [],
+        roadWays: this.origin && !legs.length ? this.roadWays(place) : [],
         name: (p) => this.name(p),
         saved: { place: this.saves.has(placeKey(this.slugs.of(place))), route: !!this.origin && this.saves.has(this.routeSave(place).key) },
         fact: this.placeFact(place),
@@ -1384,7 +1462,7 @@ export class App {
     const rows = new Map<string, ExploreItem & { city: boolean }>();
     for (const [place, legs] of this.reach) {
       const gv = this.guides.get(place) ?? null;
-      if (withGuides && (!gv || gv.title === home)) continue;
+      if (withGuides && (!worthwhile(gv) || gv.title === home || sameTown(this.origin, place))) continue;
       const item = {
         id: place.id,
         title: titleOf(place, gv),
@@ -1863,8 +1941,11 @@ export class App {
     this.map.setSafeRects(rects.filter((r) => r.width && r.height));
     const tools = $("map-tools").getBoundingClientRect();
     if (narrow()) {
-      const sheet = this.side.getBoundingClientRect();
-      this.map.setInsets({ top: Math.max(16, tools.bottom + 8), right: 8, bottom: window.innerHeight - sheet.top + 8, left: 8 });
+      // where the sheet is going, not where it is mid-slide (heights as in style.css)
+      const b = document.body.classList;
+      const H = window.innerHeight;
+      const top = this.side.style.height ? this.side.getBoundingClientRect().top : b.contains("sheet-full") ? 48 : b.contains("sheet-min") ? H - 198 : H * 0.52;
+      this.map.setInsets({ top: Math.max(16, tools.bottom + 8), right: 8, bottom: H - top + 8, left: 8 });
     } else {
       const side = this.side.getBoundingClientRect();
       this.map.setInsets({ top: 24, right: Math.max(24, window.innerWidth - tools.left + 8), bottom: 24, left: side.right + 24 });
@@ -1875,7 +1956,7 @@ export class App {
     document.body.classList.toggle("sheet-full", full);
     document.body.classList.remove("sheet-min");
     $("grip").setAttribute("aria-label", full ? "Show less" : "Show more");
-    setTimeout(() => this.layout(), 300);
+    this.layout();
   }
 
   /** The sheet's handle, on phones: drag or tap it to see more of the panel, or more of the map. */
@@ -1914,7 +1995,7 @@ export class App {
         if (b.contains("sheet-full")) b.remove("sheet-full");
         else b.add("sheet-min");
       }
-      setTimeout(() => this.layout(), 300);
+      this.layout();
     };
     grip.addEventListener("pointerup", end);
     grip.addEventListener("pointercancel", end);
