@@ -298,6 +298,11 @@ updated = 0
 for no, t in trains.items():
     if t["days_src"] == "override" or (t["days"] and t["days_src"] != "wikipedia"):
         continue  # never overwrite a hand correction or a better source
+    if t["days"] and not days_for.get(no):
+        # no article speaks for this train this time (moved, retitled, its infobox rewritten): keep
+        # what an earlier read found, rather than forget it; articles that now disagree still clear it
+        stats["days: kept, no article this time"] += 1
+        continue
     mask, title = pick(no)
     new_days, new_src = (days_text(mask), "wikipedia") if mask else ("", "")
     if (t["days"], t["days_src"]) != (new_days, new_src):
