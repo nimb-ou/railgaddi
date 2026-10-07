@@ -1,6 +1,6 @@
 // Walk through the site like a visitor, on a desktop and a phone, and save a screenshot of each
 // step plus any console errors or failed requests. For design and QA review.
-//   node scripts/qa.mjs [base URL] [out dir]          (default: the dev server, ./qa-shots)
+//   node scripts/qa.mjs [base URL] [out dir] [desk|phone]   (default: the dev server, ./qa-shots, both)
 import { mkdirSync } from "node:fs";
 import puppeteer from "puppeteer-core";
 
@@ -17,6 +17,7 @@ async function session(name, viewport, theme, steps) {
     defaultViewport: viewport,
   });
   const page = await browser.newPage();
+  const started = Date.now();
   await page.evaluateOnNewDocument((t) => {
     localStorage.setItem("railgaddi.theme", t);
     localStorage.setItem("railgaddi.hinted", "1");
@@ -29,6 +30,7 @@ async function session(name, viewport, theme, steps) {
   const shot = async (label) => {
     await wait(700);
     await page.screenshot({ path: `${OUT}/${name}-${String(++n).padStart(2, "0")}-${label}.png` });
+    console.log(`${name} ${n} ${label} (${Math.round((Date.now() - started) / 1000)} s)`); // progress, for a run that stalls
   };
   const ctx = {
     page,
@@ -65,7 +67,8 @@ async function session(name, viewport, theme, steps) {
 const desktop = { width: 1440, height: 900, deviceScaleFactor: 1 };
 const phone = { width: 390, height: 844, deviceScaleFactor: 1, isMobile: true, hasTouch: true };
 
-for (const [name, vp, theme] of [["desk", desktop, "day"], ["phone", phone, "night"]]) {
+const ONLY = process.argv[4];
+for (const [name, vp, theme] of [["desk", desktop, "day"], ["phone", phone, "night"]].filter(([n]) => !ONLY || n === ONLY)) {
   await session(name, vp, theme, async ({ go, click, type, shot, scroll, page }) => {
     await go("/");
     await shot("landing");
