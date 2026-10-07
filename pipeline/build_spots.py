@@ -100,6 +100,16 @@ STATE_FIX = {"NCT": "Delhi", "State of Odisha": "Odisha"}
 guides = json.load(open(ROOT / "data" / "places" / "index.json"))["articles"]
 guide_at = [(re.sub(r"[^a-z]", "", t.lower()), g["ll"]) for t, g in guides.items() if g.get("ll")]
 
+# GeoNames keeps some old or odd spellings; the names on signs and tickets today (the old one
+# stays as another name, so it's still found)
+RENAME = {
+    "Teni": "Theni", "Kulu": "Kullu", "Naini Tal": "Nainital", "Panjim": "Panaji", "Suriapet": "Suryapet",
+    "Sangareddi": "Sangareddy", "Garhchiroli": "Gadchiroli", "Kendraparha": "Kendrapara", "Sundergarh": "Sundargarh",
+    "Nowrangapur": "Nabarangpur", "Bail-Hongal": "Bailhongal", "Buldana": "Buldhana", "Wanparti": "Wanaparthy",
+    "Kodar": "Kodad", "Bhaisa": "Bhainsa", "Kallakkurichchi": "Kallakurichi", "Kalpatta": "Kalpetta",
+    "Cherrapunjee": "Sohra",  # renamed; Cherrapunji, the name people know, finds it (content/spots.json)
+}
+
 towns = []
 for line in open(GEO / "cities1000.txt", encoding="utf-8"):
     f = line.rstrip("\n").split("\t")
@@ -109,7 +119,8 @@ for line in open(GEO / "cities1000.txt", encoding="utf-8"):
     state = STATE_FIX.get(states.get(f[10], ""), states.get(f[10], ""))
     # GeoNames gives some district seats their district's population: rank by it, don't show it
     doubtful = pop >= 150000 and f[7] not in ("PPLA", "PPLC")
-    towns.append({"name": name, "state": state, "lat": lat, "lon": lon, "pop": pop, "doubtful": doubtful})
+    old = name if name in RENAME else ""
+    towns.append({"name": RENAME.get(name, name), "state": state, "lat": lat, "lon": lon, "pop": pop, "doubtful": doubtful, "aka": old})
 
 extra = json.load(open(ROOT / "content" / "spots.json"))
 for e in extra["extra"]:
@@ -153,6 +164,7 @@ roads = json.loads((ROOT / "raw" / "roads.json").read_text()) if (ROOT / "raw" /
 with_roads = 0
 for t in kept:
     t["local"] = local_station((t["lat"], t["lon"]))
+    t["local"] = RENAME.get(t["local"], t["local"])  # the station's name as the town's: Theni
     r = roads.get(f"{round(t['lat'], 4)},{round(t['lon'], 4)}")
     t["roads"] = ";".join(f"{k} {km} {mins}" for k, km, mins in r) if r is not None else None
     with_roads += r is not None

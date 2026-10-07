@@ -4,6 +4,7 @@
 // up (pipeline/fetch_roads.py, OpenStreetMap via OSRM); anything it doesn't know is looked up by
 // name with Open-Meteo's place search (GeoNames), only when you search for it, and its roads are
 // estimated from the straight line.
+import { forgive, slips } from "./fuzzy";
 import type { Network, Place } from "./network";
 import { slugify } from "./slugs";
 
@@ -97,6 +98,13 @@ export class Spots {
     }));
     // the busiest first get the plain names; a station of the same name keeps its own
     for (const s of [...this.list].sort((a, b) => b.pop - a.pop)) this.claim(s, taken);
+    // the other names find it too: /to/coorg/ is Madikeri, /to/kulu/ is Kullu
+    for (const s of this.list) {
+      for (const a of s.aka) {
+        const slug = slugify(a);
+        if (slug && !this.bySlug.has(slug) && !this.aliases.has(slug) && !taken(slug)) this.aliases.set(slug, s);
+      }
+    }
     this.airports = data.airports.map(([iata, name, city, lat, lon]) => ({ iata, name, city, lat, lon }));
     this.folded = this.list.map((s) => ({ s, name: fold(s.name), aka: s.aka.map(fold) }));
   }
@@ -110,8 +118,9 @@ export class Spots {
   }
 
   find(slug: string) {
-    return this.bySlug.get(slug);
+    return this.bySlug.get(slug) ?? this.aliases.get(slug);
   }
+  private aliases = new Map<string, Spot>();
 
   /** data/roads.json: the real roads, one entry per place in the order of spots.json. */
   roadsLoaded = false;
@@ -131,17 +140,30 @@ export class Spots {
   }
 
   search(q: string, limit = 3): Spot[] {
+    return this.searchHits(q, limit).map((h) => h.s);
+  }
+
+  /** The same, with how each matched: `slip` is the slips forgiven (0: as typed). */
+  searchHits(q: string, limit = 3): { s: Spot; slip: number; strong: boolean }[] {
     const query = fold(q.trim());
     if (query.length < 3) return [];
-    const scored: [number, Spot][] = [];
+    const scored: [number, Spot, number][] = [];
     for (const { s, name, aka } of this.folded) {
       let score = 0;
       if (name === query || aka.includes(query)) score = 5;
       else if (name.startsWith(query) || aka.some((a) => a.startsWith(query))) score = 3;
       else if (query.length >= 5 && name.includes(query)) score = 1;
-      if (score) scored.push([score + Math.log10(1 + s.pop) / 3 + (s.pop === 0 ? 1 : 0), s]); // the famous extras rank up
+      if (score) scored.push([score + Math.log10(1 + s.pop) / 3 + (s.pop === 0 ? 1 : 0), s, 0]); // the famous extras rank up
     }
-    return scored.sort((a, b) => b[0] - a[0]).slice(0, limit).map((x) => x[1]);
+    // nothing as typed: the famous ones and towns, with a slip forgiven ("manaali", "gangtock")
+    if (!scored.some(([v]) => v >= 3) && forgive(query)) {
+      for (const { s, name, aka } of this.folded) {
+        if (s.pop !== 0 && s.pop < 3000) continue; // villages: too many names one slip from another
+        const d = Math.min(slips(query, name), ...aka.map((a) => slips(query, a)));
+        if (d !== Infinity) scored.push([2 - 0.5 * d + Math.log10(1 + s.pop) / 3 + (s.pop === 0 ? 1 : 0), s, d]);
+      }
+    }
+    return scored.sort((a, b) => b[0] - a[0]).slice(0, limit).map(([v, s, slip]) => ({ s, slip, strong: !slip && v >= 3 }));
   }
 }
 

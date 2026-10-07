@@ -1,5 +1,5 @@
 // Which places earn a photo bubble on the map, best first. The map shows as many as fit.
-import type { Place } from "./network";
+import type { Network, Place } from "./network";
 import { worthwhile, type GuideView, type Photo } from "./places";
 import { titleOf } from "./slugs";
 import { km } from "./spots";
@@ -24,16 +24,26 @@ export const ICONIC = [
 ];
 const iconic = new Map(ICONIC.map((t, i) => [t, ICONIC.length - i]));
 
-/** A neighbourhood of the city you start from (Bellandur, from Bengaluru) isn't a trip. */
-export function sameTown(a: Place | null, b: Place) {
+/**
+ * A neighbourhood of the city you start from (Bellandur, from Bengaluru) isn't a trip: within
+ * 20 km of its centre, or 12 km of any of its stations (Navi Mumbai, by Panvel; Thane), while
+ * Chandannagar and Gandhinagar, a short ride out, still are.
+ */
+export function sameTown(a: Place | null, b: Place, net?: Network) {
   if (!a || a.lat === null || a.lon === null || b.lat === null || b.lon === null) return false;
-  return km({ lat: a.lat, lon: a.lon }, { lat: b.lat, lon: b.lon }) < 20;
+  const to = { lat: b.lat, lon: b.lon };
+  if (km({ lat: a.lat, lon: a.lon }, to) < 20) return true;
+  return !!net && a.stations.length > 1 && a.stations.some((i) => {
+    const s = net.stations[i];
+    return s.lat !== null && s.lon !== null && km({ lat: s.lat, lon: s.lon }, to) < 12;
+  });
 }
 
 export function rankPlaces(
   guides: Map<Place, GuideView>,
   reach: Map<Place, Leg[]> | null, // null: nothing picked yet, show inspiration
   hub: Place | null = null, // where the rides start (or end)
+  net?: Network, // to know a city's own suburbs
 ): BubbleCandidate[] {
   const out: (BubbleCandidate & { guide: string })[] = [];
   const add = (place: Place, gv: GuideView, mins: number | null, score: number) => {
@@ -52,7 +62,7 @@ export function rankPlaces(
     for (const [place, legs] of reach) {
       const gv = guides.get(place);
       const mins = Math.min(...legs.map((l) => l.dur));
-      if (!gv || mins < 30 || sameTown(hub, place)) continue; // a neighbourhood of your own city isn't a trip
+      if (!gv || mins < 30 || sameTown(hub, place, net)) continue; // a neighbourhood of your own city isn't a trip
       add(place, gv, mins, Math.log1p(gv.entry.appeal) + 0.35 * Math.log1p(legs.length) + (place.isCity ? 0.4 : 0));
     }
   } else {

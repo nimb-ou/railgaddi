@@ -108,6 +108,8 @@ button, input, select { font: inherit; color: inherit; }
 button { cursor: pointer; }
 a { color: var(--livery); }
 :focus-visible { outline: 2px solid var(--livery); outline-offset: 2px; }
+/* headings and lists that receive focus when a view opens (for screen readers): no ring */
+[tabindex="-1"]:focus { outline: none; }
 .vh { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 [hidden] { display: none !important; }
 svg { flex: none; }
@@ -153,7 +155,8 @@ svg { flex: none; }
 .modes button { padding: 7px 8px; border: 0; border-radius: 8px; background: none; font-size: 13.5px; font-weight: 600; color: var(--muted); transition: background 0.15s, color 0.15s; }
 .modes button[aria-selected="true"] { background: var(--paper); color: var(--text); box-shadow: var(--shadow-sm); }
 
-.route { position: relative; margin: 0 16px 12px; border: 1px solid var(--rule); border-radius: 12px; background: var(--paper); }
+.route { position: relative; margin: 0 16px 12px; border: 1px solid var(--rule); border-radius: 12px; background: var(--paper); transition: border-color 0.15s, box-shadow 0.15s; }
+.route:has(input:focus) { border-color: var(--livery); box-shadow: 0 0 0 3px color-mix(in srgb, var(--livery) 16%, transparent); }
 .field { position: relative; display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 5px 0 14px; }
 .field + .field { border-top: 1px solid var(--line); }
 .field-dot { width: 10px; height: 10px; border-radius: 50%; border: 2.5px solid var(--accent); }
@@ -168,8 +171,8 @@ svg { flex: none; }
 
 .side-body { flex: 1; min-height: 0; display: flex; flex-direction: column; border-top: 1px solid var(--line); }
 .panel-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-bottom: 28px; scrollbar-width: thin; }
-.side-body > .panel-scroll { animation: view-in 0.16s ease-out; }
-@keyframes view-in { from { opacity: 0; } }
+.side-body > .panel-scroll.enter { animation: view-in 0.18s var(--ease); } /* a new view, not the same one drawn again */
+@keyframes view-in { from { opacity: 0; transform: translateY(6px); } }
 
 /* the suggestions under a field */
 .suggest { position: absolute; z-index: 30; top: calc(100% + 6px); left: -1px; right: -1px; margin: 0; padding: 6px; list-style: none; max-height: min(420px, 60vh); overflow-y: auto; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
@@ -202,6 +205,14 @@ svg { flex: none; }
   .route { margin-bottom: 10px; }
   .field { height: 44px; }
   .suggest { max-height: 44dvh; }
+  /* looking at one thing (a place, a train, a story): the sheet gives its room to it. The tabs go,
+     and From and To share one row until you tap one of them */
+  body:is([data-view="place"], [data-view="spot"], [data-view="train"], [data-view="discover"], [data-view="story"], [data-view="saved"]) .modes { display: none; }
+  body:is([data-view="discover"], [data-view="story"], [data-view="saved"]) .route { display: none; }
+  .route:not(:has(input:focus)):has(#from-input:not(:placeholder-shown)):has(#to-input:not(:placeholder-shown)) { display: flex; }
+  .route:not(:has(input:focus)):has(#from-input:not(:placeholder-shown)):has(#to-input:not(:placeholder-shown)) .field { flex: 1 1 0; min-width: 0; height: 42px; }
+  .route:not(:has(input:focus)):has(#from-input:not(:placeholder-shown)):has(#to-input:not(:placeholder-shown)) .field + .field { border-top: 0; border-left: 1px solid var(--line); padding-left: 12px; }
+  .route:not(:has(input:focus)):has(#from-input:not(:placeholder-shown)):has(#to-input:not(:placeholder-shown)) input { text-overflow: ellipsis; }
 }
 
 /* ---------------------------------------------------------------- over the map */
@@ -310,6 +321,8 @@ section .show-all { margin-left: 0; }
 section .dest-list li a { padding-left: 0; padding-right: 0; }
 .dest-list img, .stop-dot { width: 44px; height: 44px; border-radius: 10px; object-fit: cover; background: var(--paper-2); display: block; }
 .stop-dot { display: grid; place-items: center; }
+.mono { width: 44px; height: 44px; border-radius: 10px; display: grid; place-items: center; font-style: normal; font-size: 18px; font-weight: 700; background: hsl(var(--h) 55% 93%); color: hsl(var(--h) 40% 34%); }
+:root[data-theme="night"] .mono { background: hsl(var(--h) 28% 22%); color: hsl(var(--h) 55% 80%); }
 .stop-dot::after { content: ""; width: 9px; height: 9px; border-radius: 50%; border: 2px solid var(--muted); }
 .dl-name b { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dl-name small, .dl-time small { display: block; font-size: 12px; color: var(--muted); }
@@ -343,6 +356,7 @@ section .dest-list li a { padding-left: 0; padding-right: 0; }
 .explore-head h2 { margin: 0; font-size: 17px; letter-spacing: -0.01em; }
 .explore-head p { margin: 2px 0 0; font-size: 12.5px; color: var(--muted); }
 .explore-tools { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 18px 6px; }
+.explore-tools .sort { margin-right: auto; padding: 4px 4px; border: 0; background: none; font-size: 12.5px; font-weight: 600; color: var(--muted); }
 
 /* ---------------------------------------------------------------- a place */
 .cover { position: relative; margin: 12px 12px 0; }
@@ -410,7 +424,9 @@ section .dest-list li a { padding-left: 0; padding-right: 0; }
 .newer li b { display: block; font-weight: 600; }
 .newer li span, .newer p { font-size: 12.5px; color: var(--muted); }
 
-.get-here .gh-search { position: relative; display: flex; align-items: center; gap: 8px; height: 42px; padding: 0 12px; margin-bottom: 8px; border: 1px solid var(--rule); border-radius: 10px; }
+.gh-search { position: relative; display: flex; align-items: center; gap: 8px; height: 42px; padding: 0 12px; margin-bottom: 8px; border: 1px solid var(--rule); border-radius: 10px; background: var(--paper); transition: border-color 0.15s, box-shadow 0.15s; }
+.gh-search:focus-within { border-color: var(--livery); box-shadow: 0 0 0 3px color-mix(in srgb, var(--livery) 16%, transparent); }
+.gh-search .suggest { left: -1px; right: -1px; }
 .gh-search svg { fill: none; stroke: var(--muted); stroke-width: 1.8; }
 .gh-search input { flex: 1; min-width: 0; border: 0; background: none; outline: none; font-size: 14px; }
 .gh-here { display: block; margin-top: 10px; }
@@ -480,7 +496,11 @@ section .dest-list li a { padding-left: 0; padding-right: 0; }
 .air li small { color: var(--muted); }
 
 /* ---------------------------------------------------------------- a train */
-.train-top { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px 0 8px; }
+.train-top { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; justify-content: space-between; padding: 10px 12px 6px 8px; background: var(--paper); }
+@supports (animation-timeline: scroll()) {
+  .train-top { animation: bar-edge linear both; animation-timeline: scroll(nearest); animation-range: 0 32px; }
+  @keyframes bar-edge { to { box-shadow: 0 1px 0 var(--line); } }
+}
 .back { display: inline-flex; align-items: center; gap: 4px; padding: 6px 8px; border: 0; border-radius: 8px; background: none; font-size: 13px; font-weight: 600; color: var(--livery); max-width: 75%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .back:hover { background: var(--paper-2); }
 .top-tools { display: flex; gap: 6px; }
@@ -575,6 +595,7 @@ section .dest-list li a { padding-left: 0; padding-right: 0; }
 .hop-card .alt[aria-pressed="true"] { outline: 1.5px solid var(--livery); }
 .add-stop { position: relative; margin-top: 10px; }
 .add-stop .gh-search { border-style: dashed; }
+.add-stop .gh-search:focus-within { border-style: solid; }
 .trip-sum { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 18px 0 0; padding: 12px 14px; border-radius: 12px; background: var(--paper-2); }
 .trip-sum dt { font-size: 11.5px; color: var(--muted); }
 .trip-sum dd { margin: 0; font-size: 17px; font-weight: 700; }

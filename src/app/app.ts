@@ -5,7 +5,7 @@
 import { fmtMins, fmtTime, istWeekMinute, plural } from "../core/format";
 import { onMainLine, type Network, type Place, type Train } from "../core/network";
 import { worthwhile, type ArticleDetail, type GuideView, type Photo, type PlaceDetails } from "../core/places";
-import { rankPlaces, sameTown } from "../core/rank";
+import { ICONIC, rankPlaces, sameTown } from "../core/rank";
 import { titleOf, type Slugs } from "../core/slugs";
 import { nearestAirports, nearestStations, type Spot, type Spots } from "../core/spots";
 import { planTrip, stopLatLon, stopName, type Plan, type Stop, type TripStop } from "../core/tripplan";
@@ -23,7 +23,7 @@ import { placeKey, routeKey, tripKey, type PlaceSave, type RouteSave, type TripS
 import { Saves } from "./saves";
 import discoverUrl from "../../data/discover.json?url";
 import { records, type Record as TimetableRecord } from "../core/numbers";
-import { discoverHtml, placeFactHtml, storyHtml, type DiscoverData, type RideView, type Story } from "../ui/discover";
+import { discoverHtml, placeFactHtml, recordsHtml, storyHtml, type DiscoverData, type RideView, type Story } from "../ui/discover";
 import { SearchBox } from "../ui/search";
 import { filtersOf, go, href, parse, type Route } from "./router";
 
@@ -62,7 +62,7 @@ export class App {
   private reach = new Map<Place, Leg[]>();
   private filters: Filters = { ...ANY };
   private open: Open | null = null;
-  private list = { withGuides: true, showAll: false };
+  private list = { withGuides: true, showAll: false, famous: false }; // famous: most to see first, not nearest
   private placeScroll = 0; // where the place panel was scrolled when a train was opened from it
   private trainPushed = false;
   private detailCache = new Map<string, Detail>();
@@ -421,17 +421,32 @@ export class App {
 
   /** "From Munnar": the best station near it. */
   private startNear(s: Spot) {
-    const best = nearestStations(this.net, s, 1, (p) => this.mainLine(p))[0] ?? nearestStations(this.net, s, 1)[0];
+    const best = this.nearestFor(s);
     if (!best) return this.toast(`No station with trains near ${s.name}.`);
     this.toast(`${s.name} has no station: starting from ${this.name(best.place)}, about ${best.road.km} km away`, 4500);
     this.chooseFrom(best.place);
+  }
+
+  /** The station to start from for a place without one: the best main-line one near it. */
+  private nearestFor(s: Spot) {
+    return nearestStations(this.net, s, 1, (p) => this.mainLine(p))[0] ?? nearestStations(this.net, s, 1)[0];
   }
 
   /** From ⇄ To. */
   private swap() {
     const dest = this.destination();
     const o = this.origin;
-    if (this.open?.kind === "spot") return this.toast("A place without a station can't be where you start: pick its station instead.");
+    if (this.open?.kind === "spot") {
+      // from a place without a station: from the station you'd take the road to, back to where you were
+      const s = this.open.spot;
+      const best = this.nearestFor(s);
+      if (!best) return this.toast(`No station with trains near ${s.name}.`);
+      this.toast(`${s.name} has no station: starting from ${this.name(best.place)}, about ${best.road.km} km away`, 4500);
+      this.closePanel({ push: false, refit: false });
+      this.setOrigin(best.place, { push: !o || o === best.place, keep: false });
+      if (o && o !== best.place) this.openPlace(o, { push: true });
+      return;
+    }
     if (o && dest) {
       this.setOrigin(dest, { push: false, keep: false });
       this.openPlace(o, { push: true });
@@ -520,7 +535,7 @@ export class App {
 
   private suggestTo(): Place[] {
     if (!this.origin) return [];
-    return rankPlaces(this.guides, this.reach, this.origin).slice(0, 6).map((c) => c.place);
+    return rankPlaces(this.guides, this.reach, this.origin, this.net).slice(0, 6).map((c) => c.place);
   }
 
   /** Places with a direct train to `dest`: cities first, then the rest, each quickest first. */
@@ -542,6 +557,7 @@ export class App {
         trains: new Set(d.legs.map((l) => l.train)).size,
         href: href({ origin: this.slugs.of(d.place), place: this.slugs.of(dest) }),
         photo: gv && gv.title !== home ? gv.icon : null,
+        guide: worthwhile(gv) && gv.title !== home,
       };
     });
     return { items, total: all.length, showAll, blockedFrom: this.origin ? titleOf(this.origin, null) : null, choosing };
@@ -569,7 +585,7 @@ export class App {
     const home = this.origin ? this.guides.get(this.origin)?.title : undefined;
     const pool = [...this.reach.keys()]
       .map((p) => ({ p, gv: this.guides.get(p) }))
-      .filter(({ p, gv }) => worthwhile(gv) && gv.icon && gv.title !== home && p !== this.destination());
+      .filter(({ p, gv }) => worthwhile(gv) && gv.icon && gv.title !== home && p !== this.destination() && !sameTown(this.origin, p, this.net));
     if (!pool.length) return this.toast("Nothing with a guide within these filters. Try a longer ride.");
     const weight = (x: (typeof pool)[number]) => Math.sqrt(1 + x.gv!.entry.appeal);
     let r = Math.random() * pool.reduce((a, x) => a + weight(x), 0);
@@ -650,7 +666,7 @@ export class App {
     this.reachTrains = trains.size;
     const reach = [...byPlace].map(([place, legs]) => ({ place, mins: Math.min(...legs.map((l) => l.dur)) }));
     this.map.setOrigin(hub, trains, reach, animate, !this.origin && !!target);
-    this.map.setCandidates(rankPlaces(this.guides, hub ? byPlace : null, hub));
+    this.map.setCandidates(rankPlaces(this.guides, hub ? byPlace : null, hub, this.net));
     this.syncChrome();
     if (render && this.mode === "explore" && (!this.open || this.open.kind === "place")) this.renderPanel(false);
     if (this.weatherOn) this.paintWeather();
@@ -822,7 +838,7 @@ export class App {
         }
       } else if (origin === c.place) train = { mins: 0, trains: 0 };
       return {
-        station: this.name(c.place),
+        station: titleOf(c.place, null), // the name on the ticket: Angamali, not Kalady
         code: this.net.stations[c.place.anchor].code,
         placeId: c.place.id,
         href: href({ origin: origin ? this.slugs.of(origin) : undefined, place: this.slugs.of(c.place) }),
@@ -1108,6 +1124,14 @@ export class App {
     this.layout();
     if (this.gridData) return this.paintWeather();
     $("wx-note").textContent = "Loading the weather…";
+    // the button answers first; finding the points on land takes a moment on a phone
+    requestAnimationFrame(() => setTimeout(() => this.loadWeather()));
+  }
+
+  private wxLoading = false;
+  private loadWeather() {
+    if (!this.weatherOn || this.gridData || this.wxLoading) return;
+    this.wxLoading = true;
     const points = indiaGrid(1.6).filter(([lat, lon]) => this.map.onLand(lat, lon));
     const cities = [...this.net.places.values()].filter((p) => p.isCity && p.lat !== null && p.lon !== null);
     grid([...points, ...cities.map((c) => [c.lat!, c.lon!] as [number, number])])
@@ -1122,7 +1146,8 @@ export class App {
         $("wx-note").textContent = "Couldn't get the weather just now. Try again in a moment.";
         this.weatherOn = false;
         $("weather-btn").setAttribute("aria-pressed", "false");
-      });
+      })
+      .finally(() => (this.wxLoading = false));
   }
 
   private setWeatherMode(m: WeatherMode) {
@@ -1305,6 +1330,8 @@ export class App {
     // already showing, rather than loading and fading it in again
     const shot = fresh ? null : this.panel.querySelector<HTMLElement>(".shot[data-key]");
     const focused = !fresh && document.activeElement instanceof HTMLInputElement && this.panel.contains(document.activeElement) ? document.activeElement.id : "";
+    // photos already on screen stay on screen when the panel is drawn again (no second fade-in)
+    const shown = fresh ? null : new Set([...this.panel.querySelectorAll<HTMLImageElement>("img.in")].map((i) => i.src));
     if (this.mode === "trip" && o?.kind !== "train") {
       this.panel.dataset.view = "trip";
       this.panel.innerHTML = tripHtml(this.tripView());
@@ -1324,9 +1351,10 @@ export class App {
           from: titleOf(this.origin, null),
           places: this.reach.size,
           trains: this.reachTrains,
-          items: this.exploreItems(this.list.withGuides),
+          items: this.exploreItems(this.list.withGuides, this.list.famous && this.list.withGuides),
           showAll: this.list.showAll,
           withGuides: this.list.withGuides,
+          famous: this.list.famous,
           kind: this.filters.kind ?? "all",
           within: this.filters.within,
           leave: this.filters.leave,
@@ -1370,8 +1398,15 @@ export class App {
       if (gh) new SearchBox(gh, this.panel.querySelector<HTMLUListElement>("#gh-list")!, this.net, () => this.guides, (p) => this.setOrigin(p, { push: true }), { suggestions: () => this.suggestFrom() });
     } else if (o.kind === "discover") {
       this.panel.dataset.view = "discover";
-      this.timetableRecords ??= records(this.net);
-      this.panel.innerHTML = discoverHtml(this.discoverData!, { fact: o.fact, cat: o.cat, records: this.timetableRecords, storyHref: (st) => href({ discover: st.slug }) });
+      // the records (at the bottom) take a moment to work out: Discover shows first, they follow
+      if (!this.timetableRecords) {
+        setTimeout(() => {
+          this.timetableRecords ??= records(this.net);
+          const ol = this.open?.kind === "discover" ? this.panel.querySelector(".records") : null;
+          if (ol) ol.innerHTML = recordsHtml(this.timetableRecords);
+        }, 60);
+      }
+      this.panel.innerHTML = discoverHtml(this.discoverData!, { fact: o.fact, cat: o.cat, records: this.timetableRecords ?? [], storyHref: (st) => href({ discover: st.slug }) });
     } else if (o.kind === "story") {
       this.panel.dataset.view = "story";
       const codes = o.story.rides.flatMap((r) => [r.from, r.to]);
@@ -1421,16 +1456,18 @@ export class App {
         });
       }
     }
+    document.body.dataset.view = this.panel.dataset.view ?? ""; // phones fold the chrome away around a place, a train
     const again = shot && this.panel.querySelector<HTMLElement>(`.shot[data-key="${CSS.escape(shot.dataset.key!)}"]`);
     if (again) again.replaceWith(shot);
+    for (const im of this.panel.querySelectorAll<HTMLImageElement>("img:not(.in)")) {
+      if (shown?.has(im.src) || (im.complete && im.naturalWidth > 0)) im.classList.add("in");
+    }
     const s = scroller();
+    if (s && fresh) s.classList.add("enter");
     if (s && !fresh) s.scrollTop = keep;
     else if (s && scrollTo) s.scrollTop = scrollTo;
-    else if (s && o?.kind === "train") {
-      // open the stops list with your boarding station a third of the way down
-      const b = s.querySelector<HTMLElement>("#boarding");
-      if (b) s.scrollTop = b.getBoundingClientRect().top - s.getBoundingClientRect().top - s.clientHeight / 3;
-    }
+    // a train opens at its top: its name and times first (the stops before yours are folded
+    // away, so your boarding station is just below)
     if (focused) this.panel.querySelector<HTMLInputElement>(`#${focused}`)?.focus({ preventScroll: true });
     else if (fresh && !narrow()) this.panel.querySelector<HTMLElement>("#panel-title")?.focus({ preventScroll: true });
   }
@@ -1456,20 +1493,22 @@ export class App {
   }
   private homeFact: string | null = null;
 
-  private exploreItems(withGuides: boolean): ExploreItem[] {
+  private exploreItems(withGuides: boolean, famous = false): ExploreItem[] {
     // your own city's guide isn't somewhere to go: its stations are listed, without its photo
     const home = this.guides.get(this.origin!)?.title;
     const rows = new Map<string, ExploreItem & { city: boolean }>();
     for (const [place, legs] of this.reach) {
       const gv = this.guides.get(place) ?? null;
-      if (withGuides && (!worthwhile(gv) || gv.title === home || sameTown(this.origin, place))) continue;
+      if (withGuides && (!worthwhile(gv) || gv.title === home || sameTown(this.origin, place, this.net))) continue;
       const item = {
+        appeal: gv ? gv.entry.appeal + (ICONIC.includes(gv.title) ? 60 : 0) : 0,
         id: place.id,
         title: titleOf(place, gv),
         state: place.state,
         mins: Math.min(...legs.map((l) => l.dur)),
         trains: new Set(legs.map((l) => l.train)).size,
         photo: gv && gv.title !== home ? gv.icon : null,
+        guide: worthwhile(gv) && gv.title !== home,
         href: href({ origin: this.slugs.of(this.origin!), place: this.slugs.of(place) }),
         city: place.isCity,
       };
@@ -1478,13 +1517,21 @@ export class App {
       const prev = rows.get(key);
       if (!prev || (item.city && !prev.city) || (item.city === prev.city && item.mins < prev.mins)) rows.set(key, item);
     }
-    return [...rows.values()].sort((a, b) => a.mins - b.mins);
+    const rows2 = [...rows.values()];
+    return famous ? rows2.sort((a, b) => b.appeal - a.appeal || a.mins - b.mins) : rows2.sort((a, b) => a.mins - b.mins);
   }
 
   // ---------------------------------------------------------------- clicks in the panel
 
   private onPanelChange(e: Event) {
     const el = e.target as HTMLElement;
+    if (el instanceof HTMLSelectElement && el.dataset.sort !== undefined) {
+      this.list.famous = el.value === "famous";
+      this.list.showAll = false;
+      this.renderPanel(false);
+      this.panel.querySelector<HTMLElement>("select[data-sort]")?.focus({ preventScroll: true });
+      return;
+    }
     if (el instanceof HTMLSelectElement && el.dataset.f) {
       const v = el.value;
       const f = { ...this.filters };

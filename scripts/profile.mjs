@@ -1,5 +1,5 @@
 // A CPU profile of one action at 4x slowdown, summarised by function (self time).
-//   node scripts/profile.mjs [pick|tap|close|type] [ms]   (ms: only the first ms after the action;
+//   node scripts/profile.mjs [pick|tap|close|type|weather|discover] [ms]   (ms: only the first ms after the action;
 //   needs the production preview on :4173)
 import puppeteer from "puppeteer-core";
 const what = process.argv[2] ?? "pick";
@@ -15,11 +15,11 @@ const cdp = await page.target().createCDPSession();
 await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
 await page.evaluateOnNewDocument(() => localStorage.setItem("railgaddi.hinted", "1"));
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-const url = what === "close" ? `${BASE}/from/bengaluru/to/hampi/` : what === "tap" ? `${BASE}/from/bengaluru/` : `${BASE}/`;
+const url = what === "close" ? `${BASE}/from/bengaluru/to/hampi/` : what === "tap" || what === "weather" || what === "discover" ? `${BASE}/from/bengaluru/` : `${BASE}/`;
 await page.goto(url, { waitUntil: "networkidle2", timeout: 90000 });
 await wait(4000);
 if (what === "pick") {
-  await page.tap("#origin-input");
+  await page.tap("#from-input");
   await page.keyboard.type("bengal");
   await wait(1500);
 }
@@ -29,7 +29,9 @@ await cdp.send("Profiler.start");
 if (what === "pick") await page.keyboard.press("Enter");
 if (what === "tap") await page.mouse.click(206, 330);
 if (what === "close") await page.tap("[data-act=close]");
-if (what === "type") { await page.tap("#origin-input"); await page.keyboard.type("amrit", { delay: 100 }); }
+if (what === "weather") await page.tap("#weather-btn");
+if (what === "discover") await page.tap("#discover-btn");
+if (what === "type") { await page.tap("#from-input"); await page.keyboard.type("amrit", { delay: 100 }); }
 await wait(3500);
 const { profile } = await cdp.send("Profiler.stop");
 const self = new Map();

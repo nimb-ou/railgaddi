@@ -70,4 +70,13 @@ describe("where to go", () => {
     if (bellandur) expect(sameTown(blr, bellandur)).toBe(true);
     expect(sameTown(blr, place("mysuru"))).toBe(false);
   });
+
+  it("knows a big city's suburbs by its stations, not only its centre", () => {
+    const mumbai = place("mumbai");
+    const navi = [...net.places.values()].find((p) => p.name === "Kalamboli Goods" || p.id === "PNVL");
+    if (navi && navi !== mumbai) expect(sameTown(mumbai, navi, net)).toBe(true);
+    const chandannagar = [...net.places.values()].find((p) => p.name === "Chandannagar");
+    if (chandannagar) expect(sameTown(place("kolkata"), chandannagar, net)).toBe(false);
+    expect(sameTown(place("ahmedabad"), place("gandhinagar-capital"), net)).toBe(false);
+  });
 });

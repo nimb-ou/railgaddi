@@ -19,7 +19,7 @@ import { App } from "./app/app";
 import { parse } from "./app/router";
 import { applyPathsSoftly, applyTimetableSoftly, decodeStations, type MetaFile, type TrainsFile } from "./core/network";
 import { PlaceDetails, buildGuideIndex, type PlacesIndex } from "./core/places";
-import { buildSlugs } from "./core/slugs";
+import { buildSlugs, titleOf } from "./core/slugs";
 import { Spots } from "./core/spots";
 import indiaUrl from "./assets/geo/india.json?url";
 import statesUrl from "./assets/geo/state-lines.json?url";
@@ -80,6 +80,13 @@ async function boot() {
   const details = new PlaceDetails(urls, places.meta.shards);
 
   const map = new RailMap(document.getElementById("map") as HTMLCanvasElement, net, india, states);
+  // names on the land when zoomed in: busy stations and cities, and towns without a station
+  const towns: { lat: number; lon: number; name: string; rank: number }[] = [];
+  for (const p of net.places.values()) {
+    if (p.halts >= 8 && p.lat !== null && p.lon !== null) towns.push({ lat: p.lat, lon: p.lon, name: titleOf(p, null), rank: 1 + Math.log10(1 + p.halts) + (p.isCity ? 1 : 0) });
+  }
+  for (const s of spots.list) if (s.pop === 0 || s.pop >= 5000) towns.push({ lat: s.lat, lon: s.lon, name: s.name, rank: s.pop === 0 ? 3 : Math.log10(s.pop) / 1.5 });
+  map.setTowns(towns);
   const app = new App(net, guides, slugs, details, map, spots);
   setupChrome(map, () => app.refreshColors());
   map.fitIndia(0);

@@ -5,7 +5,7 @@
 import { daysLabel } from "../core/format";
 import type { Network, Place, Train } from "../core/network";
 import type { GuideView } from "../core/places";
-import { searchPlaces, searchTrains } from "../core/search";
+import { searchPlaceHits, searchTrains, type PlaceHit } from "../core/search";
 import { km, searchOnline, type Spot, type Spots } from "../core/spots";
 import { esc } from "./panel";
 import { photoUrl } from "./photos";
@@ -28,7 +28,8 @@ export interface SearchOptions {
   online?: boolean;
 }
 
-type Item = { p: Place; t?: undefined; s?: undefined } | { t: Train; p?: undefined; s?: undefined } | { s: Spot; p?: undefined; t?: undefined };
+type Item = { p: Place; t?: undefined; s?: undefined; via?: string } | { t: Train; p?: undefined; s?: undefined } | { s: Spot; p?: undefined; t?: undefined };
+const titleCase = (s: string) => s.replace(/\b\w/g, (c) => c.toUpperCase());
 const fold = (x: string) => x.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 const PIN = `<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M8 15s-5-4.6-5-8.3a5 5 0 0 1 10 0C13 10.4 8 15 8 15z"/><circle cx="8" cy="6.7" r="1.8" fill="#fff"/></svg>`;
 
@@ -103,21 +104,26 @@ export class SearchBox {
     if (!q.trim()) {
       this.results = (this.opts.suggestions?.() ?? []).map((p) => ({ p }));
     } else {
-      const found = searchPlaces(this.net, this.guides(), q, ctx ? 40 : 6);
-      // the order searchPlaces gives, nudged by what makes sense for this field
-      const places = ctx
+      const found = searchPlaceHits(this.net, this.guides(), q, ctx ? 40 : 6);
+      // the order the search gives, nudged by what makes sense for this field
+      const places: PlaceHit[] = ctx
         ? found
-            .map((p, i) => ({ p, s: (ctx(p)?.boost ?? 0) * 0.3 - i * 0.3 })) // a direct train lifts a match about ten places
+            .map((h, i) => ({ h, s: (ctx(h.p)?.boost ?? 0) * 0.3 - i * 0.3 })) // a direct train lifts a match about ten places
             .sort((a, b) => b.s - a.s)
             .slice(0, 6)
-            .map((r) => r.p)
+            .map((r) => r.h)
         : found;
       const trains = this.opts.onTrain ? searchTrains(this.net, q) : [];
-      const spots = this.opts.spots?.()?.search(q, 3) ?? [];
+      const spotHits = this.opts.spots?.()?.searchHits(q, 3) ?? [];
+      const spots = spotHits.map((h) => h.s);
       // a number is a train; a name can be a station, a town without one, or a train. A town
       // without a station goes first when no station's name starts with what you typed
-      const plain = places.length && fold(places[0].name).startsWith(fold(q));
-      const ps = places.slice(0, trains.length || spots.length ? 4 : 6).map((p) => ({ p }) as Item);
+      // what reads as typed goes first: a station or city, else a town without a station, else
+      // whichever needed fewer slips forgiven, stations on a tie ("manaali": Manali before
+      // Mangaliyawas; "dehli": Delhi before Deoli)
+      const spotStrong = !!spotHits.length && spotHits[0].strong;
+      const plain = places.length && (places[0].strong || (!spotStrong && (!spotHits.length || places[0].slip <= spotHits[0].slip)));
+      const ps = places.slice(0, trains.length || spots.length ? 4 : 6).map((h) => ({ p: h.p, via: h.via }) as Item);
       const ss = spots.map((x) => ({ s: x }) as Item);
       this.results = [...(plain ? [...ps, ...ss] : [...ss, ...ps]), ...trains.map((t) => ({ t }) as Item)];
       this.online(q);
@@ -206,7 +212,7 @@ export class SearchBox {
           const p = it.p;
           const codes = p.stations.map((s) => this.net.stations[s].code);
           const note = this.opts.context?.(p)?.note;
-          const meta = note ?? (p.isCity ? `${p.state} · ${codes.length} stations` : `${p.state ? p.state + " · " : ""}${codes[0]}`);
+          const meta = note ?? (it.via ? `${titleCase(it.via)} · ${p.state}` : p.isCity && codes.length > 1 ? `${p.state} · ${codes.length} stations` : `${p.state ? p.state + " · " : ""}${codes[0]}`);
           const gv = this.guides().get(p);
           const also = gv?.featured ? ` · for ${gv.title}` : "";
           return `<li role="option" id="${this.id}-${i}" data-i="${i}" aria-selected="${i === this.active}" class="${note ? "direct" : ""}">

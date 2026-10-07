@@ -49,6 +49,18 @@ export function img(p: Photo, sizes: string, min: number, max: number, alt = "",
     ${eager ? 'fetchpriority="high"' : 'loading="lazy" fetchpriority="low"'} decoding="async" crossorigin="anonymous" referrerpolicy="no-referrer" />`;
 }
 
+/**
+ * A list row's picture: the place's photo, else its initial on a soft tint (a place with a guide
+ * but no photo yet), else a plain stop.
+ */
+export function thumb(photo: Photo | null, title: string, guide: boolean) {
+  if (photo) return img(photo, `${coverWidth(photo, 44, 44)}px`, 120, 500);
+  if (!guide) return `<i class="stop-dot" aria-hidden="true"></i>`;
+  let h = 0;
+  for (const ch of title) h = (h * 31 + ch.charCodeAt(0)) % 360;
+  return `<i class="mono" style="--h:${h}" aria-hidden="true">${esc(title.charAt(0))}</i>`;
+}
+
 /** The cover is 420×200 beside the map, full width × 170 on phones; wide banners crop to fit. */
 function coverSizes(p: Photo) {
   const phone = 170 * aspect(p) > 430 ? `${Math.ceil(170 * aspect(p))}px` : "100vw";
@@ -89,6 +101,7 @@ export interface GetHereItem {
   trains: number;
   href: string;
   photo: Photo | null;
+  guide: boolean;
 }
 
 export interface GetHere {
@@ -119,7 +132,7 @@ function getHereHtml(g: GetHere, title: string, afterChanges = false) {
     <ol class="dest-list gh-list">${g.items
       .map(
         (it) => `<li><a href="${esc(it.href)}" data-act="from" data-id="${esc(it.id)}">
-          ${it.photo ? img(it.photo, `${coverWidth(it.photo, 44, 44)}px`, 120, 500) : `<i class="stop-dot" aria-hidden="true"></i>`}
+          ${thumb(it.photo, it.title, it.guide)}
           <span class="dl-name"><b>${esc(it.title)}</b><small>${esc(it.state)}</small></span>
           <span class="dl-time"><b>${fmtMins(it.mins)}</b><small>${plural(it.trains, "train")}</small></span>
         </a></li>`,

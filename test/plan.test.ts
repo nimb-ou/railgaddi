@@ -15,6 +15,13 @@ describe("places without a station", () => {
     expect(spots.search("munnar")[0]?.name).toBe("Munnar");
     expect(spots.search("coorg")[0]?.name).toBe("Madikeri");
     expect(spots.search("kodaik")[0]?.name).toBe("Kodaikanal");
+    expect(spots.search("manaali")[0]?.name).toBe("Manali"); // a slip forgiven
+    expect(spots.search("gangtock")[0]?.name).toBe("Gangtok");
+    // today's names, with the old ones still found, and links by them still working
+    expect(spots.search("kullu")[0]?.name).toBe("Kullu");
+    expect(spots.search("cherrapunji")[0]?.name).toBe("Sohra");
+    expect(spots.find("kulu")?.name).toBe("Kullu");
+    expect(spots.find("coorg")?.name).toBe("Madikeri");
   });
 
   it("never takes a station's address", () => {

@@ -118,6 +118,11 @@ export class RailMap {
   private reach: Reach[] = [];
   private cands: BubbleCandidate[] = [];
   private shown = new Map<Place, Shown>();
+  // names on the land when you zoom in: towns (with a station or without) and the states
+  private townsLL: { lat: number; lon: number; name: string; rank: number }[] = [];
+  private towns: { x: number; y: number; name: string; rank: number }[] = [];
+  private stateLabels: { x: number; y: number; name: string }[] = [];
+  private nameWidth = new Map<string, number>();
   private discs = new Map<string, HTMLCanvasElement>();
   private selected: Place | null = null;
   private selectedTrains: { leg: Leg }[] = []; // one train, or a journey's trains
@@ -197,6 +202,7 @@ export class RailMap {
       text: v("--text"), muted: v("--muted"), halo: v("--halo"), ring: v("--ring"), board: v("--board"), boardInk: v("--board-ink"),
     };
     this.labelWidth.clear();
+    this.nameWidth.clear();
     this.boards.clear();
     this.netStrength = parseFloat(v("--net-strength")) || 1;
     const scale = d3
@@ -294,6 +300,7 @@ export class RailMap {
       this.sy[s.i] = p[1];
       this.ok[s.i] = 1;
     }
+    this.projectNames();
     const buckets = [1, 3, 8, 20, 50, Infinity];
     this.netPaths = buckets.slice(1).map(() => new Path2D());
     for (const e of this.edges) {
@@ -486,9 +493,14 @@ export class RailMap {
       return;
     }
     const W = 125, H = 138, S = 1000 / W; // an eighth of the map's frame: it's drawn smoothed, and this is quick even on a phone
-    const pts = points.map((p) => {
+    // flat arrays and plain loops: this runs 17,000 pixels × a few hundred points
+    const n = points.length;
+    const PX = new Float64Array(n), PY = new Float64Array(n), PV = new Float64Array(n);
+    points.forEach((p, i) => {
       const [x, y] = this.proj([p.lon, p.lat])!;
-      return [x / S, y / S, p.v] as const;
+      PX[i] = x / S;
+      PY[i] = y / S;
+      PV[i] = p.v;
     });
     const cv = document.createElement("canvas");
     cv.width = W;
@@ -498,11 +510,12 @@ export class RailMap {
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
         let sw = 0, sv = 0;
-        for (const [px, py, v] of pts) {
-          const d2 = (px - x) ** 2 + (py - y) ** 2 + 1;
+        for (let i = 0; i < n; i++) {
+          const dx = PX[i] - x, dy = PY[i] - y;
+          const d2 = dx * dx + dy * dy + 1;
           const w = 1 / (d2 * d2); // inverse distance, to the fourth: local, but no seams
           sw += w;
-          sv += w * v;
+          sv += w * PV[i];
         }
         const [r, g, b, a] = color(sv / sw);
         const i = (y * W + x) * 4;
@@ -528,6 +541,8 @@ export class RailMap {
     this.dirty = true;
     if (!spot) {
       this.spot = null;
+      this.spotBoxes = [];
+      this.namesEpoch++;
       return;
     }
     const [x, y] = this.proj([spot.lon, spot.lat])!;
@@ -537,6 +552,7 @@ export class RailMap {
   /** A trip: its stops, numbered, and the trains between them (and roads, for places without a station). */
   setTrip(trip: { stops: { lat: number; lon: number; label: string }[]; legs: Leg[]; roads: { lat: number; lon: number; place: Place }[]; links?: { a: { lat: number; lon: number }; b: { lat: number; lon: number } }[] } | null) {
     this.dirty = true;
+    this.namesEpoch++; // its stops' names, not the land's
     if (!trip) {
       this.trip = null;
       return;
@@ -567,6 +583,139 @@ export class RailMap {
   }
 
   /** Is this point on India's land (not the sea)? */
+  /** Towns to name on the land when zoomed in, most important first (`rank`: bigger first). */
+  setTowns(list: { lat: number; lon: number; name: string; rank: number }[]) {
+    this.townsLL = [...list].sort((a, b) => b.rank - a.rank);
+    this.projectNames();
+    this.baseKey = "";
+    this.dirty = true;
+  }
+
+  private projectNames() {
+    this.towns = this.townsLL.map((t) => {
+      const [x, y] = this.proj([t.lon, t.lat])!;
+      return { x, y, name: t.name, rank: t.rank };
+    });
+    // each state's name where most of its stations are (the middle one, east-west and north-south)
+    const by = new Map<string, [number[], number[]]>();
+    for (const st of this.net.stations) {
+      if (!this.ok[st.i] || !st.state) continue;
+      let v = by.get(st.state);
+      if (!v) by.set(st.state, (v = [[], []]));
+      v[0].push(this.sx[st.i]);
+      v[1].push(this.sy[st.i]);
+    }
+    const mid = (a: number[]) => a.sort((x, y) => x - y)[a.length >> 1];
+    this.stateLabels = [...by].filter(([, [xs]]) => xs.length >= 6).map(([name, [xs, ys]]) => ({ x: mid(xs), y: mid(ys), name: name.toUpperCase() }));
+  }
+
+  /**
+   * The names on the land, in screen space: states from a little zoomed in, towns (a dot and a
+   * name) from further in, more of them the closer you look. Quiet, below everything, and never
+   * under the photos, the panel or another name.
+   */
+  private drawNames(c: CanvasRenderingContext2D) {
+    const z = this.tf.k / this.transformFor([[0, 0], [1000, 1100]], 1.4).k; // 1: all of India
+    // with the weather on, its values are the names worth reading
+    if (z < 1.7 || this.weather || (!this.towns.length && !this.stateLabels.length)) return;
+    const taken: [number, number, number, number][] = this.safe.map((r) => [r.left, r.top, r.right, r.bottom]);
+    const R = this.radius();
+    const named = new Set<string>();
+    for (const sh of this.shown.values()) {
+      if (sh.target <= 0) continue;
+      const half = Math.max(R + 3, this.boardWidth(sh.c.title) / 2 + 4); // the photo, and the name board under it
+      taken.push([sh.x - half, sh.y - R - 3, sh.x + half, sh.y + R + 36]);
+      named.add(sh.c.title);
+    }
+    taken.push(...this.spotBoxes);
+    if (this.spot) {
+      named.add(this.spot.name);
+      for (const t of this.spot.to) named.add(t.label.split(" · ")[0]);
+    }
+    if (this.origin && this.ok[this.origin.anchor]) {
+      // where you start: its dot, and no second name beside it
+      const ox = this.tf.applyX(this.sx[this.origin.anchor]), oy = this.tf.applyY(this.sy[this.origin.anchor]);
+      taken.push([ox - 12, oy - 12, ox + 12, oy + 12]);
+      named.add(this.origin.name.replace(/\s+(Junction|Jn\.?)$/i, "").replace(/\s*\((.+)\)$/, ""));
+    }
+    for (const st of this.trip?.stops ?? []) {
+      // a trip's numbered stops, and their names under them
+      const x = this.tf.applyX(st.x), y = this.tf.applyY(st.y), half = this.boardWidth(st.label) / 2 + 3;
+      taken.push([x - 14, y - 14, x + 14, y + 14], [x - half, y + 12, x + half, y + 38]);
+      named.add(st.label);
+    }
+    const free = (b: [number, number, number, number]) =>
+      b[0] > 6 && b[1] > 6 && b[2] < this.w - 6 && b[3] < this.h - 6 && !taken.some((o) => b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]);
+    const width = (text: string, font: string) => {
+      const key = `${font}|${text}`;
+      let w = this.nameWidth.get(key);
+      if (w === undefined) this.nameWidth.set(key, (w = c.measureText(text).width));
+      return w;
+    };
+    c.save();
+    c.textBaseline = "middle";
+    // the states, fading in as you zoom in and out again once towns take over
+    const sa = Math.min(1, (z - 1.7) / 0.5) * Math.max(0, Math.min(1, (8 - z) / 2));
+    if (sa > 0) {
+      const font = `650 10px ${FONT}`;
+      c.font = font;
+      c.letterSpacing = "1.6px";
+      c.fillStyle = this.c.muted;
+      c.globalAlpha = 0.5 * sa;
+      c.textAlign = "center";
+      for (const st of this.stateLabels) {
+        const x = this.tf.applyX(st.x), y = this.tf.applyY(st.y);
+        const w = width(st.name, font) + st.name.length * 1.6;
+        const box: [number, number, number, number] = [x - w / 2 - 4, y - 8, x + w / 2 + 4, y + 8];
+        if (!free(box)) continue;
+        taken.push(box);
+        c.fillText(st.name, x, y);
+      }
+      c.letterSpacing = "0px";
+    }
+    // the towns: the bigger first; small ones only close in
+    if (z >= 2.6) {
+      // with the routes drawn there's a lot on the map already: fewer, bigger towns
+      const busy = (!!this.origin && !this.trip) || !!this.trip?.legs.length;
+      const least = (z < 4 ? 3.6 : z < 7 ? 3 : z < 12 ? 2.6 : z < 24 ? 2.2 : 0) + (busy ? 0.6 : 0);
+      const most = (this.w < 720 ? 18 : 36) / (busy ? 2 : 1);
+      const font = `550 11px ${FONT}`;
+      c.font = font;
+      c.textAlign = "left";
+      c.lineJoin = "round";
+      c.lineWidth = 3;
+      c.strokeStyle = this.c.land;
+      let n = 0;
+      for (const t of this.towns) {
+        if (t.rank < least || n >= most) break;
+        if (named.has(t.name)) continue;
+        const x = this.tf.applyX(t.x), y = this.tf.applyY(t.y);
+        if (x < 0 || y < 0 || x > this.w || y > this.h) continue;
+        const w = width(t.name, font);
+        let box: [number, number, number, number] = [x - 3, y - 8, x + 7 + w, y + 8];
+        let left = false;
+        if (!free(box)) {
+          box = [x - 7 - w, y - 8, x + 3, y + 8];
+          left = true;
+          if (!free(box)) continue;
+        }
+        taken.push(box);
+        n++;
+        named.add(t.name);
+        c.globalAlpha = 0.75;
+        c.fillStyle = this.c.muted;
+        c.beginPath();
+        c.arc(x, y, 2, 0, TAU);
+        c.fill();
+        c.globalAlpha = 0.9;
+        const tx = left ? x - 6 - w : x + 6;
+        c.strokeText(t.name, tx, y);
+        c.fillText(t.name, tx, y);
+      }
+    }
+    c.restore();
+  }
+
   onLand(lat: number, lon: number) {
     const [x, y] = this.proj([lon, lat])!;
     return this.baseCtx.isPointInPath(this.landPath, x, y); // the drawn outline: far quicker than spherical geometry
@@ -723,8 +872,10 @@ export class RailMap {
     const moved = b.k !== k || b.x !== x || b.y !== y;
     const ratio = k / b.k;
     const gesture = now - this.lastZoom < 120;
-    if (key !== this.baseKey || (moved && (!gesture || now - this.baseDrawn > 180 || ratio > 1.25 || ratio < 0.8))) {
+    const renamed = this.namesEpoch !== this.baseNames && !gesture && now - this.baseDrawn > 250;
+    if (key !== this.baseKey || renamed || (moved && (!gesture || now - this.baseDrawn > 180 || ratio > 1.25 || ratio < 0.8))) {
       this.baseKey = key;
+      this.baseNames = this.namesEpoch;
       this.baseTf = this.tf;
       this.baseDrawn = now;
       this.drawBase();
@@ -800,6 +951,7 @@ export class RailMap {
     });
     c.globalAlpha = 1;
     c.restore();
+    this.drawNames(c);
     const [tx, ty] = [this.tf.applyX(this.tropicLabel[0]), this.tf.applyY(this.tropicLabel[1])];
     c.font = `italic 500 10.5px ${FONT}`;
     c.fillStyle = this.c.muted;
@@ -1131,9 +1283,12 @@ export class RailMap {
     ctx.restore();
     // labels below their station, else above, right or left: never on top of one another
     const pinHalf = this.boardWidth(sp.name) / 2;
-    const taken: [number, number, number, number][] = [[x - 11, y - 30, x + 11, y], [x - pinHalf, y + 2, x + pinHalf, y + 26]];
-    const free = (b: [number, number, number, number]) =>
-      b[0] > 4 && b[2] < this.w - 4 && b[1] > 4 && b[3] < this.h - 4 && !taken.some((o) => b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]);
+    const taken: [number, number, number, number][] = [[x - 11, y - 30, x + 11, y], [x - pinHalf - 2, y + 2, x + pinHalf + 2, y + 26]];
+    // how badly a label would sit there: off the canvas, or over what's already drawn
+    const clash = (b: [number, number, number, number]) => {
+      const off = b[0] < 4 || b[2] > this.w - 4 || b[1] < 4 || b[3] > this.h - 4 ? 1e6 : 0;
+      return off + taken.reduce((a, o) => a + Math.max(0, Math.min(b[2], o[2]) - Math.max(b[0], o[0])) * Math.max(0, Math.min(b[3], o[3]) - Math.max(b[1], o[1])), 0);
+    };
     for (const t of sp.to) {
       const sx = this.tf.applyX(this.sx[t.anchor]), sy = this.tf.applyY(this.sy[t.anchor]);
       ctx.beginPath();
@@ -1148,13 +1303,44 @@ export class RailMap {
     for (const t of sp.to) {
       const sx = this.tf.applyX(this.sx[t.anchor]), sy = this.tf.applyY(this.sy[t.anchor]);
       const half = this.boardWidth(t.label) / 2;
-      const spots: [number, number][] = [[sx, sy + 8], [sx, sy - 30], [sx + half + 10, sy - 11], [sx - half - 10, sy - 11]];
-      const at = spots.find(([cx, top]) => free([cx - half, top, cx + half, top + 22])) ?? spots[0];
-      taken.push([at[0] - half, at[1], at[0] + half, at[1] + 22]);
+      // below, above, beside; then further out, for stations that sit close together (Kasol's three
+      // in the Sutlej valley): the first clear place, else the least crowded one
+      const spots: [number, number][] = [[sx, sy + 8], [sx, sy - 30], [sx + half + 10, sy - 11], [sx - half - 10, sy - 11],
+        [sx + half + 8, sy + 6], [sx - half - 8, sy + 6], [sx + half + 8, sy - 28], [sx - half - 8, sy - 28],
+        [sx, sy + 32], [sx, sy - 54], [sx + half + 10, sy + 20], [sx - half - 10, sy + 20]];
+      const box = ([cx, top]: [number, number]): [number, number, number, number] => [cx - half - 2, top - 1, cx + half + 2, top + 23];
+      let at = spots[0], worst = Infinity;
+      for (const c of spots) {
+        const v = clash(box(c));
+        if (v < worst) [at, worst] = [c, v];
+        if (v === 0) break;
+      }
+      taken.push(box(at));
+      // set further out: a hairline back to its station
+      const ly = Math.max(at[1], Math.min(at[1] + 22, sy)), lx = Math.max(at[0] - half, Math.min(at[0] + half, sx));
+      if (Math.hypot(lx - sx, ly - sy) > 12) {
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(lx, ly);
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = this.c.livery;
+        ctx.globalAlpha = 0.7;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
       this.stationBoard(t.label, at[0], at[1]);
     }
     this.pin(x, y, this.c.accent, sp.name);
+    // the names on the land keep clear of all this (they're drawn underneath, less often)
+    const sig = taken.map((t) => t.map(Math.round).join()).join(";");
+    if (sig !== this.spotSig) {
+      this.spotSig = sig;
+      this.spotBoxes = taken;
+      this.namesEpoch++;
+    }
   }
+  private spotBoxes: [number, number, number, number][] = [];
+  private spotSig = "";
 
   private drawTrip() {
     const tr = this.trip!;
@@ -1383,7 +1569,16 @@ export class RailMap {
       }
     }
     for (const [p, s] of this.shown) s.target = placed.has(p) ? 1 : 0;
+    // other photos than before: the names on the land make room for them
+    const sig = [...placed.keys()].map((p) => p.id).join();
+    if (sig !== this.placedSig) {
+      this.placedSig = sig;
+      this.namesEpoch++;
+    }
   }
+  private placedSig = "";
+  private namesEpoch = 0;
+  private baseNames = 0;
 
   private disc(photo: Photo | null, key: string, R: number): HTMLCanvasElement | null {
     const id = `${key}|${R}`;

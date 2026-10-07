@@ -129,6 +129,15 @@ TYPOS = {
     "sengottail": "Sengottai", "vashno": "Vaishno", "jaislmer": "Jaisalmer", "hazarat": "Hazrat",
     "shajahanpur": "Shahjahanpur", "jhsrsuguda": "Jharsuguda", "chhatratati": "Chhatrapati",
     "machilipatanam": "Machilipatnam", "banglore": "Bangalore",
+    # found 2026-10-07 the same way
+    "varansi": "Varanasi", "coimbatoree": "Coimbatore", "porbander": "Porbandar", "tirupathi": "Tirupati",
+    "bokoro": "Bokaro", "ballarshah": "Balharshah", "shahjehanpur": "Shahjahanpur", "udagamandalam": "Udhagamandalam",
+    "bhadrakh": "Bhadrak", "hydrabad": "Hyderabad", "bengluru": "Bengaluru", "rameshwaram": "Rameswaram",
+    "charlapallii": "Charlapalli", "vindyachal": "Vindhyachal", "shivmogga": "Shivamogga", "shivamoga": "Shivamogga",
+    "bhadrachallam": "Bhadrachalam", "nautanua": "Nautanwa", "renugunta": "Renigunta", "virangna": "Virangana",
+    "mayiladuturai": "Mayiladuthurai", "kayankulam": "Kayamkulam", "tiruvananthapuram": "Thiruvananthapuram",
+    "vishakhapatnam": "Visakhapatnam", "kamalapati": "Kamlapati", "yeswantpur": "Yesvantpur", "mariyani": "Mariani",
+    "lalkua": "Lalkuan",
 }
 SMALL = {"and", "to", "via", "of", "the", "ki", "ka", "ke", "da", "de"}
 CAPS = {"memu": "MEMU", "demu": "DEMU", "dmu": "DMU", "emu": "EMU", "ac": "AC", "a/c": "AC", "ltt": "LTT", "cst": "CSMT", "csmt": "CSMT",

@@ -40,7 +40,8 @@ for (const step of steps) {
       if (!ok) console.log("no element with text", arg);
     } else if (cmd === "type") {
       const [sel, ...t] = rest;
-      await page.click(sel, { clickCount: 3 });
+      await page.click(sel);
+      await page.$eval(sel, (el) => { el.value = ""; el.dispatchEvent(new Event("input", { bubbles: true })); }); // start from empty
       await page.type(sel, t.join(" "), { delay: 30 });
     } else if (cmd === "key") await page.keyboard.press(arg);
     else if (cmd === "wait") await sleep(Number(arg));

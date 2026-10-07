@@ -30,6 +30,20 @@ describe("place guides", () => {
     expect(searchPlaces(net, guides, "मैसूरु")).toContain(place("mysuru"));
   });
 
+  it("forgives a slip, and knows a city by its stations", () => {
+    expect(searchPlaces(net, guides, "banglore")[0]).toBe(place("bengaluru"));
+    expect(searchPlaces(net, guides, "dehli")[0]).toBe(place("delhi"));
+    expect(searchPlaces(net, guides, "varansi")[0]).toBe(place("varanasi"));
+    expect(guides.get(searchPlaces(net, guides, "darjiling")[0])?.title).toBe("Darjeeling");
+    expect(searchPlaces(net, guides, "hydrabad")[0]).toBe(place("hyderabad"));
+    expect(searchPlaces(net, guides, "jaipur jn")[0]).toBe(place("jaipur"));
+    expect(searchPlaces(net, guides, "mumbai central")[0]).toBe(place("mumbai"));
+    expect(searchPlaces(net, guides, "chennai egmore")[0]).toBe(place("chennai"));
+    // exact names still win, and a short name isn't bent into another
+    expect(searchPlaces(net, guides, "pune")[0]).toBe(place("pune"));
+    expect(searchPlaces(net, guides, "goa")[0]).toBe(place("goa"));
+  });
+
   it("keeps renamed stations' guides, cities and old names", () => {
     const at = (code: string) => net.placeOf[net.stations.findIndex((s) => s.code === code)];
     expect(at("VGLJ").aka).toContain("Jhansi"); // Jhansi Jn -> Virangana Lakshmibai Jhansi (VGLJ)

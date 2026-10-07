@@ -56,6 +56,19 @@ export function noteHtml(f: Fact, n: number, total: number, withNav: boolean) {
   </figure>`;
 }
 
+/** The timetable's records, as rows (a train's or a place's open it). */
+export function recordsHtml(records: Record[]) {
+  return records
+    .map(
+      (r, i) => `<li>${r.train || r.place ? `<button type="button" data-act="record" data-i="${i}">` : "<div>"}
+        <span class="rec-label">${esc(r.label)}</span>
+        <b class="rec-value">${esc(r.value)}</b>
+        <span class="rec-detail">${esc(r.detail)}</span>
+      ${r.train || r.place ? "</button>" : "</div>"}</li>`,
+    )
+    .join("");
+}
+
 export function discoverHtml(d: DiscoverData, v: { fact: number; cat: string; records: Record[]; storyHref: (s: Story) => string }) {
   const facts = v.cat === "All" ? d.facts : d.facts.filter((f) => f.cat === v.cat);
   const f = facts[((v.fact % facts.length) + facts.length) % facts.length];
@@ -90,15 +103,7 @@ export function discoverHtml(d: DiscoverData, v: { fact: number; cat: string; re
 
     <section aria-labelledby="records-h">
       <div class="section-head"><h3 id="records-h">By the numbers</h3><span class="count">from this timetable</span></div>
-      <ol class="records">${v.records
-        .map(
-          (r, i) => `<li>${r.train || r.place ? `<button type="button" data-act="record" data-i="${i}">` : "<div>"}
-            <span class="rec-label">${esc(r.label)}</span>
-            <b class="rec-value">${esc(r.value)}</b>
-            <span class="rec-detail">${esc(r.detail)}</span>
-          ${r.train || r.place ? "</button>" : "</div>"}</li>`,
-        )
-        .join("")}</ol>
+      <ol class="records">${recordsHtml(v.records)}</ol>
     </section>
   </div>`;
 }

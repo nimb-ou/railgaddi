@@ -3,7 +3,7 @@ import { fmtMins, plural } from "../core/format";
 import type { Photo } from "../core/places";
 import type { Kind, Leave } from "../core/trips";
 import { esc } from "./esc";
-import { img } from "./panel";
+import { img, thumb } from "./panel";
 import { coverWidth, photoUrl } from "./photos";
 
 export interface HomeView {
@@ -46,6 +46,8 @@ export interface ExploreItem {
   mins: number;
   trains: number;
   photo: Photo | null;
+  guide: boolean; // has a travel guide (a photo may still be missing)
+  appeal: number; // how much there is to see
   href: string;
 }
 
@@ -56,6 +58,7 @@ export interface ExploreView {
   items: ExploreItem[];
   showAll: boolean;
   withGuides: boolean;
+  famous: boolean; // most to see first, not nearest
   kind: Kind;
   within: number;
   leave: Leave;
@@ -94,13 +97,14 @@ export function exploreHtml(v: ExploreView) {
         <button type="button" data-act="list-guides" aria-pressed="${v.withGuides}">With guides</button>
         <button type="button" data-act="list-all" aria-pressed="${!v.withGuides}">Every stop</button>
       </div>
+      ${v.withGuides ? `<select class="sort" data-sort aria-label="Order"><option value="near"${v.famous ? "" : " selected"}>Nearest first</option><option value="famous"${v.famous ? " selected" : ""}>Most to see first</option></select>` : ""}
       ${filtered ? `<button class="link-btn" type="button" data-act="reset">Clear filters</button>` : ""}
     </div>
     ${shown.length
       ? `<ol class="dest-list">${shown
           .map(
             (it) => `<li><a href="${esc(it.href)}" data-act="nav" data-id="${esc(it.id)}">
-              ${it.photo ? img(it.photo, `${coverWidth(it.photo, 44, 44)}px`, 120, 500) : `<i class="stop-dot" aria-hidden="true"></i>`}
+              ${thumb(it.photo, it.title, it.guide)}
               <span class="dl-name"><b>${esc(it.title)}</b><small>${esc(it.state)}</small></span>
               <span class="dl-time"><b>${fmtMins(it.mins)}</b><small>${plural(it.trains, "train")}</small></span>
             </a></li>`,
