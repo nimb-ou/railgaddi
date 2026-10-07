@@ -160,7 +160,7 @@ export class SearchBox {
   private face(p: Place) {
     const ph = this.guides().get(p)?.icon;
     return ph
-      ? `<img class="s-img" src="${esc(photoUrl(ph, 120))}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" />`
+      ? `<img class="s-img" src="${esc(photoUrl(ph, 120))}" alt="" loading="lazy" decoding="async" crossorigin="anonymous" referrerpolicy="no-referrer" />`
       : `<i class="s-img"></i>`;
   }
 

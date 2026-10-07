@@ -12,7 +12,7 @@ import { planTrip, stopLatLon, stopName, type Plan, type Stop, type TripStop } f
 import { ANY, arrivals, bySoonest, connections, departures, legPasses, newerBetween, reachable, type Connection, type Destination, type Filters, type Kind, type Leave, type Leg } from "../core/trips";
 import { forecast, grid, indiaGrid, valueOf, type Forecast, type GridPoint, type WeatherMode } from "../core/weather";
 import type { RailMap, SightPin } from "../map/map";
-import { exploreHtml, homeHtml, type ExploreItem } from "../ui/home";
+import { exploreHtml, homeHtml, landingView, POPULAR, type ExploreItem } from "../ui/home";
 import { esc, journeyHtml, placeHtml, scriptLine, trainHtml, type GetHere, type StopsOpen } from "../ui/panel";
 import { openPosterSheet } from "../ui/poster";
 import { savedHtml, type SavedPlace, type SavedRoute } from "../ui/saved";
@@ -30,12 +30,8 @@ import { filtersOf, go, href, parse, type Route } from "./router";
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const narrow = () => window.innerWidth <= 720;
 const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-const POPULAR = ["bengaluru", "mumbai", "delhi", "kolkata", "chennai", "hyderabad"];
 const LAST = "railgaddi.last"; // the station you started from last time (on this device only)
 const journeyKey = (c: Connection) => c.legs.map((l) => l.train.no).join("-");
-/** Hill towns people ask about, none with a station of its own. */
-const HILLS: [string, string][] = [["Munnar", "Kerala"], ["Manali", "Himachal Pradesh"], ["Kodaikanal", "Tamil Nadu"], ["Gangtok", "Sikkim"], ["Leh", "Ladakh"], ["Madikeri", "Karnataka"], ["Mussoorie", "Uttarakhand"], ["McLeod Ganj", "Himachal Pradesh"], ["Kasol", "Himachal Pradesh"], ["Tawang", "Arunachal Pradesh"]];
-const IDEAS: [string, string][] = [["Hampi", "Boulders and temples"], ["Darjeeling", "Tea, and the toy train"], ["Varanasi", "The ghats at dawn"], ["Goa", "Beaches and old churches"]];
 const WEEK = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -1463,7 +1459,9 @@ export class App {
       if (shown?.has(im.src) || (im.complete && im.naturalWidth > 0)) im.classList.add("in");
     }
     const s = scroller();
-    if (s && fresh) s.classList.add("enter");
+    // a new view rises in; the landing panel the page arrived with is drawn again in place
+    if (s && fresh && !this.panel.hasAttribute("data-drawn")) s.classList.add("enter");
+    this.panel.removeAttribute("data-drawn");
     if (s && !fresh) s.scrollTop = keep;
     else if (s && scrollTo) s.scrollTop = scrollTo;
     // a train opens at its top: its name and times first (the stops before yours are folded
@@ -1473,23 +1471,9 @@ export class App {
   }
 
   private homeView() {
-    const face = (p: Place) => this.guides.get(p)?.icon ?? null;
-    const last = this.lastOrigin();
-    const find = (name: string, state: string) => this.spots.list.find((s) => s.name === name && s.state === state);
-    const hills = HILLS.map(([n, st]) => find(n, st)).filter((s): s is Spot => !!s).map((s) => ({ name: s.name, href: href({ place: s.id }), note: `${s.name}, ${s.state}: no station, see how to get there` }));
-    const ideas = IDEAS.flatMap(([title, note]) => {
-      const p = this.titlePlace.get(title);
-      return p ? [{ title, note, href: href({ place: this.slugs.of(p) }), photo: this.guides.get(p)?.icon ?? null }] : [];
-    });
     const short = (this.discoverData?.facts ?? []).filter((f) => f.text.length <= 150);
     this.homeFact ??= short.length ? short[Math.floor(Math.random() * short.length)].text : null;
-    return {
-      last: last ? { id: last.id, name: last.name, href: href({ origin: this.slugs.of(last) }) } : null,
-      popular: POPULAR.map((id) => this.net.places.get(id)).filter((p): p is Place => !!p && p !== last).map((p) => ({ id: p.id, name: p.name, href: href({ origin: this.slugs.of(p) }), photo: face(p) })),
-      hills,
-      ideas,
-      fact: this.homeFact ? { text: this.homeFact, href: href({ discover: "" }) } : null,
-    };
+    return landingView({ net: this.net, guides: this.guides, slugOf: (p) => this.slugs.of(p), spots: this.spots, titlePlace: this.titlePlace, link: href, last: this.lastOrigin(), fact: this.homeFact });
   }
   private homeFact: string | null = null;
 

@@ -68,7 +68,7 @@ export function spotHtml(v: SpotView) {
       ? "No railway station, and no road to one"
       : `No railway station${nearest !== null ? ` · nearest about ${nearest} km by road` : ""}`;
   const cover = v.summary && v.summary !== "loading" && v.summary.photo
-    ? `<figure class="cover"><div class="shot" data-key="${esc(v.summary.photo)}"><img src="${esc(v.summary.photo)}" alt="" fetchpriority="high" decoding="async" referrerpolicy="no-referrer" /></div>`
+    ? `<figure class="cover"><div class="shot" data-key="${esc(v.summary.photo)}"><img src="${esc(v.summary.photo)}" alt="" fetchpriority="high" decoding="async" crossorigin="anonymous" referrerpolicy="no-referrer" /></div>`
     : `<figure class="cover bare">`;
   const intro = v.summary === "loading"
     ? `<div class="skeleton"><span class="shimmer"></span></div>`

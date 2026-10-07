@@ -16,6 +16,7 @@ import { rankPlaces } from "../src/core/rank";
 import { buildSlugs, titleOf } from "../src/core/slugs";
 import { Spots, nearestAirports, nearestStations } from "../src/core/spots";
 import { arrivals, departures, newerBetween, type Leg } from "../src/core/trips";
+import { homeHtml, landingView } from "../src/ui/home";
 import { photoUrl } from "../src/ui/photos";
 import type { DiscoverData } from "../src/ui/discover";
 
@@ -74,6 +75,17 @@ const clip = (s: string, n = 158) => (s.length <= n ? s : `${s.slice(0, s.lastIn
 const firstSentence = (s: string) => s.match(/^.*?[.!?](\s|$)/)?.[0].trim() ?? s;
 const cover = (gv: GuideView | null | undefined) => (gv?.icon ? photoUrl(gv.icon, 1280) : null);
 
+// the landing panel, drawn into the page: it shows (and its links work) before the scripts have run
+const BASE = (process.env.BASE_PATH ?? "/").replace(/\/$/, "");
+const titlePlace = new Map<string, Place>();
+for (const [p, gv] of guides) if (!titlePlace.has(gv.title) || p.isCity) titlePlace.set(gv.title, p);
+const landingPanel = homeHtml(
+  landingView({
+    net, guides, slugOf: (p) => slugs.of(p), spots, titlePlace, last: null, fact: null,
+    link: (r) => (r.discover !== undefined ? `${BASE}/discover/` : `${BASE}${r.origin ? `/from/${r.origin}` : ""}${r.place ? `/to/${r.place}` : ""}/`),
+  }),
+);
+
 interface Page {
   path: string;
   title: string;
@@ -103,6 +115,7 @@ function render(pg: Page) {
     .replace(/(<meta property="og:image:alt" content=")[^"]*/, `$1${esc(pg.imageAlt ?? "A map of India with photos of places you can reach by train")}`)
     .replace("</head>", `    ${head}\n  </head>`)
     .replace(/<noscript>[\s\S]*?<\/noscript>/, `<noscript><article class="static">${pg.body}${FOOT}</article></noscript>`);
+  if (pg.path === "/") html = html.replace('<div class="side-body" id="panel"></div>', `<div class="side-body" id="panel" data-view="home" data-drawn>${landingPanel}</div>`);
   if (pg.image && pg.imageAlt) {
     // a link to a place loads with that place in the window: its photo, its name on a board
     const small = pg.image.replace(/\/\d+px-([^/]+)$/, "/500px-$1");

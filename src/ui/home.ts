@@ -1,6 +1,8 @@
 // What the panel shows before anything is picked, and the places you can reach once a start is.
 import { fmtMins, plural } from "../core/format";
-import type { Photo } from "../core/places";
+import type { Network, Place } from "../core/network";
+import type { GuideView, Photo } from "../core/places";
+import type { Spot, Spots } from "../core/spots";
 import type { Kind, Leave } from "../core/trips";
 import { esc } from "./esc";
 import { img, thumb } from "./panel";
@@ -17,8 +19,41 @@ export interface HomeView {
 const PLAN = `<svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="5" cy="5" r="2"/><circle cx="15" cy="15" r="2"/><path d="M7 5h5.5a2.5 2.5 0 0 1 0 5h-5a2.5 2.5 0 0 0 0 5H13"/></svg>`;
 const BACK = `<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8a5 5 0 1 0 1.5-3.5M3 3v2.5h2.5"/></svg>`;
 
+/** Where most people start from. */
+export const POPULAR = ["bengaluru", "mumbai", "delhi", "kolkata", "chennai", "hyderabad"];
+/** Hill towns people ask about, none with a station of its own. */
+export const HILLS: [string, string][] = [["Munnar", "Kerala"], ["Manali", "Himachal Pradesh"], ["Kodaikanal", "Tamil Nadu"], ["Gangtok", "Sikkim"], ["Leh", "Ladakh"], ["Madikeri", "Karnataka"], ["Mussoorie", "Uttarakhand"], ["McLeod Ganj", "Himachal Pradesh"], ["Kasol", "Himachal Pradesh"], ["Tawang", "Arunachal Pradesh"]];
+const IDEAS: [string, string][] = [["Hampi", "Boulders and temples"], ["Darjeeling", "Tea, and the toy train"], ["Varanasi", "The ghats at dawn"], ["Goa", "Beaches and old churches"]];
+
+/**
+ * The landing panel's content, the same in the app and in the page written at build time (which
+ * shows it before the scripts have run, its links working without them).
+ */
+export function landingView(o: {
+  net: Network;
+  guides: Map<Place, GuideView>;
+  slugOf: (p: Place) => string;
+  spots: Spots;
+  titlePlace: Map<string, Place>; // a guide's title -> its place
+  link: (r: { origin?: string; place?: string; discover?: string }) => string;
+  last: Place | null; // where you started last time (on this device)
+  fact: string | null;
+}): HomeView {
+  const find = (name: string, state: string) => o.spots.list.find((s) => s.name === name && s.state === state);
+  return {
+    last: o.last ? { id: o.last.id, name: o.last.name, href: o.link({ origin: o.slugOf(o.last) }) } : null,
+    popular: POPULAR.map((id) => o.net.places.get(id)).filter((p): p is Place => !!p && p !== o.last).map((p) => ({ id: p.id, name: p.name, href: o.link({ origin: o.slugOf(p) }), photo: o.guides.get(p)?.icon ?? null })),
+    hills: HILLS.map(([n, st]) => find(n, st)).filter((s): s is Spot => !!s).map((s) => ({ name: s.name, href: o.link({ place: s.id }), note: `${s.name}, ${s.state}: no station, see how to get there` })),
+    ideas: IDEAS.flatMap(([title, note]) => {
+      const p = o.titlePlace.get(title);
+      return p ? [{ title, note, href: o.link({ place: o.slugOf(p) }), photo: o.guides.get(p)?.icon ?? null }] : [];
+    }),
+    fact: o.fact ? { text: o.fact, href: o.link({ discover: "" }) } : null,
+  };
+}
+
 export function homeHtml(v: HomeView) {
-  const face = (p: Photo | null) => (p ? `<img src="${esc(photoUrl(p, 120))}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" />` : `<i></i>`);
+  const face = (p: Photo | null) => (p ? `<img src="${esc(photoUrl(p, 120))}" alt="" loading="lazy" decoding="async" crossorigin="anonymous" referrerpolicy="no-referrer" />` : `<i></i>`);
   return `<div class="panel-scroll"><div class="home">
     <h1 id="panel-title" tabindex="-1">Where can the train take you?</h1>
     <p class="lede">Pick your station to see every place you can reach. Or search for where you want to go, even hill towns with no station of their own.</p>
@@ -29,7 +64,7 @@ export function homeHtml(v: HomeView) {
     <button class="cta" type="button" data-act="plan"><span class="cta-icon">${PLAN}</span><span><b>Plan a trip</b><small>Several stops, the train that runs each day, and the weather when you're there.</small></span></button>
 
     <h2>No station? No problem</h2>
-    <div class="chips" role="list">${v.hills.map((h) => `<a class="pill" role="listitem" href="${esc(h.href)}" data-act="goto" title="${esc(h.note)}">${esc(h.name)}</a>`).join("")}</div>
+    <nav class="chips" aria-label="Places without a station">${v.hills.map((h) => `<a class="pill" href="${esc(h.href)}" data-act="goto" title="${esc(h.note)}">${esc(h.name)}</a>`).join("")}</nav>
 
     <h2>Ideas</h2>
     <div class="idea-grid">${v.ideas

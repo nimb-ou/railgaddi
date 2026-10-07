@@ -19,7 +19,7 @@
   --accent: #e0342b;
   --ink: #0f172a;
   --text: #111827;
-  --muted: #64748b;
+  --muted: #5d6b80; /* 4.5:1 or better on every surface it sits on */
   --halo: #ffffff;
   --ring: #ffffff;
   /* near -> far */
