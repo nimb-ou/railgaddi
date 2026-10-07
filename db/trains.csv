@@ -1552,7 +1552,7 @@ number,name,type,days,days_src,src
 13170,Saharsa – Sealdah Express,Exp,"Wed,Fri",tag2026,tag2026
 13175,Sealdah/ Silchar/ Sabroom Kanchan jungha Express,Exp,"Mon,Wed,Sat",tag2026,tag2026
 13176,Silchar/ Sabroom Sealdah Kanchanjungha Express,Exp,"Mon,Wed,Fri",tag2026,tag2026
-13177,Sealdah Jangipur Road Express,Exp,,,tag2026
+13177,Sealdah Jangipur Road Express,Exp,Daily,wikipedia,tag2026
 13178,Jangipur Road Sealdah Express,Exp,"Mon,Tue,Wed,Thu,Fri,Sat",tag2026,tag2026
 13181,Kolkata Silghat Town Kajiranga Express,Exp,Mon,tag2026,tag2026
 13182,Silghat Town Kolkata Kajiranga Express,Exp,Tue,tag2026,tag2026
@@ -1720,8 +1720,8 @@ number,name,type,days,days_src,src
 14048,Delhi- Sitamarhi Amrit Bharat Express,AB,Sat,tag2026,tag2026
 14049,Godda Delhi Express,Exp,Wed,tag2026,tag2026
 14050,Delhi Godda Express,Exp,Mon,tag2026,tag2026
-14053,Himachal Express,Exp,,,ogd2017
-14054,Himachal Express,Exp,,,ogd2017
+14053,Himachal Express,Exp,Daily,wikipedia,ogd2017
+14054,Himachal Express,Exp,Daily,wikipedia,ogd2017
 14055,Dibrugarh - Old Delhi Brahmaputra Exp,Mail,,,ogd2017
 14056,Old Delhi - Dibrugarh Brahmaputra Exp,Mail,,,ogd2017
 14085,Haryana Express,Exp,Daily,tag2026,tag2026
@@ -1860,7 +1860,7 @@ number,name,type,days,days_src,src
 14604,Amritsar - Saharsa Jan Sadharan Exp,Exp,,,ogd2017
 14605,Yog Nagari Rishikesh Jammu Tawi Express,Exp,Mon,tag2026,tag2026
 14606,Jammu Tawi Yog Nagari Rishikesh Express,Exp,Sun,tag2026,tag2026
-14609,Hemkunt Express,Exp,Daily,wikipedia,ogd2017
+14609,Hemkunt Express,Exp,,,ogd2017
 14610,Hemkunt Express,Exp,Daily,tag2026,tag2026
 14611,Ghazipur City – Shri Mata Vaishno Devi Katra Express,Exp,,,ogd2017
 14612,Shri Mata Vaishno Devi Katra Ghazipur City Express,Exp,Thu,tag2026,tag2026
@@ -1919,8 +1919,8 @@ number,name,type,days,days_src,src
 14720,Am ritsar Bikaner Ex press,Exp,Fri,tag2026,tag2026
 14721,Jodhpur Bhathinda Express,Exp,Daily,tag2026,tag2026
 14722,Abohar Jodhpur Express,Exp,Daily,tag2026,tag2026
-14723,Kalindi Express,Exp,Daily,wikipedia,ogd2017
-14724,Kalindi Express,Exp,Daily,wikipedia,ogd2017
+14723,Kalindi Express,Exp,,,ogd2017
+14724,Kalindi Express,Exp,,,ogd2017
 14725,Bhiwani Mathura Express,Exp,Daily,tag2026,tag2026
 14726,Mathura Bhiwani Express,Exp,Daily,tag2026,tag2026
 14728,Tilak Bridge Shri Ganga Nagar Express,Exp,Daily,tag2026,tag2026
@@ -2420,8 +2420,8 @@ number,name,type,days,days_src,src
 16346,Thiruvanan thapuram Lokmanya Tilak (T) Netravati Express,Exp,Daily,tag2026,tag2026
 16347,Thiruvanantha puram Central Mangaluru Express,Exp,Daily,tag2026,tag2026
 16348,Mangaluru Thiruvanan thapuram Central Express,Exp,Daily,tag2026,tag2026
-16349,Trivandrum Nilambur Road Rajya Rani Express,Exp,Daily,wikipedia,ogd2017
-16350,Nilambur Road Trivandrum Rajya Rani Express,Exp,Daily,wikipedia,ogd2017
+16349,Trivandrum Nilambur Road Rajya Rani Express,Exp,,,ogd2017
+16350,Nilambur Road Trivandrum Rajya Rani Express,Exp,,,ogd2017
 16351,Mumbai Nagercoil Express,Exp,"Mon,Fri",tag2026,tag2026
 16352,Nagercoil Mumbai Express,Exp,"Thu,Sun",tag2026,tag2026
 16353,Kacheguda Nagercoil Express,Exp,Sun,tag2026,tag2026
@@ -3233,8 +3233,8 @@ number,name,type,days,days_src,src
 19714,Kurnool City Jaipur Express,Exp,Mon,tag2026,tag2026
 19715,Jaipur Gomti Nagar Express,Exp,"Tue,Fri,Sun",tag2026,tag2026
 19716,Ljn Jp Express,Exp,,,ogd2017
-19717,Jaipur – Chandigarh Express,Exp,Daily,wikipedia,ogd2017
-19718,Chandigarh – Jaipur Express,Exp,Daily,wikipedia,ogd2017
+19717,Jaipur – Chandigarh Express,Exp,,,ogd2017
+19718,Chandigarh – Jaipur Express,Exp,,,ogd2017
 19719,Jaipur Surat garh Express,Exp,Daily,tag2026,tag2026
 19720,Surat garh Jaipur Express,Exp,Daily,tag2026,tag2026
 19721,Jaipur Bayana Express,Exp,Daily,tag2026,tag2026
@@ -3337,8 +3337,8 @@ number,name,type,days,days_src,src
 20632,Thiruvanantha puram Central Mangalore Central Vande Bharat Express,VB,"Mon,Tue,Thu,Fri,Sat,Sun",tag2026,tag2026
 20633,Kasaragod Thiruvananthapuram Vande Bharat Express,VB,"Mon,Tue,Wed,Fri,Sat,Sun",tag2026,tag2026
 20634,Thiruvananthapu ram Kasaragod Vande Bharat Express,VB,"Mon,Tue,Wed,Fri,Sat,Sun",tag2026,tag2026
-20635,Chennai Egmore Express,Exp,,,ogd2017
-20636,Chennai Egmore Express,Exp,,,ogd2017
+20635,Chennai Egmore Express,Exp,Daily,wikipedia,ogd2017
+20636,Chennai Egmore Express,Exp,Daily,wikipedia,ogd2017
 20641,Bengaluru Cantt Coimbatore Vande Bharat Express,VB,"Mon,Tue,Wed,Fri,Sat,Sun",tag2026,tag2026
 20642,Coimbatore Bengaluru Cant Vande Bharat,VB,"Mon,Tue,Wed,Fri,Sat,Sun",tag2026,tag2026
 20643,Coimbatore Chennai Vande Bharat Express,VB,"Mon,Tue,Thu,Fri,Sat,Sun",tag2026,tag2026
@@ -3364,8 +3364,8 @@ number,name,type,days,days_src,src
 20668,Yesvantpur Express,Exp,,,ogd2017
 20669,SSS Hubballi Pune Vande Bharat Express,VB,"Wed,Fri,Sun",tag2026,tag2026
 20670,Pune - SSS Hubballi Vande Bharat,VB,"Mon,Thu,Sat",tag2026,tag2026
-20671,Madurai Bangalore Cantonment Vande Bharat,VB,,,tag2026
-20672,Bangalore Cantonment Madurai Vandae Bharat,SF,,,tag2026
+20671,Madurai Bangalore Cantonment Vande Bharat,VB,"Mon,Wed,Thu,Fri,Sat,Sun",wikipedia,tag2026
+20672,Bangalore Cantonment Madurai Vandae Bharat,SF,"Mon,Wed,Thu,Fri,Sat,Sun",wikipedia,tag2026
 20673,Chhatrapati Shahu Maharaj (T) Pune Vande Bharat Express,VB,"Mon,Thu,Sat",tag2026,tag2026
 20674,Pune Chha trapati Shahu Maharaj (T) Vande Bharat Express,VB,"Wed,Fri,Sun",tag2026,tag2026
 20675,Belagavi Mysuru Vishwamanava SF Express,SF,Daily,tag2026,tag2026
@@ -3698,8 +3698,8 @@ number,name,type,days,days_src,src
 22346,Gomtinagar Patna Vande Bharat,VB,"Mon,Tue,Wed,Thu,Sat,Sun",tag2026,tag2026
 22347,Howrah Patna Vande Bharat Express,VB,"Mon,Tue,Thu,Fri,Sat,Sun",tag2026,tag2026
 22348,Patna Howrah Vande Bharat Express,VB,"Mon,Tue,Thu,Fri,Sat,Sun",tag2026,tag2026
-22349,Patna Ranchi Vande Bharat Express,VB,,,tag2026
-22350,Ranchi Patna Vande Bharat Express,VB,,,tag2026
+22349,Patna Ranchi Vande Bharat Express,VB,"Mon,Wed,Thu,Fri,Sat,Sun",wikipedia,tag2026
+22350,Ranchi Patna Vande Bharat Express,VB,"Mon,Wed,Thu,Fri,Sat,Sun",wikipedia,tag2026
 22351,Saharsa SMVT Bengaluru Express,SF,Fri,tag2026,tag2026
 22352,SMVT Bengaluru Saharsa Express,SF,Mon,tag2026,tag2026
 22353,Patna SMVT Bengaluru Humsafar Express,SF,Thu,tag2026,tag2026
@@ -3747,7 +3747,7 @@ number,name,type,days,days_src,src
 22432,Martyr Captain Tushar Mahajan Subedar Ganj SF Express,SF,"Wed,Sun",tag2026,tag2026
 22433,Ghazipur City Anand Vihar (T) Humsafar Express,SF,"Tue,Sat",tag2026,tag2026
 22434,Anand Vihar (T) Ghazipur City Superfast Express,SF,"Mon,Fri",tag2026,tag2026
-22435,Varanasi New Del hi Vande Bharat Express,VB,,,tag2026
+22435,Varanasi New Del hi Vande Bharat Express,VB,"Mon,Tue,Wed,Fri,Sat,Sun",wikipedia,tag2026
 22436,New Delhi Varanasi Vande Bharat Express,VB,"Mon,Tue,Wed,Fri,Sat,Sun",tag2026,tag2026
 22437,Prayagraj Anand Vihar (T) Humsafar Express,SF,"Mon,Wed,Sat",tag2026,tag2026
 22438,Anand Vihar (T) Prayagraj Humsafar Express,SF,"Tue,Thu,Sun",tag2026,tag2026
@@ -4168,21 +4168,21 @@ number,name,type,days,days_src,src
 26403,SVDK- Sri Nagar Vande Bharat Express,VB,"Mon,Tue,Thu,Fri,Sat,Sun",tag2026,tag2026
 26404,Sri Nagar- SVDK Vande Bharat Express,VB,"Mon,Tue,Thu,Fri,Sat,Sun",tag2026,tag2026
 26405,Amritsar Shri Mata Vaishno Devi Katra Vande Bharat Express,VB,,,tag2026
-26406,Shri Mata Vaishno Devi Katra-Amritsar Vande Bharat Express,VB,,,tag2026
-26461,Delhi Firozpur Cantt. Vande Bharat Express,VB,,,tag2026
+26406,Shri Mata Vaishno Devi Katra-Amritsar Vande Bharat Express,VB,"Mon,Wed,Thu,Fri,Sat,Sun",wikipedia,tag2026
+26461,Delhi Firozpur Cantt. Vande Bharat Express,VB,"Mon,Tue,Thu,Fri,Sat,Sun",wikipedia,tag2026
 26462,Firozpur Cantt.-Delhi Vande Bharat Express,VB,"Mon,Tue,Thu,Fri,Sat,Sun",tag2026,tag2026
-26472,Delhi Cantt. Bikaner Vande Bharat,VB,,,tag2026
+26472,Delhi Cantt. Bikaner Vande Bharat,VB,"Mon,Tue,Thu,Fri,Sat,Sun",wikipedia,tag2026
 26481,Jodhpur Delhi Cantt Vande Bharat,VB,"Mon,Wed,Thu,Fri,Sat,Sun",tag2026,tag2026
 26482,Jodhpur Delhi Cantt Vande Bharat,VB,"Mon,Wed,Thu,Fri,Sat,Sun",tag2026,tag2026
 26501,Patliputra Gorakhpur Vande Bharat Express,VB,,,tag2026
 26502,Gorakhpur Patliputra Vande Bharat Express,VB,,,tag2026
 26503,Saharanpur Gomti Nagar Vande Bharat,VB,"Mon,Wed,Thu,Fri,Sat,Sun",tag2026,tag2026
 26504,Gomti Nagar Saharanpur Vande Bharat,VB,"Tue,Wed,Thu,Fri,Sat,Sun",tag2026,tag2026
-26651,KSR Bengalu ru-Ernaku lam Vande Bharat,VB,,,tag2026
+26651,KSR Bengalu ru-Ernaku lam Vande Bharat,VB,"Mon,Tue,Thu,Fri,Sat,Sun",wikipedia,tag2026
 26652,Ernakulam KSR Bengaluru Vande Bharat Express,VB,"Mon,Tue,Thu,Fri,Sat,Sun",tag2026,tag2026
-26751,Belgavi-KSR Bengaluru Vande Bharat,VB,,,tag2026
-26752,KSR Bengaluru- Belgavi Vande Bharat,VB,,,tag2026
-26901,Sabarmati- Veraval Vande Bharat Express,VB,,,tag2026
+26751,Belgavi-KSR Bengaluru Vande Bharat,VB,"Mon,Tue,Thu,Fri,Sat,Sun",wikipedia,tag2026
+26752,KSR Bengaluru- Belgavi Vande Bharat,VB,"Mon,Tue,Thu,Fri,Sat,Sun",wikipedia,tag2026
+26901,Sabarmati- Veraval Vande Bharat Express,VB,"Mon,Tue,Wed,Fri,Sat,Sun",wikipedia,tag2026
 26902,Veraval- Sabarmati Vande Bharat Express,VB,"Mon,Tue,Wed,Fri,Sat,Sun",tag2026,tag2026
 28181,Tatanagar Barauni Katihar Express,Exp,"Wed,Sat,Sun",tag2026,tag2026
 28182,Katihar Tatanagar Express,Exp,"Mon,Tue,Fri",tag2026,tag2026
