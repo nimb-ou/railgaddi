@@ -85,11 +85,25 @@ test/                  vitest
 | Travel guides: intro, See / Do listings | [Wikivoyage](https://en.wikivoyage.org), matched to stations via Wikidata | CC BY-SA 4.0 |
 | Landmarks | [Wikidata](https://www.wikidata.org) (heritage sites, temples, forts, falls, parks…) | CC0 |
 | Photos | Wikimedia Commons, hotlinked; each credit links to the file page with author and licence | per file |
-| Towns without a station (2,786) | [GeoNames](https://www.geonames.org) towns of 1,000+ people more than 8 km from a served station, plus [content/spots.json](content/spots.json) | CC BY 4.0 |
+| Towns without a station (2,785) | [GeoNames](https://www.geonames.org) towns of 1,000+ people more than 8 km from a served station, plus [content/spots.json](content/spots.json) | CC BY 4.0 |
+| Road distances from towns without a station | [OpenStreetMap](https://www.openstreetmap.org/copyright), routed with [OSRM](https://project-osrm.org) (`pipeline/fetch_roads.py`) | ODbL |
 | Airports | [OurAirports](https://ourairports.com), those with scheduled flights | public domain |
 | Weather, place search for towns not in the list | [Open-Meteo](https://open-meteo.com), fetched in the browser when you look | CC BY 4.0 |
 | Summaries of towns without a station | [Wikipedia](https://en.wikipedia.org), fetched in the browser when you open one | CC BY-SA 4.0 |
 | Fonts | Archivo, Noto Sans (Indian scripts), self-hosted via Fontsource | SIL OFL 1.1 |
+
+### Licence
+
+The **code** (everything in `src/`, `scripts/`, `pipeline/`, `worker/`, `test/` and the
+configuration files) is open source under the [MIT licence](LICENSE): use it, change it, share it,
+keeping the copyright notice.
+
+The **data** is not covered by that licence. `data/`, `db/` and `content/` are built from the sources
+in the table above and each part keeps its source's licence and credit: CC BY-SA 4.0 for text from
+Wikipedia and Wikivoyage (including the Discover stories, written from Wikipedia), ODbL for
+OpenStreetMap, CC BY 4.0 for GeoNames and Open-Meteo, GODL-India for the 2017 timetable. The 2026
+timings from *Trains at a Glance* are © Indian Railways and used here while permission is asked
+for; don't reuse them without it.
 
 ### The timetable database
 
