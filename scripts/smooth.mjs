@@ -81,7 +81,7 @@ await measure("scroll the place panel", async () => {
   await page.mouse.move(1200, 500);
   for (let i = 0; i < 20; i++) { await page.mouse.wheel({ deltaY: 80 }); await wait(30); }
 }, 600);
-await measure("open the next train", async () => { await page.click(".ticket-next"); await wait(1200); });
+await measure("open the next train", async () => { await page.click(".tk-train"); await wait(1200); });
 await measure("weather layer on", async () => { await page.click("#weather-btn"); await wait(3000); }, 600);
 await measure("drag with weather on", async () => {
   await page.mouse.move(800, 450);

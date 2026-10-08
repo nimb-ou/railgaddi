@@ -1,5 +1,6 @@
 // "Where can I go from here?" — every place reachable from an origin without changing trains,
 // and which of those rides pass the filters. Pure functions over the Network.
+import { shiftDays } from "./format";
 import type { Network, NewerTrain, Place, Train } from "./network";
 
 /** One way to ride from the origin to a destination. Indices are halt indices within the train. */
@@ -20,7 +21,7 @@ export interface Destination {
   firstKm: number;
 }
 
-export type Leave = "any" | "2h" | "6h" | "overnight";
+export type Leave = "any" | "2h" | "6h" | "overnight" | "weekend";
 /** Which trains: every one, the long-distance ones, the local ones (passenger, MEMU, DEMU), or the hill railways' toy trains. */
 export type Kind = "all" | "long" | "local" | "toy";
 
@@ -155,12 +156,39 @@ export function legPasses(leg: Leg, f: Filters, now: number) {
       return waitFor(leg, now) <= 120;
     case "6h":
       return waitFor(leg, now) <= 360;
-    case "overnight": {
-      // sleep on the train: leave in the evening, wake up there
-      const d = leg.dep;
-      return (d >= 17 * 60 || d < 60) && leg.dur >= 6 * 60 && leg.dur <= 16 * 60;
-    }
+    case "overnight":
+      return overnight(leg);
+    case "weekend":
+      return weekend(leg);
   }
+}
+
+const MORNING = [4 * 60 + 30, 11 * 60 + 30]; // getting in between 04:30 and 11:30
+
+/** Sleep on the train: board in the evening (or just after midnight), wake up there in the morning. */
+export function overnight(leg: Leg) {
+  const d = leg.dep;
+  const at = (d + leg.dur) % 1440;
+  return (d >= 17 * 60 || d < 60) && leg.dur >= 5 * 60 && leg.dur <= 16 * 60 && at >= MORNING[0] && at <= MORNING[1];
+}
+
+/**
+ * Good for a weekend: it leaves on a Friday evening and gets you there that night or on Saturday
+ * morning, or leaves on a Saturday morning and takes at most six hours. (Running days unknown:
+ * given the benefit of the doubt.)
+ */
+export function weekend(leg: Leg) {
+  const t = leg.train;
+  const runs = t.days ? shiftDays(t.days, Math.floor(t.dep[leg.from] / 1440)) : 127; // Monday = bit 0
+  const on = (day: number) => ((runs >> day) & 1) === 1;
+  const d = leg.dep;
+  const morning = (m: number) => m >= MORNING[0] && m <= MORNING[1];
+  if (d >= 16 * 60 && on(4)) {
+    const at = d + leg.dur; // minutes from Friday 00:00
+    return at <= 23 * 60 + 30 || morning(at - 1440); // Friday evening: in by bedtime, or Saturday morning
+  }
+  if (d < 60 && on(5)) return morning(d + leg.dur); // just after midnight, Friday night
+  return d >= 4 * 60 && d <= 12 * 60 && on(5) && leg.dur <= 6 * 60; // Saturday morning
 }
 
 /** Rides that pass the filters, grouped by place, and each train's furthest useful halt. */

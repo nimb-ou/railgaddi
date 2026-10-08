@@ -26,10 +26,10 @@ export interface SpotView {
   weather: string;
   saved: boolean;
   fromChoices: string; // a search box to pick where you start, when none is
+  back: string; // where the back button goes: "From Bengaluru", or "Home"
 }
 
 const ICON = {
-  close: `<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M5 5l10 10M15 5L5 15"/></svg>`,
   share: `<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M10 13V3M6.5 6.5 10 3l3.5 3.5M4 11v5h12v-5"/></svg>`,
   train: `<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><rect x="3" y="2" width="10" height="9" rx="2.5"/><path d="M3 7h10M5.5 14l1-3M10.5 14l-1-3"/></svg>`,
   car: `<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M3 10V8l1.5-3.5h7L13 8v2M2.5 10h11v2.5h-11zM4.5 12.5v1M11.5 12.5v1"/></svg>`,
@@ -68,8 +68,8 @@ export function spotHtml(v: SpotView) {
       ? "No railway station, and no road to one"
       : `No railway station${nearest !== null ? ` · nearest about ${nearest} km by road` : ""}`;
   const cover = v.summary && v.summary !== "loading" && v.summary.photo
-    ? `<figure class="cover"><div class="shot" data-key="${esc(v.summary.photo)}"><img src="${esc(v.summary.photo)}" alt="" fetchpriority="high" decoding="async" crossorigin="anonymous" referrerpolicy="no-referrer" /></div>`
-    : `<figure class="cover bare">`;
+    ? `<figure class="pl-cover"><span class="arch shot" data-key="${esc(v.summary.photo)}"><img src="${esc(v.summary.photo)}" alt="" fetchpriority="high" decoding="async" crossorigin="anonymous" referrerpolicy="no-referrer" /></span></figure>`
+    : `<figure class="pl-cover bare"><span class="arch" aria-hidden="true"><i class="ph">${esc(s.name.charAt(0))}</i></span></figure>`;
   const intro = v.summary === "loading"
     ? `<div class="skeleton"><span class="shimmer"></span></div>`
     : v.summary?.text
@@ -78,30 +78,31 @@ export function spotHtml(v: SpotView) {
   const ways = v.ways.length
     ? waysHtml(v.ways, !!v.from)
     : island
-      ? `<p class="empty">No road reaches a railway station from here: fly, or take the ship.</p>`
-      : `<p class="empty">No station with trains within 350 km. The way here is by road or by air.</p>`;
+      ? `<p class="empty">No road reaches a railway station from here: fly, or take the ship. Full adventure!</p>`
+      : `<p class="empty">No station with trains within 350 km, sadly. The way here is by road or by air.</p>`;
   return `<div class="panel-scroll">
-    ${cover}
-      <div class="panel-tools">
+    <div class="top-bar">
+      <button class="back" type="button" data-act="close">← ${esc(v.back)}</button>
+      <span class="top-tools">
         <button class="round save-place" type="button" data-act="save-spot" aria-pressed="${v.saved}" aria-label="${v.saved ? `On your bucket list: remove ${esc(s.name)}` : `Add ${esc(s.name)} to your bucket list`}">${HEART}</button>
         <button class="round" type="button" data-act="share" aria-label="Share ${esc(s.name)}">${ICON.share}</button>
-        <button class="round" type="button" data-act="close" aria-label="Close">${ICON.close}</button>
-      </div>
-      <div class="cover-text">
-        <h2 class="name" id="panel-title" tabindex="-1">${esc(s.name)}</h2>
-        <p class="where">${esc(s.state)}${people}</p>
-        <span class="spot-badge">${ICON.pin}${badge}</span>
-      </div>
-    </figure>
+      </span>
+    </div>
+    ${cover}
+    <div class="pl-name">
+      <h2 class="name" id="panel-title" tabindex="-1">${esc(s.name)}</h2>
+      <p class="where">${esc(s.state)}${people}</p>
+      <span class="spot-badge">${ICON.pin}${badge}</span>
+    </div>
     ${intro}
     ${v.weather}
     <section aria-labelledby="ways-h">
-      <div class="section-head"><h3 id="ways-h">${v.from ? `Getting here from ${esc(v.from)}` : "Getting here"}</h3></div>
-      ${v.from ? `<p class="gh-lede">Quickest first: the train, then the road from the station. ${real ? "Road times by taxi or bus are estimates." : "Road distances and times are estimates."}</p>` : `<p class="gh-lede">Take a train to one of these stations, then a taxi or bus. Say where you start to see the whole way.</p>${v.fromChoices}`}
+      <div class="section-head"><h3 id="ways-h">${v.from ? `Getting here from ${esc(v.from)}` : "How to get here"}</h3></div>
+      ${v.from ? `<p class="gh-lede">Quickest first: the train, then the road from the station. ${real ? "Road times by taxi or bus are estimates." : "Road distances and times are estimates."}</p>` : `<p class="gh-lede">No station here, koi gal nahi. Take a train to one of these, then a taxi or bus. Tell us where you start to see the whole way.</p>${v.fromChoices}`}
       ${ways}
     </section>
     ${v.airports.length ? `<section aria-labelledby="air-h">
-      <div class="section-head"><h3 id="air-h">By air</h3></div>
+      <div class="section-head"><h3 id="air-h">Or fly in</h3></div>
       <ul class="air">${v.airports.map((a) => `<li><span>${esc(a.name)} (${esc(a.code)})</span><small>${a.km} km · ${a.mins > a.km * 3 + 30 ? "by boat and road" : `about ${fmtMins(a.mins)} by road`}</small></li>`).join("")}</ul>
     </section>` : ""}
     <footer class="credits-foot">

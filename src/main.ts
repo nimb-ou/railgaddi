@@ -2,8 +2,7 @@
 // largest file) comes at a lower priority, and the landing page doesn't wait for it. Then stream
 // in the detailed route geometry. Every data file is content-hashed by the build, so browsers and
 // the CDN can keep it forever and only fetch what changed.
-import "@fontsource-variable/archivo/wght.css"; // the condensed width is only for share posters: they load it themselves
-import "./ui/fonts.css";
+import "./ui/fonts.css"; // share posters load their own lettering when they're made
 import "./ui/style.css";
 import type { Topology } from "topojson-specification";
 import metaUrl from "../data/meta.json?url";
@@ -23,6 +22,7 @@ import { buildSlugs, titleOf } from "./core/slugs";
 import { Spots } from "./core/spots";
 import indiaUrl from "./assets/geo/india.json?url";
 import statesUrl from "./assets/geo/state-lines.json?url";
+import reliefUrl from "./assets/geo/relief.webp?url";
 import { RailMap } from "./map/map";
 import { applySavedTheme, setupChrome } from "./ui/chrome";
 import { registerOffline } from "./ui/offline";
@@ -90,6 +90,14 @@ async function boot() {
   const app = new App(net, guides, slugs, details, map, spots);
   setupChrome(map, () => app.refreshColors());
   map.fitIndia(0);
+  // the painted land (hills, plains, deserts) comes after the first paint: the lines don't wait for it
+  requestAnimationFrame(() => {
+    const relief = new Image();
+    relief.decoding = "async";
+    (relief as HTMLImageElement & { fetchPriority?: string }).fetchPriority = "low";
+    relief.onload = () => relief.decode().catch(() => {}).then(() => map.setRelief(relief));
+    relief.src = reliefUrl;
+  });
   if (import.meta.env.DEV) Object.assign(window, { __map: map, __net: net, __app: app });
   const loading = document.getElementById("loading")!;
   timetable ??= trainsData("low");
@@ -110,7 +118,7 @@ async function boot() {
   });
   ready.catch((err) => {
     console.error(err);
-    app.toast("Couldn't load the timetable. Check your connection and reload.", 60000);
+    app.toast("Oho, couldn't load the timetable. Check your connection and reload.", 60000);
   });
   await ready.catch(() => {});
   if (!net.ready) return;
@@ -148,6 +156,6 @@ async function boot() {
 boot().catch((err) => {
   console.error(err);
   const box = document.getElementById("loading")!;
-  box.innerHTML = `<b>Railgaddi</b><p>Couldn't load the timetable. Check your connection and try again.</p><button type="button">Retry</button>`;
+  box.innerHTML = `<b>Railgaddi</b><p>Oho, the gaddi got stuck: couldn't load the timetable. Check your connection and try again.</p><button type="button">Try again</button>`;
   box.querySelector("button")!.addEventListener("click", () => location.reload());
 });

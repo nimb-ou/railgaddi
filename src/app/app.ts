@@ -12,8 +12,8 @@ import { planTrip, stopLatLon, stopName, type Plan, type Stop, type TripStop } f
 import { ANY, arrivals, bySoonest, connections, departures, legPasses, newerBetween, reachable, type Connection, type Destination, type Filters, type Kind, type Leave, type Leg } from "../core/trips";
 import { forecast, grid, indiaGrid, valueOf, type Forecast, type GridPoint, type WeatherMode } from "../core/weather";
 import type { RailMap, SightPin } from "../map/map";
-import { exploreHtml, homeHtml, landingView, POPULAR, type ExploreItem } from "../ui/home";
-import { esc, journeyHtml, placeHtml, scriptLine, trainHtml, type GetHere, type StopsOpen } from "../ui/panel";
+import { exploreHtml, homeHtml, landingView, lensOf, POPULAR, type ExploreItem, type Lens } from "../ui/home";
+import { esc, journeyHtml, placeHtml, scriptLine, trainHtml, type GetHere, type PlaceTab, type StopsOpen } from "../ui/panel";
 import { openPosterSheet } from "../ui/poster";
 import { savedHtml, type SavedPlace, type SavedRoute } from "../ui/saved";
 import { spotHtml, type WayView } from "../ui/spot";
@@ -38,7 +38,7 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 type Detail = { detail: ArticleDetail; photos: Map<string, Photo> };
 type Summary = { text: string; photo: string | null; page: string };
 type Open =
-  | { kind: "place"; place: Place; showAll: boolean; sight: number; legs: Leg[]; allFrom?: boolean; choosing?: boolean }
+  | { kind: "place"; place: Place; showAll: boolean; sight: number; legs: Leg[]; allFrom?: boolean; choosing?: boolean; tab?: PlaceTab }
   | { kind: "train"; place: Place; leg: Leg; stops: StopsOpen; journey?: Connection; fromTrip?: boolean }
   | { kind: "journey"; place: Place; conn: Connection }
   | { kind: "spot"; spot: Spot }
@@ -141,8 +141,12 @@ export class App {
     $("route").addEventListener("submit", (e) => e.preventDefault());
     $("near-btn").addEventListener("click", () => this.nearMe());
     $("swap-btn").addEventListener("click", () => this.swap());
-    $("tab-explore").addEventListener("click", () => this.setMode("explore", true));
-    $("tab-trip").addEventListener("click", () => this.setMode("trip", true));
+    $("trip-btn").addEventListener("click", () => {
+      if (this.mode !== "trip") return this.setMode("trip", true);
+      this.setMode("explore", false);
+      this.sync("push");
+    });
+    this.greet();
     $("zoom-in").addEventListener("click", () => map.zoomBy(1.6));
     $("zoom-out").addEventListener("click", () => map.zoomBy(1 / 1.6));
     $("weather-btn").addEventListener("click", () => this.toggleWeather());
@@ -217,7 +221,7 @@ export class App {
     if (this.net.ready) return fn();
     this.waiting = fn; // the last thing asked for
     document.body.classList.add("waiting");
-    this.toast("Loading the timetable…", 120000);
+    this.toast("Gaddi aa rahi hai… loading the timetable", 120000);
   }
 
   timetableReady() {
@@ -274,7 +278,7 @@ export class App {
       });
       this.trip = { stops, date: r.trip.date || this.trip.date || this.defaultDate(), choice: [] };
       this.setMode("trip", false);
-      if (missing.length) this.toast(`Couldn't find ${missing.map((m) => `“${m.replace(/-/g, " ")}”`).join(", ")}.`, 5000);
+      if (missing.length) this.toast(`Oops, couldn't find ${missing.map((m) => `“${m.replace(/-/g, " ")}”`).join(", ")}.`, 5000);
       return;
     }
     if (this.mode !== "explore") this.setMode("explore", false, false);
@@ -313,7 +317,7 @@ export class App {
     const missing = (r.origin && !origin ? r.origin : null) ?? (r.place && !place && !spot ? r.place : null);
     if (missing) {
       // an old or mistyped link: say so, and show the address of what we could open
-      this.toast(`Couldn't find “${missing.replace(/-/g, " ")}”. Try the search.`, 5000);
+      this.toast(`Oops, couldn't find “${missing.replace(/-/g, " ")}”. Try the search?`, 5000);
       this.sync("replace");
     }
     this.syncChrome();
@@ -333,8 +337,7 @@ export class App {
     if (mode === "trip" && !this.net.ready) return this.whenReady(() => this.setMode(mode, push, render));
     const was = this.mode;
     this.mode = mode;
-    $("tab-explore").setAttribute("aria-selected", String(mode === "explore"));
-    $("tab-trip").setAttribute("aria-selected", String(mode === "trip"));
+    $("trip-btn").setAttribute("aria-pressed", String(mode === "trip"));
     $("route").hidden = mode === "trip";
     document.body.classList.toggle("trip-mode", mode === "trip");
     if (mode === "trip") {
@@ -392,8 +395,16 @@ export class App {
     this.describe();
   }
 
+  /** The landing page's hello, by the time of day. */
+  private greet() {
+    const h = new Date().getHours();
+    const when = h < 5 ? "Up late?" : h < 12 ? "Good morning!" : h < 17 ? "Good afternoon!" : "Good evening!";
+    $("hello").innerHTML = `<b>Ji aayan nu!</b> ${when}`;
+  }
+
   /** Back to the start: nothing picked. */
   private startOver(focus = true) {
+    $("route").classList.remove("want-to");
     if (this.open) this.closePanel({ push: false, refit: false });
     this.setOrigin(null, { push: true, focusSearch: focus && !narrow() });
   }
@@ -409,7 +420,7 @@ export class App {
     if (!this.net.ready) return this.whenReady(() => this.chooseTo(p));
     if (this.mode === "trip") this.setMode("explore", false, false);
     if (p === this.origin) {
-      this.toast(`That's where you start. Pick somewhere to go.`);
+      this.toast(`That's home, ji! Pick somewhere to go.`);
       return this.syncChrome(true);
     }
     this.openPlace(p, { push: true });
@@ -418,8 +429,8 @@ export class App {
   /** "From Munnar": the best station near it. */
   private startNear(s: Spot) {
     const best = this.nearestFor(s);
-    if (!best) return this.toast(`No station with trains near ${s.name}.`);
-    this.toast(`${s.name} has no station: starting from ${this.name(best.place)}, about ${best.road.km} km away`, 4500);
+    if (!best) return this.toast(`No station with trains near ${s.name}, sadly.`);
+    this.toast(`${s.name} has no station, koi gal nahi: starting from ${this.name(best.place)}, about ${best.road.km} km away`, 4500);
     this.chooseFrom(best.place);
   }
 
@@ -436,8 +447,8 @@ export class App {
       // from a place without a station: from the station you'd take the road to, back to where you were
       const s = this.open.spot;
       const best = this.nearestFor(s);
-      if (!best) return this.toast(`No station with trains near ${s.name}.`);
-      this.toast(`${s.name} has no station: starting from ${this.name(best.place)}, about ${best.road.km} km away`, 4500);
+      if (!best) return this.toast(`No station with trains near ${s.name}, sadly.`);
+      this.toast(`${s.name} has no station, koi gal nahi: starting from ${this.name(best.place)}, about ${best.road.km} km away`, 4500);
       this.closePanel({ push: false, refit: false });
       this.setOrigin(best.place, { push: !o || o === best.place, keep: false });
       if (o && o !== best.place) this.openPlace(o, { push: true });
@@ -582,7 +593,7 @@ export class App {
     const pool = [...this.reach.keys()]
       .map((p) => ({ p, gv: this.guides.get(p) }))
       .filter(({ p, gv }) => worthwhile(gv) && gv.icon && gv.title !== home && p !== this.destination() && !sameTown(this.origin, p, this.net));
-    if (!pool.length) return this.toast("Nothing with a guide within these filters. Try a longer ride.");
+    if (!pool.length) return this.toast("Nothing to surprise you with this close. Try a longer ride!");
     const weight = (x: (typeof pool)[number]) => Math.sqrt(1 + x.gv!.entry.appeal);
     let r = Math.random() * pool.reduce((a, x) => a + weight(x), 0);
     const pick = pool.find((x) => (r -= weight(x)) <= 0) ?? pool[0];
@@ -592,7 +603,7 @@ export class App {
   /** Start from the station nearest you (the position never leaves this device). */
   private nearMe() {
     if (!navigator.geolocation) {
-      this.toast("This browser can't share your location");
+      this.toast("This browser won't share where you are. Type your station instead?");
       return;
     }
     const btn = $("near-btn");
@@ -611,15 +622,16 @@ export class App {
         const close = near.filter((x) => x.d < 25).sort((a, b) => b.p.halts - a.p.halts);
         const pick = close[0] ?? near.sort((a, b) => a.d - b.d)[0];
         if (!pick || pick.d > 150) {
-          this.toast("No station within 150 km of you in this timetable");
+          this.toast("No station within 150 km of you in our timetable. Type one in?");
           return;
         }
-        this.toast(`Starting from ${this.name(pick.p)}, ${Math.round(pick.d)} km away`);
+        this.toast(`Found you! Starting from ${this.name(pick.p)}, ${Math.round(pick.d)} km away`);
+        this.map.setYou({ lat, lon });
         this.chooseFrom(pick.p);
       },
       () => {
         btn.classList.remove("busy");
-        this.toast("Couldn't get your location. Type your station instead.");
+        this.toast("Couldn't find you just now. Type your station instead?");
       },
       { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 },
     );
@@ -641,7 +653,7 @@ export class App {
 
   private setFilters(f: Filters, settled: boolean) {
     this.filters = f;
-    this.refresh(false);
+    this.refresh(true);
     if (settled) {
       this.map.fitRoutes();
       this.sync("replace");
@@ -985,7 +997,7 @@ export class App {
   private async openDiscover(slug: string | null, o: { push: boolean }) {
     if (!this.net.ready) return this.whenReady(() => this.openDiscover(slug, o));
     const d = await this.loadDiscover();
-    if (!d) return this.toast("Couldn't load Discover. Check your connection.");
+    if (!d) return this.toast("Couldn't load the stories. Check your connection?");
     if (this.mode === "trip") this.setMode("explore", false, false);
     if (!this.open) this.returnFocus = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
     const story = slug ? d.stories.find((s) => s.slug === slug) : undefined;
@@ -1086,7 +1098,7 @@ export class App {
         if (this.open?.kind === "place" && this.open.place === place) this.renderPanel(false);
       })
       .catch(() => {
-        if (this.open?.kind === "place" && this.open.place === place) this.toast("Couldn't load this place's guide. Check your connection.");
+        if (this.open?.kind === "place" && this.open.place === place) this.toast("Couldn't open this place's guide. Check your connection?");
       });
     return "loading";
   }
@@ -1119,7 +1131,7 @@ export class App {
     this.setWeatherMode(this.weatherMode);
     this.layout();
     if (this.gridData) return this.paintWeather();
-    $("wx-note").textContent = "Loading the weather…";
+    $("wx-note").textContent = "Asking the clouds…";
     // the button answers first; finding the points on land takes a moment on a phone
     requestAnimationFrame(() => setTimeout(() => this.loadWeather()));
   }
@@ -1139,7 +1151,7 @@ export class App {
         this.paintWeather();
       })
       .catch(() => {
-        $("wx-note").textContent = "Couldn't get the weather just now. Try again in a moment.";
+        $("wx-note").textContent = "The clouds aren't answering just now. Try again in a moment.";
         this.weatherOn = false;
         $("weather-btn").setAttribute("aria-pressed", "false");
       })
@@ -1237,8 +1249,8 @@ export class App {
   private addStop(stop: Stop) {
     const last = this.trip.stops[this.trip.stops.length - 1];
     const same = (a: Stop, b: Stop) => (a.kind === "place" && b.kind === "place" && a.place === b.place) || (a.kind === "spot" && b.kind === "spot" && a.spot === b.spot);
-    if (last && same(last.stop, stop)) return this.toast("That's already the last stop.");
-    if (this.trip.stops.length >= 12) return this.toast("Twelve stops is the most a trip can have.");
+    if (last && same(last.stop, stop)) return this.toast("That's already your last stop!");
+    if (this.trip.stops.length >= 12) return this.toast("Twelve stops is the most a trip can take. Bas, enough!");
     // a stop you stay at: two nights unless you say otherwise (the first stop is where you set off)
     if (this.trip.stops.length) this.trip.stops[this.trip.stops.length - 1].nights ||= this.trip.stops.length > 1 ? 2 : 0;
     this.trip.stops.push({ stop, nights: this.trip.stops.length ? 2 : 0 });
@@ -1386,9 +1398,10 @@ export class App {
         saved: this.saves.has(placeKey(s.id)),
         fromChoices: `<div class="gh-search">
           <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" /><path d="M13 13l4.5 4.5" /></svg>
-          <input id="gh-input" type="search" enterkeyhint="go" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Where do you start?" aria-label="Where do you start?" />
+          <input id="gh-input" type="search" enterkeyhint="go" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Your station or city, ji" aria-label="Where do you start?" />
           <ul class="suggest" id="gh-list" aria-label="Where you could start" hidden></ul>
         </div>`,
+        back: this.origin ? `From ${titleOf(this.origin, null)}` : "Home",
       });
       const gh = this.panel.querySelector<HTMLInputElement>("#gh-input");
       if (gh) new SearchBox(gh, this.panel.querySelector<HTMLUListElement>("#gh-list")!, this.net, () => this.guides, (p) => this.setOrigin(p, { push: true }), { suggestions: () => this.suggestFrom() });
@@ -1443,6 +1456,8 @@ export class App {
         saved: { place: this.saves.has(placeKey(this.slugs.of(place))), route: !!this.origin && this.saves.has(this.routeSave(place).key) },
         fact: this.placeFact(place),
         weather: this.weatherAt(gv?.entry.ll?.[0] ?? place.lat, gv?.entry.ll?.[1] ?? place.lon, this.name(place), () => this.open?.kind === "place" && this.open.place === place),
+        tab: o.tab ?? null,
+        back: this.origin ? `From ${titleOf(this.origin, null)}` : "Home",
       });
       const gh = this.panel.querySelector<HTMLInputElement>("#gh-input");
       if (gh) {
@@ -1477,7 +1492,15 @@ export class App {
   }
   private homeFact: string | null = null;
 
+  /** The train that makes a place fit the lens: "22:30 → 06:10 · Udyan Express". */
+  private lensNote(legs: Leg[]) {
+    const l = legs.reduce((a, b) => (b.dur < a.dur ? b : a));
+    const name = l.train.name.length > 30 ? l.train.no : l.train.name;
+    return `${fmtTime(l.dep)} → ${fmtTime(l.train.arr[l.to] % 1440)} · ${name}`;
+  }
+
   private exploreItems(withGuides: boolean, famous = false): ExploreItem[] {
+    const lens: Lens = lensOf(this.filters.within, this.filters.leave);
     // your own city's guide isn't somewhere to go: its stations are listed, without its photo
     const home = this.guides.get(this.origin!)?.title;
     const rows = new Map<string, ExploreItem & { city: boolean }>();
@@ -1495,6 +1518,7 @@ export class App {
         guide: worthwhile(gv) && gv.title !== home,
         href: href({ origin: this.slugs.of(this.origin!), place: this.slugs.of(place) }),
         city: place.isCity,
+        note: lens === "overnight" || lens === "weekend" ? this.lensNote(legs) : undefined,
       };
       // with guides: one row per guide, at the city's own station if it has one, else the nearest
       const key = withGuides ? gv!.title : place.id;
@@ -1568,6 +1592,47 @@ export class App {
       return;
     }
     switch (act) {
+      case "within": {
+        const w = el.dataset.v === "Infinity" ? Infinity : Number(el.dataset.v);
+        const leave = this.filters.leave === "overnight" || this.filters.leave === "weekend" ? "any" : this.filters.leave;
+        this.list.showAll = false;
+        this.setFilters({ ...this.filters, within: w, leave }, true);
+        this.panel.querySelector<HTMLElement>(`[data-act="within"][data-v="${el.dataset.v}"]`)?.focus({ preventScroll: true });
+        break;
+      }
+      case "lens": {
+        const l = el.dataset.lens as Exclude<Lens, null>;
+        const on = lensOf(this.filters.within, this.filters.leave) === l;
+        const f: Filters = { ...this.filters };
+        if (on) {
+          if (l === "quick") f.within = Infinity;
+          else f.leave = "any";
+        } else if (l === "quick") {
+          f.within = 240;
+          f.leave = "any";
+        } else {
+          f.leave = l;
+          f.within = Infinity;
+        }
+        this.list.showAll = false;
+        this.setFilters(f, true);
+        this.panel.querySelector<HTMLElement>(`[data-act="lens"][data-lens="${l}"]`)?.focus({ preventScroll: true });
+        break;
+      }
+      case "tab":
+        if (o?.kind === "place") {
+          o.tab = el.dataset.tab as PlaceTab;
+          this.renderPanel(false);
+          this.panel.querySelector<HTMLElement>(`[data-act="tab"][data-tab="${o.tab}"]`)?.focus({ preventScroll: true });
+        }
+        break;
+      case "near":
+        this.nearMe();
+        break;
+      case "ask-to":
+        $("route").classList.add("want-to");
+        this.toBox.focus();
+        break;
       case "close":
         if (o) this.closePanel({ push: "place" in o || o.kind === "spot" });
         break;
@@ -1625,20 +1690,20 @@ export class App {
       case "save-place":
         if (o?.kind === "place") {
           const on = this.saves.toggle({ key: placeKey(this.slugs.of(o.place)), kind: "place", data: { slug: this.slugs.of(o.place), title: this.name(o.place), state: o.place.state } });
-          this.toast(on ? `${this.name(o.place)} is on your bucket list` : `Removed from your bucket list`, 2400, on ? { label: "See it", run: () => this.openSaved() } : undefined);
+          this.toast(on ? `Balle balle! ${this.name(o.place)} is on your bucket list` : `Off the bucket list`, 2400, on ? { label: "See it", run: () => this.openSaved() } : undefined);
         }
         break;
       case "save-spot":
         if (o?.kind === "spot") {
           const s = o.spot;
           const on = this.saves.toggle({ key: placeKey(s.id), kind: "place", data: { slug: s.id, title: s.name, state: s.state } });
-          this.toast(on ? `${s.name} is on your bucket list` : `Removed from your bucket list`, 2400, on ? { label: "See it", run: () => this.openSaved() } : undefined);
+          this.toast(on ? `Balle balle! ${s.name} is on your bucket list` : `Off the bucket list`, 2400, on ? { label: "See it", run: () => this.openSaved() } : undefined);
         }
         break;
       case "save-route":
         if ((o?.kind === "place" || o?.kind === "journey") && this.origin) {
           const on = this.saves.toggle(this.routeSave(o.place, o.kind === "journey" ? o.conn : undefined));
-          this.toast(on ? "Route saved" : "Route removed", 2400, on ? { label: "Saved", run: () => this.openSaved() } : undefined);
+          this.toast(on ? "Route saved. Chalo!" : "Route removed", 2400, on ? { label: "Saved", run: () => this.openSaved() } : undefined);
         }
         break;
       case "unsave": {
@@ -1771,7 +1836,7 @@ export class App {
         if (this.trip.stops.length >= 2) {
           const data: TripSave = { title: this.tripTitle(), stops: this.tripSlugs(), nights: this.trip.stops.map((s) => s.nights), date: this.trip.date };
           const on = this.saves.toggle({ key: tripKey(data), kind: "trip", data });
-          this.toast(on ? "Trip saved" : "Trip removed", 2400, on ? { label: "Saved", run: () => this.openSaved() } : undefined);
+          this.toast(on ? "Trip saved. Pack your bags!" : "Trip removed", 2400, on ? { label: "Saved", run: () => this.openSaved() } : undefined);
         }
         break;
       case "trip-clear":
@@ -1785,6 +1850,10 @@ export class App {
   private pickSight(i: number, fly: boolean) {
     if (this.open?.kind !== "place") return;
     const o = this.open;
+    if (!document.getElementById(`sight-${i}`)) {
+      o.tab = "sights";
+      this.renderPanel(false);
+    }
     o.sight = o.sight === i && fly ? -1 : i;
     for (const s of this.panel.querySelectorAll<HTMLElement>(".sight")) {
       const on = Number(s.dataset.i) === o.sight;
@@ -1866,7 +1935,7 @@ export class App {
         return;
       }
       await navigator.clipboard.writeText(url);
-      this.toast("Link copied");
+      this.toast("Link copied. Send it to the gang!");
     } catch (err) {
       if ((err as DOMException)?.name !== "AbortError") this.toast("Couldn't share. Copy the address from the address bar.");
     }
@@ -1911,7 +1980,7 @@ export class App {
     setTimeout(() => {
       // only while the map is what you're looking at, and only once
       if (this.open || !this.origin || seen() || this.mode !== "explore") return;
-      this.toast(narrow() ? "Tap a photo to explore a place" : "Click a photo on the map, or a place in the list", 5000);
+      this.toast(narrow() ? "Tap a photo on the map to peek inside" : "Click a photo on the map, or a place in the list, to peek inside", 5000);
       try {
         localStorage.setItem(KEY, "1");
       } catch {
@@ -1951,10 +2020,10 @@ export class App {
   private describe() {
     const o = this.open;
     const from = this.origin ? titleOf(this.origin, null) : null;
-    let title = "Railgaddi · where can the train take you?";
+    let title = "Railgaddi · chalo, where's the train taking you?";
     if (this.mode === "trip" && o?.kind !== "train") title = this.trip.stops.length ? `Trip: ${this.tripTitle()} · Railgaddi` : "Plan a trip by train · Railgaddi";
     else if (o?.kind === "train") title = `${o.leg.train.no} ${o.leg.train.name} · ${fmtTime(o.leg.dep)} · Railgaddi`;
-    else if (o?.kind === "discover") title = "Discover: journeys worth taking, and facts from India's railways · Railgaddi";
+    else if (o?.kind === "discover") title = "Stories: journeys worth taking, and facts from India's railways · Railgaddi";
     else if (o?.kind === "story") title = `${o.story.title} · Railgaddi`;
     else if (o?.kind === "journey") title = `${from} to ${this.name(o.place)} with one change at ${this.name(o.conn.via)} · Railgaddi`;
     else if (o?.kind === "spot") title = `${o.spot.name} by train${from ? ` from ${from}` : ""}: the nearest stations · Railgaddi`;

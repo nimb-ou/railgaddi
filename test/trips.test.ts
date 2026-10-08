@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { daysLabel, shiftDays } from "../src/core/format";
-import { arrivals, CHANGE_ACROSS_TOWN, CHANGE_SAME_STATION, connections, departures, legPasses, newerBetween, reachable, waitFor, ANY, type Leg } from "../src/core/trips";
+import { arrivals, CHANGE_ACROSS_TOWN, CHANGE_SAME_STATION, connections, departures, legPasses, newerBetween, overnight, reachable, waitFor, weekend, ANY, type Leg } from "../src/core/trips";
 import { net, place } from "./load";
 
 describe("departures", () => {
@@ -148,5 +148,31 @@ describe("journeys with one change", () => {
         expect((b.train.days >> ((((weekday - onTheWay) % 7) + 7) % 7)) & 1).toBe(1);
       }
     }
+  });
+});
+
+describe("trips for a night, or a weekend", () => {
+  // a train leaving its first station at `dep` on the days in `days` (Monday = bit 0)
+  const leg = (dep: number, dur: number, days = 127) =>
+    ({ train: { days, dep: Int32Array.of(dep) }, from: 0, dep: dep % 1440, dur } as unknown as Leg);
+
+  it("overnight means waking up there in the morning", () => {
+    expect(overnight(leg(22 * 60, 8 * 60))).toBe(true); // 22:00 -> 06:00
+    expect(overnight(leg(21 * 60 + 20, 6 * 60))).toBe(false); // in at 03:20: not a night's sleep
+    expect(overnight(leg(15 * 60, 15 * 60))).toBe(false); // leaves in the afternoon
+    expect(overnight(leg(20 * 60, 20 * 60))).toBe(false); // a day and a night
+  });
+
+  it("a weekend leaves on Friday evening or Saturday morning", () => {
+    const fri = 1 << 4, sat = 1 << 5;
+    expect(weekend(leg(21 * 60, 9 * 60, fri))).toBe(true); // Friday night train, Saturday 06:00
+    expect(weekend(leg(21 * 60, 9 * 60, sat))).toBe(false); // that train doesn't run on Fridays
+    expect(weekend(leg(18 * 60, 3 * 60, fri))).toBe(true); // Friday evening, in by 21:00
+    expect(weekend(leg(20 * 60, 6 * 60, fri))).toBe(false); // in at 02:00
+    expect(weekend(leg(7 * 60, 4 * 60, sat))).toBe(true); // Saturday morning, four hours
+    expect(weekend(leg(7 * 60, 9 * 60, sat))).toBe(false); // too long for two days
+    // a train that left its first station the day before still counts the day it passes here
+    const thu = { train: { days: 1 << 3, dep: Int32Array.of(1440 + 22 * 60) }, from: 0, dep: 22 * 60, dur: 8 * 60 } as unknown as Leg;
+    expect(weekend(thu)).toBe(true);
   });
 });

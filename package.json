@@ -38,6 +38,9 @@
     "@fontsource-variable/noto-sans-oriya": "^5.3.0",
     "@fontsource-variable/noto-sans-tamil": "^5.3.0",
     "@fontsource-variable/noto-sans-telugu": "^5.3.0",
+    "@fontsource/hind": "^5.3.0",
+    "@fontsource/rozha-one": "^5.3.0",
+    "@fontsource/tiro-devanagari-hindi": "^5.3.0",
     "d3": "^7.9.0",
     "topojson-client": "^3.1.0"
   },

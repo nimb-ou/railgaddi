@@ -75,7 +75,7 @@ export function discoverHtml(d: DiscoverData, v: { fact: number; cat: string; re
   const n = d.facts.indexOf(f) + 1;
   return `<div class="panel-scroll discover">
     <header class="list-head">
-      <div class="masthead"><span class="eyebrow">Discover</span><h2 id="panel-title" tabindex="-1">Stories from the rails</h2></div>
+      <div class="masthead"><span class="eyebrow">Kisse, kahaniyan</span><h2 id="panel-title" tabindex="-1">Stories from the rails</h2></div>
       <button class="round" type="button" data-act="close" aria-label="Close">${CLOSE}</button>
     </header>
 
@@ -88,7 +88,7 @@ export function discoverHtml(d: DiscoverData, v: { fact: number; cat: string; re
     </section>
 
     <section aria-labelledby="stories-h">
-      <div class="section-head"><h3 id="stories-h">Journeys worth taking</h3></div>
+      <div class="section-head"><h3 id="stories-h">Journeys worth the ticket</h3></div>
       <div class="story-grid">${d.stories
         .map(
           (s) => `<a class="story-card" href="${esc(v.storyHref(s))}" data-act="story" data-slug="${esc(s.slug)}">
@@ -110,11 +110,11 @@ export function discoverHtml(d: DiscoverData, v: { fact: number; cat: string; re
 
 export function storyHtml(s: Story, rides: RideView[], facts: Fact[], allFacts: Fact[]) {
   const cover = s.photo
-    ? `<figure class="cover"><div class="shot">${img(s.photo, `(max-width: 720px) 100vw, ${coverWidth(s.photo, 420, 212)}px`, 500, 1920, s.title, true)}</div></figure>`
+    ? `<figure class="story-cover"><div class="shot">${img(s.photo, `(max-width: 720px) 100vw, ${coverWidth(s.photo, 360, 210)}px`, 500, 1920, s.title, true)}</div></figure>`
     : "";
   return `<div class="panel-scroll story">
-    <div class="train-top">
-      <button class="back" type="button" data-act="discover">← Discover</button>
+    <div class="top-bar">
+      <button class="back" type="button" data-act="discover">← All the stories</button>
       <button class="round" type="button" data-act="close" aria-label="Close">${CLOSE}</button>
     </div>
     ${cover}

@@ -913,21 +913,57 @@ def place_ends(no, halts):
                 break
 
 
-def check_ends(no, halts):
+def in_title(h, title):
+    """A halt's station is named in the train's own name ("KSR Bengaluru Kolar DEMU Express" names
+    Bengaluru and Kolar): a word of one a spelling or two from a word of the other."""
+    ws = [w for w in re.findall(r"[A-Z]{4,}", norm(h["name"])) if w not in ("JUNCTION", "ROAD", "CITY", "CANTT", "TERMINUS")]
+    ts = [w for w in re.findall(r"[A-Z]{4,}", norm(title)) if w not in ("EXPRESS", "SUPERFAST", "DEMU", "MEMU", "PASSENGER", "SPECIAL", "VANDE", "BHARAT", "LINK", "INTERCITY")]
+    whole, t = fold(h["name"]), re.sub(r"[^A-Z]", "", norm(title))  # "Sri Ganga Nagar" in "Sriganganagar Bhatinda"
+    if len(whole) >= 5 and whole in t:
+        return True
+    return any(a.startswith(b[:5]) or b.startswith(a[:5]) or difflib.SequenceMatcher(None, a, b).ratio() >= 0.8 for a in ws for b in ts)
+
+
+def short_ends(no, halts, title):
+    """A train read as only two or three halts: a column cut short, or another train's rows, reads
+    that way (16549, KSR Bengaluru to Kolar, came out as Bengaluru to Mysuru). Each end must be one
+    the index names, or one the train's own name names; a name that names one end and not the
+    other is a reading gone wrong. A name that names neither (Shivalik Deluxe) can't tell."""
+    end_names = INDEX_END_NAMES.get(no, ())
+    first, last = halts[0], halts[-1]
+    # the printed name, or our name for the station it was placed at ("km. Vaishno Devi" is a
+    # distance label read as the name; SVDK is still Shri Mata Vaishno Devi Katra)
+    known = lambda h: [h["name"]] + ([stations[h["code"]]["name"]] if h["code"] in stations else [])  # noqa: E731
+    ok = lambda h: any(same_name(n, en) for n in known(h) for en in end_names) or any(in_title(dict(h, name=n), title) for n in known(h))  # noqa: E731
+    if end_names and not (ok(first) and ok(last)):
+        return "doesn't run end to end as the index says"
+    named = lambda h: any(in_title(dict(h, name=n), title) for n in known(h))  # noqa: E731
+    if not end_names and named(first) != named(last):
+        return "doesn't run end to end as its name says"
+    return ""
+
+
+def check_ends(no, halts, title=""):
     """The train must run between the two ends the index gives it. A stray first or last row
     (another train's, read into this column) is dropped; a train missing a whole page of its
     route (it starts or ends somewhere else) is refused."""
     ends = INDEX_ENDS.get(no)
-    if not ends or len(halts) < 3:
+    if len(halts) <= 3 and title:
+        problem = short_ends(no, halts, title)
+        if problem:
+            return halts, problem
+    if not ends or len(halts) < 2:
         return halts, ""
     end_names = INDEX_END_NAMES.get(no, ())
     # by place, or by name: the index can place a name at the wrong station of that name
     # ("Rajendra Nagar" in Hyderabad for the Patna Rajdhanis' Rajendranagar)
     at = lambda h, e, en: near(h["code"], e) or same_name(h["name"], en)  # noqa: E731
     at_end = lambda h: any(at(h, e, en) for e, en in zip(ends, end_names))  # noqa: E731
-    if not at_end(halts[0]) and at_end(halts[1]):
+    # a train read as only two or three halts is checked too: a column cut short, or another
+    # train's rows, reads that way (16549, KSR Bengaluru to Kolar, came out as Bengaluru to Mysuru)
+    if len(halts) >= 3 and not at_end(halts[0]) and at_end(halts[1]):
         halts = [dict(halts[1], arr=None)] + halts[2:]
-    if not at_end(halts[-1]) and at_end(halts[-2]):
+    if len(halts) >= 3 and not at_end(halts[-1]) and at_end(halts[-2]):
         halts = halts[:-2] + [dict(halts[-2], dep=None)]
     (a, b), (an, bn) = ends, end_names
     if not ((at(halts[0], a, an) and at(halts[-1], b, bn)) or (at(halts[0], b, bn) and at(halts[-1], a, an))):
@@ -1098,7 +1134,8 @@ def read_train(no, segs, start=None, align_last=False):
     upper_name = " ".join(s.get("name", "") for s in segs).upper()
     DURONTO = "DURONTO" in upper_name
     PREMIUM_NONSTOP = bool(re.search(r"HUMSAFAR|RAJDHANI|VANDE|TEJAS|\bAC\b|SUVIDHA|GATIMAAN|SHATABDI", upper_name))
-    halts, ends_problem = check_ends(no, halts)
+    title = " ".join(s.get("name", "") for s in segs)
+    halts, ends_problem = check_ends(no, halts, title)
     problem = ends_problem or check(halts)
     repaired = ""
     if problem and not ends_problem:
@@ -1106,6 +1143,9 @@ def read_train(no, segs, start=None, align_last=False):
         if fixed:
             halts, problem = fixed, ""
             note["repaired (misread rows dropped or day fixed)"] += 1
+    # unplaced rows dropped can leave a short train, which gets the short train's check
+    if not problem and len(halts) <= 3 and title:
+        problem = short_ends(no, halts, title)
     # rows dropped at the start can leave the first departure on another day: count days from it
     if halts and halts[0]["dep"] is not None:
         base = (halts[0]["dep"] // 1440) * 1440

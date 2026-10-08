@@ -107,7 +107,10 @@ python3 pipeline/merge_tag.py raw 2027    # into db/ (needs docs/permissions/tag
 python3 pipeline/build_network.py && npm test
 ```
 
-What the 2026 merge did (September 2026):
+What the 2026 merge did (September 2026; in October 2026 a stricter check of trains read as
+only two or three halts, against the book's index and the train's own name, held back 32 more
+misreadings: 6 went back to their 2017 times, 26 that are new since 2017 were left out, so
+3,224 trains run on 2026 times):
 
 - 3,650 train numbers read from 421 pages (including pages printed both ways round, pages
   carrying two tables, side by side or one above the other, and rows printed without a/d

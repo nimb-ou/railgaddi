@@ -4,11 +4,11 @@ import { dayWord, daysLabel, fmtKm, fmtMins, fmtTime, plural, shiftDays } from "
 import type { Network, NewerTrain, Place, Train } from "../core/network";
 import type { ArticleDetail, GuideView, Photo } from "../core/places";
 import { titleOf } from "../core/slugs";
-import { bySoonest, CHANGE_ACROSS_TOWN, CHANGE_SAME_STATION, waitFor, type Connection, type Leg } from "../core/trips";
+import { bySoonest, CHANGE_ACROSS_TOWN, CHANGE_SAME_STATION, overnight, waitFor, type Connection, type Leg } from "../core/trips";
 import { flapHtml, landscapeHtml, ledHtml } from "./boards";
 import { BOOKMARK, HEART } from "./saved";
 import { esc } from "./esc";
-import { aspect, coverWidth, credit, photoSrcset, photoUrl } from "./photos";
+import { coverWidth, credit, photoSrcset, photoUrl } from "./photos";
 import { waysHtml, type WayView } from "./spot";
 
 export { esc };
@@ -33,6 +33,13 @@ const ICON = {
 };
 const wv = (t: string) => `https://en.wikivoyage.org/wiki/${encodeURIComponent(t.replace(/ /g, "_"))}`;
 
+/** "every day", "every day except Tue", "on Mon, Wed, Fri" */
+export function leavesOn(mask: number) {
+  if (mask === 127) return "every day";
+  const label = daysLabel(mask);
+  return /^Except/.test(label) ? label.replace("Except", "every day except") : `on ${label}`;
+}
+
 /** Days a train leaves this halt (its origin's running days, moved on by the days it's been travelling). */
 export function daysAt(t: Train, halt: number) {
   return daysLabel(shiftDays(t.days, Math.floor(t.dep[halt] / 1440)));
@@ -54,17 +61,21 @@ export function img(p: Photo, sizes: string, min: number, max: number, alt = "",
  * but no photo yet), else a plain stop.
  */
 export function thumb(photo: Photo | null, title: string, guide: boolean) {
-  if (photo) return img(photo, `${coverWidth(photo, 44, 44)}px`, 120, 500);
+  if (photo) return `<span class="arch sm">${img(photo, `${coverWidth(photo, 44, 52)}px`, 120, 500)}</span>`;
   if (!guide) return `<i class="stop-dot" aria-hidden="true"></i>`;
-  let h = 0;
-  for (const ch of title) h = (h * 31 + ch.charCodeAt(0)) % 360;
-  return `<i class="mono" style="--h:${h}" aria-hidden="true">${esc(title.charAt(0))}</i>`;
+  return `<span class="arch sm" aria-hidden="true"><i class="ph">${esc(title.charAt(0))}</i></span>`;
 }
 
-/** The cover is 420×200 beside the map, full width × 170 on phones; wide banners crop to fit. */
+/** The cover is a 200×236 arch; a wide photo is cropped to its middle. */
 function coverSizes(p: Photo) {
-  const phone = 170 * aspect(p) > 430 ? `${Math.ceil(170 * aspect(p))}px` : "100vw";
-  return `(max-width: 720px) ${phone}, ${coverWidth(p, 420, 200)}px`;
+  return `${coverWidth(p, 200, 236)}px`;
+}
+
+/** A place's photo in the jharokha, or the arch alone with its initial. */
+export function archCover(photo: Photo | null, title: string, key = photo?.t ?? "") {
+  return photo
+    ? `<figure class="pl-cover"><span class="arch shot" data-key="${esc(key)}">${img(photo, coverSizes(photo), 250, 1280, "", true)}</span></figure>`
+    : `<figure class="pl-cover bare"><span class="arch" aria-hidden="true"><i class="ph">${esc(title.charAt(0))}</i></span></figure>`;
 }
 
 export interface PlaceView {
@@ -84,6 +95,10 @@ export interface PlaceView {
   getHere: GetHere | null;
   /** The weather there, now and this week (rendered by ui/weather). */
   weather: string;
+  /** Which of the deeper sections is open (sights, trains, ...); the first there is when unset. */
+  tab: PlaceTab | null;
+  /** Where the back button goes: "From Bengaluru", or "Home". */
+  back: string;
   /** Ways with one change from where you start (when there's no direct train, or they're much quicker). */
   changes: Connection[];
   /** No direct train: a train to a main-line station near here, then the road (Darjeeling via New Jalpaiguri). */
@@ -92,6 +107,8 @@ export interface PlaceView {
   saved: { place: boolean; route: boolean };
   fact: string; // a "Did you know?" note about this place, if there is one
 }
+
+export type PlaceTab = "sights" | "trains" | "changes" | "weather" | "nearby";
 
 export interface GetHereItem {
   id: string;
@@ -113,20 +130,18 @@ export interface GetHere {
 }
 
 function getHereHtml(g: GetHere, title: string, afterChanges = false) {
-  const head = g.choosing ? "Where do you start?" : g.blockedFrom ? (afterChanges ? "Or start somewhere else" : `No direct train from ${esc(g.blockedFrom)}`) : `Get to ${esc(title)} by train`;
+  const head = g.choosing ? "So, where do you start?" : g.blockedFrom ? (afterChanges ? "Or start somewhere else" : `No direct train from ${esc(g.blockedFrom)}`) : `Getting to ${esc(title)} by train`;
   const lede = g.total
-    ? g.choosing
+    ? g.choosing || afterChanges
       ? `Direct trains come here from ${plural(g.total, "place")}.`
-      : afterChanges
-        ? `Direct trains come here from ${plural(g.total, "place")}.`
-        : `${g.blockedFrom ? "But direct trains" : "Direct trains"} come from ${plural(g.total, "place")}. Where do you start?`
+      : `${g.blockedFrom ? "Koi gal nahi: direct trains" : "Direct trains"} come here from ${plural(g.total, "place")}. Where are you starting from?`
     : "No direct train comes here in our timetable.";
   return `<section class="get-here" aria-labelledby="gh-h">
     <div class="section-head"><h3 id="gh-h">${head}</h3></div>
     <p class="gh-lede">${lede}</p>
     ${g.total ? `<div class="gh-search">
       <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" /><path d="M13 13l4.5 4.5" /></svg>
-      <input id="gh-input" type="search" enterkeyhint="go" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Your city or station" aria-label="Where do you start?" />
+      <input id="gh-input" type="search" enterkeyhint="go" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Your station or city, ji" aria-label="Where do you start?" />
       <ul class="suggest" id="gh-list" aria-label="Where you could start" hidden></ul>
     </div>
     <ol class="dest-list gh-list">${g.items
@@ -139,15 +154,15 @@ function getHereHtml(g: GetHere, title: string, afterChanges = false) {
       )
       .join("")}</ol>
     ${!g.showAll && g.total > g.items.length ? `<button class="link-btn show-all" type="button" data-act="gh-all">Show all ${g.total}</button>` : ""}` : ""}
-    ${g.blockedFrom && !g.choosing ? `<button class="link-btn gh-here" type="button" data-act="from-here">Or start from ${esc(title)} and see where it goes</button>` : ""}
+    ${g.blockedFrom && !g.choosing ? `<button class="link-btn gh-here" type="button" data-act="from-here">Or start from ${esc(title)} and see where it takes you →</button>` : ""}
   </section>`;
 }
 
 export function placeHtml(v: PlaceView) {
   const { net, place, gv, origin } = v;
-  // the place's own photo when it's big enough; a Wikivoyage banner is a very wide strip and a
-  // squarer crop of it can lose the subject (Goa's becomes a patch of blue)
-  const cover = gv?.icon && (gv.icon.w ?? 0) >= 800 ? gv.icon : gv?.banner ?? gv?.icon ?? null;
+  // the place's own photo; a Wikivoyage banner is a very wide strip and the arch's crop of it
+  // would lose the subject, so it's the last resort
+  const cover = gv?.icon ?? gv?.banner ?? null;
   const used: Photo[] = cover ? [cover] : [];
   const codes = place.stations.map((s) => net.stations[s].code);
   const title = titleOf(place, gv);
@@ -162,40 +177,39 @@ export function placeHtml(v: PlaceView) {
   if (origin && legs.length) {
     const fastest = Math.min(...legs.map((l) => l.dur));
     const km = Math.min(...legs.map((l) => l.km));
-    const next = legs.find(v.passes) ?? legs[0];
-    const when = dayWord(v.now, waitFor(next, v.now));
-    // the next train's halts on a strip between the two names, spaced by time
-    const span = next.train.arr[next.to] - next.train.dep[next.from] || 1;
-    const ticks = [];
-    for (let j = next.from + 1; j < next.to; j++) ticks.push(`<i style="--at:${((next.train.dep[j] - next.train.dep[next.from]) / span).toFixed(3)}"></i>`);
+    // a long ride: the night train, so you sleep through it; otherwise the next one that fits
+    const night = fastest >= 300 ? legs.find((l) => v.passes(l) && overnight(l)) : undefined;
+    const pick = night ?? legs.find(v.passes) ?? legs[0];
+    const when = dayWord(v.now, waitFor(pick, v.now));
+    const plusDay = Math.floor(pick.train.arr[pick.to] / 1440) - Math.floor(pick.train.dep[pick.from] / 1440);
+    const trains = new Set(legs.map((l) => l.train)).size;
     ticket = `<div class="ticket">
-      <div class="ticket-route">
-        <span class="tk-a">${esc(titleOf(origin, null))}</span>
-        <span class="strip" aria-hidden="true">${ticks.join("")}</span>
-        <span class="tk-b">${esc(title)}</span>
-        <button class="tk-save" type="button" data-act="save-route" aria-pressed="${v.saved.route}" aria-label="${v.saved.route ? "Saved: remove this route" : "Save this route"}" title="${v.saved.route ? "Saved route" : "Save this route"}">${BOOKMARK}</button>
+      <div class="tk tk-a">
+        <div><span class="l">${esc(titleOf(origin, null))} → ${esc(title)}</span><span class="n">${fmtMins(fastest)}</span><span class="s">fastest of ${plural(trains, "direct train")}</span></div>
+        <div class="r"><span class="l">By rail</span><span class="n">${fmtKm(km)}</span><span class="s">km</span></div>
       </div>
-      <dl class="ticket-facts">
-        <div><dt>Fastest</dt><dd>${fmtMins(fastest)}</dd></div>
-        <div><dt>Trains</dt><dd>${legs.length}</dd></div>
-        <div><dt>Distance</dt><dd>${fmtKm(km)} km</dd></div>
-      </dl>
-      <div class="ticket-foot">
-        <button class="ticket-next" type="button" data-act="leg" data-i="${legs.indexOf(next)}">
-          <i class="dot"></i><span class="tn-label">Next train${when === "today" ? "" : ` ${when}`}</span>${flapHtml(fmtTime(next.dep), true)}<span class="tn-name">${esc(next.train.name)}</span><span class="go" aria-hidden="true">→</span>
+      <div class="tk">
+        <button class="tk-train" type="button" data-act="leg" data-i="${legs.indexOf(pick)}">
+          <span class="l">${night ? "Sleep on it: the night train" : "Next gaddi"}, ${when}</span>
+          <b>${esc(pick.train.no)} ${esc(pick.train.name)}</b>
+          <span class="when">${flapHtml(fmtTime(pick.dep))} → ${flapHtml(fmtTime(pick.train.arr[pick.to]))}${plusDay > 0 ? ` <small class="muted">${plusDay > 1 ? `${plusDay} days later` : "next day"}</small>` : ""}</span>
+          <span class="go">See its stops →</span>
         </button>
-        <button class="tk-change" type="button" data-act="change-from">Change start</button>
+        <span class="tk-side">
+          <button class="tk-save" type="button" data-act="save-route" aria-pressed="${v.saved.route}" aria-label="${v.saved.route ? "Saved: remove this route" : "Save this route"}" title="${v.saved.route ? "Saved route" : "Save this route"}">${BOOKMARK}</button>
+          <button class="tk-change" type="button" data-act="change-from">Change start</button>
+        </span>
       </div>
     </div>`;
   }
 
-  // ---- what it's like, what to see
+  // ---- what it's like
   let intro = "";
   let sights = "";
   if (!gv) {
-    intro = `<p class="intro muted">No travel guide for this stop yet. Small stations are often the best surprises.</p>`;
+    intro = `<p class="intro muted">No travel guide for this stop yet. Chhota station, badi surprise, maybe?</p>`;
   } else if (v.detail === "loading") {
-    intro = `<div class="skeleton" role="status">${landscapeHtml("ls-strip")}<span>Opening the guide…</span></div>`;
+    intro = `<div class="skeleton" role="status">${landscapeHtml("ls-strip")}<span>Opening the guide, ek minute…</span></div>`;
   } else if (v.detail) {
     const { detail, photos } = v.detail;
     if (detail.x) intro = `<p class="intro">${esc(detail.x)}</p>`;
@@ -204,18 +218,18 @@ export function placeHtml(v: PlaceView) {
     const onMap = detail.sights.filter((s) => s.ll).length;
     if (withImg.length || rest.length) {
       sights = `<section aria-labelledby="sights-h">
-        <div class="section-head"><h3 id="sights-h">Places to visit</h3>${onMap >= 2 ? `<button class="link-btn" type="button" data-act="sights-map">See on map</button>` : ""}</div>
+        <div class="section-head"><h3 id="sights-h">What to see</h3>${onMap >= 2 ? `<button class="link-btn" type="button" data-act="sights-map">Show on the map</button>` : ""}</div>
         ${withImg.length ? `<div class="sight-grid">${withImg
           .map(({ s, i, ph }) => {
             used.push(ph!);
             return `<button class="sight ${i === v.activeSight ? "active" : ""}" type="button" data-act="sight" data-i="${i}" id="sight-${i}" aria-pressed="${i === v.activeSight}">
-              <span class="frame">${img(ph!, `${coverWidth(ph!, 184, 138)}px`, 250, 500, "")}</span>
+              <span class="frame">${img(ph!, `${coverWidth(ph!, 172, 129)}px`, 250, 500, "")}</span>
               <b>${esc(s.n)}${s.k === "do" ? `<i class="kind">Do</i>` : ""}</b>
               ${s.d ? `<span>${esc(s.d)}</span>` : ""}
             </button>`;
           })
           .join("")}</div>` : ""}
-        ${rest.length ? `<p class="more-sights">${withImg.length ? "Also: " : ""}${rest.slice(0, 6).map((s) => `<b>${esc(s.n)}</b>`).join(", ")}</p>` : ""}
+        ${rest.length ? `<p class="more-sights">${withImg.length ? "Also worth a look: " : ""}${rest.slice(0, 6).map((s) => `<b>${esc(s.n)}</b>`).join(", ")}</p>` : ""}
       </section>`;
     }
   }
@@ -230,10 +244,10 @@ export function placeHtml(v: PlaceView) {
     const ends = (t: Train, l: Leg) =>
       multi && multiTo ? ` · ${short(t.st[l.from])} → ${short(t.st[l.to])}` : multi ? ` · from ${short(t.st[l.from])}` : multiTo ? ` · to ${short(t.st[l.to])}` : "";
     const matching = legs.filter(v.passes);
-    const shown = v.showAllTrains ? legs : (matching.length ? matching : legs).slice(0, 4);
+    const shown = v.showAllTrains ? legs : (matching.length ? matching : legs).slice(0, 6);
     trains = `<section class="trains" aria-labelledby="trains-h">
-      <div class="section-head"><h3 id="trains-h">Trains from ${esc(titleOf(origin, null))}</h3></div>
-      <div class="tt-head" aria-hidden="true"><span>Dep</span><span>Train</span><span>Arr</span></div>
+      <div class="section-head"><h3 id="trains-h">Every train from ${esc(titleOf(origin, null))}</h3><span class="count">soonest first</span></div>
+      <div class="tt-head" aria-hidden="true"><span>Leaves</span><span>Train</span><span>Gets in</span></div>
       ${shown
         .map((l) => {
           const t = l.train;
@@ -260,12 +274,12 @@ export function placeHtml(v: PlaceView) {
           return `<li><b>${name}</b><span>${esc(n.numbers)}${facts.length ? ` · ${facts.join(" · ")}` : ""}</span></li>`;
         })
         .join("")}</ul>
-      <p>Introduced after our timetable was published, so their stops and times aren't on the map yet. Check <a href="https://enquiry.indianrail.gov.in/mntes/" target="_blank" rel="noopener">NTES</a> for times. Details from Wikipedia (CC BY-SA 4.0).</p>
+      <p>Brand new, so their stops and times aren't on the map yet. Check <a href="https://enquiry.indianrail.gov.in/mntes/" target="_blank" rel="noopener">NTES</a> for times. Details from Wikipedia (CC BY-SA 4.0).</p>
     </section>`;
   }
 
   const nearby = v.nearby.length
-    ? `<section aria-labelledby="near-h"><div class="section-head"><h3 id="near-h">Nearby</h3></div><div class="nearby">${v.nearby
+    ? `<section aria-labelledby="near-h"><div class="section-head"><h3 id="near-h">Close by</h3></div><div class="nearby">${v.nearby
         .map((n) => {
           const face = n.photo ? img(n.photo, "24px", 120, 120) : "<i></i>";
           return n.href
@@ -275,36 +289,46 @@ export function placeHtml(v: PlaceView) {
         .join("")}</div></section>`
     : "";
 
-  const heading = `<div class="cover-text">
-      <div class="board-plate">${script ? `<span class="script">${esc(script)}</span>` : ""}<h2 class="name" id="panel-title" tabindex="-1">${esc(title)}</h2></div>
-      <p class="where">${where}</p>
-    </div>`;
-  const tools = `<div class="panel-tools">
+  // ---- the deep end: one section at a time, behind pills
+  const changes = origin && legs.length && v.changes.length ? changesHtml(v.changes, titleOf(origin, null), title, true, v.name) : "";
+  const tabs: [PlaceTab, string, string][] = [];
+  if (sights || (gv && v.detail === "loading")) tabs.push(["sights", "What to see", sights || `<div class="skeleton">${landscapeHtml()}</div>`]);
+  if (trains) tabs.push(["trains", `All ${new Set(legs.map((l) => l.train)).size} trains`, trains]);
+  if (changes) tabs.push(["changes", "Quicker with a change", changes]);
+  if (v.weather) tabs.push(["weather", "Weather", v.weather]);
+  if (nearby) tabs.push(["nearby", "Close by", nearby]);
+  const active = tabs.find(([k]) => k === v.tab) ?? tabs[0];
+  const deep = tabs.length
+    ? `<div class="pills" role="tablist" aria-label="More about ${esc(title)}">${tabs
+        .map(([k, label]) => `<button type="button" role="tab" data-act="tab" data-tab="${k}" id="tab-${k}" aria-controls="tab-body" aria-selected="${k === active[0]}">${label}</button>`)
+        .join("")}</div>
+      <div class="tab-body" id="tab-body" role="tabpanel" aria-labelledby="tab-${active[0]}">${active[2]}</div>`
+    : "";
+
+  const tools = `<span class="top-tools">
       <button class="round save-place" type="button" data-act="save-place" aria-pressed="${v.saved.place}" aria-label="${v.saved.place ? `On your bucket list: remove ${esc(title)}` : `Add ${esc(title)} to your bucket list`}" title="${v.saved.place ? "On your bucket list" : "Add to bucket list"}">${HEART}</button>
       <button class="round" type="button" data-act="share" aria-label="Share ${esc(title)}">${ICON.share}</button>
-      <button class="round" type="button" data-act="close" aria-label="Close">${ICON.close}</button>
-    </div>`;
-  const coverHtml = cover
-    ? `<figure class="cover"><div class="shot" data-key="${esc(cover.t)}">${img(cover, coverSizes(cover), 500, 1920, "", true)}</div>${tools}${heading}</figure>`
-    : `<figure class="cover bare">${tools}${heading}</figure>`;
+    </span>`;
 
   return `<div class="panel-scroll">
-    ${coverHtml}
+    <div class="top-bar"><button class="back" type="button" data-act="close">← ${esc(v.back)}</button>${tools}</div>
+    ${archCover(cover, title)}
+    <div class="pl-name">
+      ${script ? `<span class="script">${esc(script)}</span>` : ""}
+      <h2 class="name" id="panel-title" tabindex="-1">${esc(title)}</h2>
+      <p class="where">${where}</p>
+    </div>
     ${ticket}
     ${v.roadWays.length ? `<section aria-labelledby="road-h">
       <div class="section-head"><h3 id="road-h">No direct train from ${esc(titleOf(origin!, null))}</h3></div>
-      <p class="gh-lede">Most people take a train to a main-line station near ${esc(title)}, then a taxi or bus. Quickest first; road times are estimates.</p>
+      <p class="gh-lede">Koi gal nahi. Most people take a train to a main-line station near ${esc(title)}, then a taxi or bus. Quickest first; road times are estimates.</p>
       ${waysHtml(v.roadWays, true)}
     </section>` : ""}
     ${origin && !legs.length ? changesHtml(v.changes, titleOf(origin, null), title, false, v.name) : ""}
     ${v.getHere ? getHereHtml(v.getHere, title, v.changes.length > 0 || v.roadWays.length > 0) : ""}
     ${intro}
-    ${v.weather}
     ${v.fact}
-    ${sights}
-    ${trains}
-    ${origin && legs.length && v.changes.length ? changesHtml(v.changes, titleOf(origin, null), title, true, v.name) : ""}
-    ${nearby}
+    ${deep}
     ${creditsHtml(gv, used)}
   </div>`;
 }
@@ -381,7 +405,7 @@ function lineRows(net: Network, leg: Leg, o: LineOpts): string[] {
     const last = j === hi && o.bottom !== false;
     const cls = ["stop", major ? "major" : "minor", ride(j - 1) || (o.only && j === lo && !first) ? "in" : "", ride(j) || (o.only && j === hi && !last) ? "out" : "",
       first ? "first" : "", last ? "last" : "", j === leg.from ? "board-at" : "", j === leg.to ? "alight-at" : "", j < leg.from || j > leg.to ? "off" : ""].filter(Boolean).join(" ");
-    const note = j === leg.from ? "Board" : j === leg.to ? "Get off" : dwell >= 5 ? `${dwell}m halt` : "";
+    const note = j === leg.from ? "Hop on" : j === leg.to ? "Hop off" : dwell >= 5 ? `${dwell}m halt` : "";
     return `<li class="${cls}"${j === leg.from && !o.only ? ' id="boarding"' : ""}>
       <span class="t"><b>${est(j)}${fmtTime(main)}</b>${note ? `<small>${note}</small>` : ""}</span>
       <span class="node" aria-hidden="true"></span>
@@ -441,11 +465,11 @@ export function trainHtml(net: Network, leg: Leg, fromTitle: string, destTitle: 
   const codes = new Set(Array.from(t.st, (s) => net.stations[s].code));
   const line = t.type === "Toy" ? HERITAGE.find(([c]) => codes.has(c)) : undefined;
   const heritage = line
-    ? `<p class="tr-heritage"><b>${esc(line[1])}</b>: ${line[2] ? "one of the Mountain Railways of India, a UNESCO World Heritage Site. " : ""}A narrow line into the hills; book early, seats are few.</p>`
+    ? `<p class="tr-heritage"><b>${esc(line[1])}</b>: ${line[2] ? "one of the Mountain Railways of India, a UNESCO World Heritage Site. " : ""}A narrow little line into the hills, slow and gorgeous. Book early: seats are few.</p>`
     : "";
   const runs = shiftDays(t.days, Math.floor(t.dep[leg.from] / 1440));
   return `<div class="panel-scroll">
-    <div class="train-top">
+    <div class="top-bar">
       <button class="back" type="button" data-act="back">← ${esc(backTo)}</button>
       <button class="round" type="button" data-act="close" aria-label="Close">${ICON.close}</button>
     </div>
@@ -459,11 +483,11 @@ export function trainHtml(net: Network, leg: Leg, fromTitle: string, destTitle: 
         <div><small>Arrives ${esc(destTitle)}</small>${flapHtml(fmtTime(t.arr[leg.to]), true)}${plusDay > 0 ? `<sup>${plusDay > 1 ? `${plusDay} days later` : "next day"}</sup>` : ""}</div>
       </div>
       ${heritage}
-      <div class="tr-days">${t.days ? `${runs === 127 ? "" : weekHtml(runs)}<span>Leaves ${esc(from.name)} <b>${runs === 127 ? "every day" : /^Except/.test(daysLabel(runs)) ? daysLabel(runs).replace("Except", "every day except") : `on ${daysLabel(runs)}`}</b></span>` : `<span>Running days not known: check before you go</span>`}</div>
+      <div class="tr-days">${t.days ? `${runs === 127 ? "" : weekHtml(runs)}<span>Leaves ${esc(from.name)} <b>${leavesOn(runs)}</b></span>` : `<span>Running days not known: check before you go</span>`}</div>
     </header>
     <ol class="line" aria-label="Stops" tabindex="-1">${rows.join("")}</ol>
     ${t.approx.some((x) => x) ? `<p class="est-note">~ Estimated: a small stop the official timetable doesn't print, placed between its neighbours using the older timetable.</p>` : ""}
-    <p class="tr-src">Times from ${esc(t.source)}. They may have changed: check <a href="https://enquiry.indianrail.gov.in/mntes/" target="_blank" rel="noopener">NTES</a> before you travel. <a href="${esc(reportUrl(t))}" target="_blank" rel="noopener">Report a mistake</a></p>
+    <p class="tr-src">Times from ${esc(t.source)}. Trains do run late (it's India, ji): check <a href="https://enquiry.indianrail.gov.in/mntes/" target="_blank" rel="noopener">NTES</a> before you travel. <a href="${esc(reportUrl(t))}" target="_blank" rel="noopener">Report a mistake</a></p>
   </div>`;
 }
 
@@ -473,8 +497,7 @@ const dayOf = (m: number) => Math.floor(m / 1440);
 
 /** "Leaves 20:00 daily", "Leaves 12:45 on Mon" */
 function whenLeaves(c: Connection) {
-  const d = c.days === 127 ? "every day" : `on ${daysLabel(c.days)}`;
-  return `Leaves ${fmtTime(c.legs[0].dep)} ${d}`;
+  return `Leaves ${fmtTime(c.legs[0].dep)} ${leavesOn(c.days)}`;
 }
 
 /** The two rides and the wait, as a strip: widths by time. */
@@ -537,7 +560,7 @@ export function journeyHtml(net: Network, c: Connection, fromTitle: string, dest
   ];
   const known = c.known ? "" : `<p class="tr-src">One of these trains' running days isn't known: check both before you plan.</p>`;
   return `<div class="panel-scroll">
-    <div class="train-top">
+    <div class="top-bar">
       <button class="back" type="button" data-act="back">← ${esc(destTitle)}</button>
       <span class="top-tools">
         <button class="round tk-save" type="button" data-act="save-route" aria-pressed="${saved}" aria-label="${saved ? "Saved: remove this journey" : "Save this journey"}" title="${saved ? "Saved journey" : "Save this journey"}">${BOOKMARK}</button>
@@ -552,7 +575,7 @@ export function journeyHtml(net: Network, c: Connection, fromTitle: string, dest
         <i class="tr-line" aria-hidden="true"><span>${fmtMins(c.total)} · ${fmtKm(a.km + b.km)} km</span></i>
         <div><small>Arrives ${esc(destTitle)}</small>${flapHtml(fmtTime(arrive), true)}${later ? `<sup>${later > 1 ? `${later} days later` : "next day"}</sup>` : ""}</div>
       </div>
-      <div class="tr-days">${c.days !== 127 ? weekHtml(c.days) : ""}<span>Leaves ${esc(fromTitle)} <b>${c.days === 127 ? "every day" : `on ${daysLabel(c.days)}`}</b></span></div>
+      <div class="tr-days">${c.days !== 127 ? weekHtml(c.days) : ""}<span>Leaves ${esc(fromTitle)} <b>${leavesOn(c.days)}</b></span></div>
     </header>
     <ol class="line journey" aria-label="Stops" tabindex="-1">${rows.join("")}</ol>
     ${known}

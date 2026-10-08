@@ -1,6 +1,6 @@
 // Two palettes, both taken from the journey (see DESIGN.md):
-//   Day   — a printed timetable: paper, coach blue, station-board yellow
-//   Night — a sleeper coach after dark: deep livery blue, lamp yellow
+//   Day   — an old railway poster: ivory paper, indigo ink, madder and turmeric, phulkari brights
+//   Night — the night train: deep indigo, lamp-lit ivory, the same brights glowing
 // Each lives in style.css under [data-theme=…].
 
 export const THEMES = [

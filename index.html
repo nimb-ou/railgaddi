@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>Railgaddi · where can the train take you?</title>
-    <meta name="description" content="Pick your station and see every place in India a train can take you, how to reach places without a station, the weather when you get there, and plan a trip with several stops." />
-    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#0f1420" media="(prefers-color-scheme: dark)" />
+    <title>Railgaddi · chalo, where's the train taking you?</title>
+    <meta name="description" content="Pick your station and watch every railway line you can ride light up across India, as far as you're happy to ride. Hill towns without a station, the weather when you get there, and trips with several stops." />
+    <meta name="theme-color" content="#f8f2e7" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#141b33" media="(prefers-color-scheme: dark)" />
     <meta name="color-scheme" content="light dark" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="icon" href="/favicon-48.png" type="image/png" sizes="48x48" />
@@ -15,8 +15,8 @@
     <!-- link previews (WhatsApp, X, LinkedIn, iMessage) -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Railgaddi" />
-    <meta property="og:title" content="Railgaddi · where can the train take you?" />
-    <meta property="og:description" content="Pick your station. See every place in India you can reach by train, how to get to the hills without a station, and plan a trip." />
+    <meta property="og:title" content="Railgaddi · chalo, where's the train taking you?" />
+    <meta property="og:description" content="Pick your station and see every place in India a direct train can take you, the hills without a station, and the weather when you get there." />
     <meta property="og:image" content="/og.jpg" />
     <meta property="og:image:alt" content="A map of India with photos of places you can reach by train" />
     <meta property="og:image:width" content="1200" />
@@ -26,7 +26,7 @@
     <link rel="preconnect" href="https://upload.wikimedia.org" crossorigin />
     <script src="/theme-boot.js"></script>
   </head>
-  <body>
+  <body data-view="home">
     <a class="skip" href="#from-input">Skip to search</a>
     <canvas id="map" role="img" aria-label="Map of India's railway network. Places you can reach are listed beside it."></canvas>
 
@@ -34,47 +34,50 @@
       <button class="grip" id="grip" type="button" aria-label="Show more" hidden></button>
       <header class="side-head">
         <a class="brand" href="/" id="brand">
-          <svg class="brand-mark" viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="9" /><path d="M9 20V11.5A3.5 3.5 0 0 1 12.5 8h7a3.5 3.5 0 0 1 3.5 3.5V20a2 2 0 0 1-2 2H11a2 2 0 0 1-2-2zM9 15h14M12 26l2-4M20 26l-2-4" /><circle cx="12.5" cy="18.5" r="1" /><circle cx="19.5" cy="18.5" r="1" /></svg>
           <span class="brand-name">Railgaddi</span><span class="brand-hi" lang="hi">रेलगाड़ी</span><span class="vh">, home</span>
         </a>
         <div class="head-tools">
-          <button class="icon-btn" id="discover-btn" type="button" aria-pressed="false" aria-label="Discover" title="Discover">
-            <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="10" cy="10" r="7.5" /><path d="M12.9 7.1l-1.7 4.1-4.1 1.7 1.7-4.1z" /></svg>
+          <button class="icon-btn" id="trip-btn" type="button" aria-pressed="false" aria-label="Plan a trip with several stops" title="Plan a trip">
+            <svg viewBox="0 0 20 20" width="19" height="19" aria-hidden="true"><circle cx="5" cy="5" r="2" /><circle cx="15" cy="15" r="2" /><path d="M7 5h5.5a2.5 2.5 0 0 1 0 5h-5a2.5 2.5 0 0 0 0 5H13" /></svg>
+          </button>
+          <button class="icon-btn" id="discover-btn" type="button" aria-pressed="false" aria-label="Stories and railway facts" title="Stories">
+            <svg viewBox="0 0 20 20" width="19" height="19" aria-hidden="true"><circle cx="10" cy="10" r="7.5" /><path d="M12.9 7.1l-1.7 4.1-4.1 1.7 1.7-4.1z" /></svg>
           </button>
           <button class="icon-btn" id="saved-btn" type="button" aria-pressed="false" aria-label="Saved" title="Saved">
-            <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M10 16.5s-6.5-3.9-6.5-8.4A3.6 3.6 0 0 1 10 6.1a3.6 3.6 0 0 1 6.5 2c0 4.5-6.5 8.4-6.5 8.4z" /></svg>
+            <svg viewBox="0 0 20 20" width="19" height="19" aria-hidden="true"><path d="M10 16.5s-6.5-3.9-6.5-8.4A3.6 3.6 0 0 1 10 6.1a3.6 3.6 0 0 1 6.5 2c0 4.5-6.5 8.4-6.5 8.4z" /></svg>
             <span class="badge" id="saved-count" hidden></span>
           </button>
-          <button class="icon-btn" id="theme-btn" type="button" aria-label="Switch to dark" title="Dark">
-            <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path id="theme-icon" d="M16 11.8A6.5 6.5 0 0 1 8.2 4a6.5 6.5 0 1 0 7.8 7.8z" /></svg>
+          <button class="icon-btn" id="theme-btn" type="button" aria-label="Switch to the night train" title="Night">
+            <svg viewBox="0 0 20 20" width="19" height="19" aria-hidden="true"><path id="theme-icon" d="M16 11.8A6.5 6.5 0 0 1 8.2 4a6.5 6.5 0 1 0 7.8 7.8z" /></svg>
           </button>
           <button class="icon-btn" id="info-btn" type="button" aria-label="About Railgaddi and its data" aria-expanded="false" aria-controls="info" title="About">
-            <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="10" cy="10" r="7.5" /><path d="M10 9v5M10 6.3v.1" /></svg>
+            <svg viewBox="0 0 20 20" width="19" height="19" aria-hidden="true"><circle cx="10" cy="10" r="7.5" /><path d="M10 9v5M10 6.3v.1" /></svg>
           </button>
         </div>
       </header>
+      <i class="band" aria-hidden="true"></i>
 
-      <div class="modes" role="tablist" aria-label="What to do">
-        <button type="button" role="tab" id="tab-explore" aria-selected="true">Explore</button>
-        <button type="button" role="tab" id="tab-trip" aria-selected="false">Plan a trip</button>
+      <div class="ask" id="ask">
+        <p class="hello" id="hello"><b>Ji aayan nu!</b> Welcome aboard.</p>
+        <h1 class="ask-q">Chalo! Where's the gaddi taking you?</h1>
       </div>
 
       <form class="route" id="route" role="search" autocomplete="off">
         <div class="field">
           <span class="field-dot" aria-hidden="true"></span>
           <label class="vh" for="from-input">From</label>
-          <input id="from-input" type="search" enterkeyhint="go" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="From: city, station or train no." />
-          <button type="button" class="field-btn" id="near-btn" aria-label="Start from the station nearest you" title="Use my location">
-            <svg viewBox="0 0 20 20" width="17" height="17" aria-hidden="true"><circle cx="10" cy="10" r="3" /><path d="M10 1.5v3M10 15.5v3M1.5 10h3M15.5 10h3" /><circle cx="10" cy="10" r="6.5" /></svg>
+          <input id="from-input" type="search" enterkeyhint="go" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Your station or city, ji" />
+          <button type="button" class="field-btn" id="near-btn" aria-label="Start from the station nearest you" title="Use where I am">
+            <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="10" cy="10" r="3" /><path d="M10 1.5v3M10 15.5v3M1.5 10h3M15.5 10h3" /><circle cx="10" cy="10" r="6.5" /></svg>
           </button>
           <ul class="suggest" id="from-list" aria-label="Places to start from" hidden></ul>
         </div>
-        <div class="field">
+        <div class="field to-field">
           <span class="field-dot to" aria-hidden="true"></span>
           <label class="vh" for="to-input">To</label>
-          <input id="to-input" type="search" enterkeyhint="go" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="To: anywhere, or a town like Munnar" />
+          <input id="to-input" type="search" enterkeyhint="go" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="To: anywhere, or say Munnar" />
           <button type="button" class="field-btn" id="swap-btn" aria-label="Swap from and to" title="Swap">
-            <svg viewBox="0 0 20 20" width="17" height="17" aria-hidden="true"><path d="M7 3v14M7 3 4 6M7 3l3 3M13 17V3M13 17l-3-3M13 17l3-3" /></svg>
+            <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M7 3v14M7 3 4 6M7 3l3 3M13 17V3M13 17l-3-3M13 17l3-3" /></svg>
           </button>
           <ul class="suggest" id="to-list" aria-label="Places to go" hidden></ul>
         </div>
@@ -86,7 +89,7 @@
     <div class="map-tools" id="map-tools">
       <button class="map-btn" id="weather-btn" type="button" aria-pressed="false" aria-controls="wx-card">
         <svg viewBox="0 0 20 20" width="17" height="17" aria-hidden="true"><path d="M6 15.5h8.2a3.3 3.3 0 0 0 .4-6.6 4.6 4.6 0 0 0-8.9 1.3A2.7 2.7 0 0 0 6 15.5z" /></svg>
-        <span>Weather</span>
+        <span>Mausam</span>
       </button>
       <div class="wx-card" id="wx-card" hidden>
         <div class="seg" id="wx-mode" role="group" aria-label="Show">
@@ -95,7 +98,7 @@
           <button type="button" data-v="cloud" aria-pressed="false">Clouds</button>
         </div>
         <div class="wx-scale" id="wx-scale" aria-hidden="true"></div>
-        <p class="wx-note" id="wx-note">Loading the weather…</p>
+        <p class="wx-note" id="wx-note">Asking the clouds…</p>
       </div>
       <div class="zoom" role="group" aria-label="Zoom">
         <button type="button" id="zoom-in" aria-label="Zoom in"><svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M10 4v12M4 10h12" /></svg></button>
@@ -108,11 +111,12 @@
 
     <div class="info" id="info" role="dialog" aria-labelledby="info-title" hidden>
       <h2 id="info-title" tabindex="-1">About Railgaddi</h2>
-      <p>Pick where you start and see every place in India a train can take you. Pick a place without a station, like Munnar or Manali, and see the stations to take a train to and the road from each. Plan a trip with several stops, and see the weather where you're going.</p>
+      <p class="info-lede">Your station, every line you can ride, and a little masti on the way.</p>
+      <p>Pick where you start and watch the lines you can ride light up, as far as you're happy to sit in the train. Pick a hill town without a station, like Munnar or Manali, and see which station to take a train to and the road from there. Plan a trip with several stops, and see the weather where you're going.</p>
       <p><b>Timetable:</b> Indian Railways' <i>Trains at a Glance</i> 2026 for most long-distance trains. Trains it doesn't cover (passenger, MEMU, DEMU and the hill railways' toy trains) keep the timetable published on <a href="https://www.data.gov.in/catalog/indian-railways-train-time-table" target="_blank" rel="noopener">data.gov.in</a> (December 2017, Government Open Data License); each train says which. Other running days, and trains too new for either, come from <a href="https://en.wikipedia.org/" target="_blank" rel="noopener">Wikipedia</a> (CC BY-SA 4.0). Times change: check <a href="https://enquiry.indianrail.gov.in/mntes/" target="_blank" rel="noopener">NTES</a> before you travel, and <a href="https://github.com/nimb-ou/railgaddi/issues/new?template=correction.yml" target="_blank" rel="noopener">tell us</a> what's wrong.</p>
       <p><b>Places:</b> guides from <a href="https://en.wikivoyage.org/" target="_blank" rel="noopener">Wikivoyage</a> (CC BY-SA 4.0), summaries from <a href="https://en.wikipedia.org/" target="_blank" rel="noopener">Wikipedia</a> and landmarks from <a href="https://www.wikidata.org/" target="_blank" rel="noopener">Wikidata</a> (CC0). Photos from <a href="https://commons.wikimedia.org/" target="_blank" rel="noopener">Wikimedia Commons</a>, credited on each place. Towns from <a href="https://www.geonames.org/" target="_blank" rel="noopener">GeoNames</a> (CC BY 4.0) and airports from <a href="https://ourairports.com/" target="_blank" rel="noopener">OurAirports</a>. Road distances from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>, routed with <a href="https://project-osrm.org/" target="_blank" rel="noopener">OSRM</a>, for the places people look up most; elsewhere, and road times everywhere, are estimates.</p>
       <p><b>Weather:</b> <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (CC BY 4.0).</p>
-      <p><b>Map:</b> stations © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors and <a href="https://github.com/datameet/railways" target="_blank" rel="noopener">datameet</a>; India outline and state boundaries per Survey of India, via <a href="https://github.com/datameet/maps" target="_blank" rel="noopener">datameet/maps</a>.</p>
+      <p><b>Map:</b> stations © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors and <a href="https://github.com/datameet/railways" target="_blank" rel="noopener">datameet</a>; India outline and state boundaries per Survey of India, via <a href="https://github.com/datameet/maps" target="_blank" rel="noopener">datameet/maps</a>; the painted relief is <a href="https://www.naturalearthdata.com/" target="_blank" rel="noopener">Natural Earth</a> (public domain).</p>
       <p>Railgaddi is an independent project. It isn't affiliated with Indian Railways or IRCTC, and doesn't sell tickets. Its code is <a href="https://github.com/nimb-ou/railgaddi" target="_blank" rel="noopener">open source</a> (MIT licence); the data keeps its sources' licences.</p>
       <p id="privacy"><b>Privacy:</b> no analytics, no advertising, no tracking. What you save stays on your device. If you sign in with Google to keep it on every device, we store Google's account number for you, your first name and picture, and what you saved, never your email; delete it all any time from Saved. "Use my location" uses your position only on your device. The weather is fetched from Open-Meteo for the places you look at (their coordinates, never yours); a place name you search for that isn't in our list is looked up with Open-Meteo's place search; summaries of places without a station come from Wikipedia. Photos load from Wikimedia Commons.</p>
     </div>
@@ -121,11 +125,11 @@
       <div class="load-card">
         <div class="load-art"></div>
         <b>Railgaddi</b>
-        <span>Loading the timetable</span>
+        <span>Gaddi aa rahi hai… loading the timetable</span>
         <i class="load-bar" aria-hidden="true"></i>
       </div>
     </div>
-    <noscript><article class="static"><h1>Where can the train take you?</h1><p>Railgaddi needs JavaScript to draw the map of trains.</p></article></noscript>
+    <noscript><article class="static"><h1>Chalo! Where's the gaddi taking you?</h1><p>Railgaddi needs JavaScript to draw its map of trains. Switch it on and hop aboard.</p></article></noscript>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

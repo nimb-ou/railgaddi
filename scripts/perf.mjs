@@ -65,7 +65,7 @@ await step("tap a photo on the map", async () => {
 }, 2500);
 await page.goto(`${BASE}/from/bengaluru/to/hampi/`, { waitUntil: "networkidle2", timeout: 90000 });
 await wait(3500);
-await step("open the next train", () => tapAt(".ticket-next"), 2500);
+await step("open the next train", () => tapAt(".tk-train"), 2500);
 await step("back to the place", () => tapAt("[data-act=back]"), 2500);
 await step("close the place", () => tapAt("[data-act=close]"), 2500);
 await step("filter: toy trains", async () => {
@@ -96,7 +96,7 @@ await wait(3500);
 await step("surprise me", () => tapAt("[data-act=surprise]"), 3000);
 await tapAt("[data-act=close]"); // on phones the tabs make way for an open place
 await wait(1500);
-await step("plan a trip", () => tapAt("#tab-trip"), 2500);
+await step("plan a trip", () => tapAt("#trip-btn"), 2500);
 await step("weather layer", () => tapAt("#weather-btn"), 4000);
 
 console.log("action".padEnd(26), "input->paint ms", "long tasks ms");

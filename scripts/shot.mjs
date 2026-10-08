@@ -1,6 +1,6 @@
 // Screenshot the dev server with the installed Chrome (for design review without a visible browser).
 // node scripts/shot.mjs "<path or URL>" out.png [width] [height] [waitMs] [theme] [dpr]
-// CLICK=".ticket-next,.more button" clicks those (in order, 1.5 s apart) before the screenshot;
+// CLICK=".tk-train,.more button" clicks those (in order, 1.5 s apart) before the screenshot;
 // SCROLL=400 scrolls the panel first.
 import puppeteer from "puppeteer-core";
 

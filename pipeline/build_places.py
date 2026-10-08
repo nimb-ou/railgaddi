@@ -267,7 +267,10 @@ for code, (primary, nearby) in list(station_links.items()):
         station_links[code] = [primary, nearby]
     else:
         del station_links[code]
-city_links = {k: resolve(v) for k, v in city_links.items() if known(v)}
+# a curated city keeps the guide named exactly like it, even one that also covers a state
+# (Goa: the place people mean is the coast, and Wikivoyage's "Goa" is its guide, not Margao's)
+exact = {c["id"] for c in NET["cities"] for n in [c["name"], *c["aka"]][:1] if n.lower() in GUIDE_TITLES}
+city_links = {k: resolve(v) for k, v in city_links.items() if known(v) or (k in exact and resolve(v) in articles)}
 
 LISTING = re.compile(r"\{\{\s*(see|do|listing)\s*\|", re.I)
 

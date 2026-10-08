@@ -1,4 +1,6 @@
-// What the panel shows before anything is picked, and the places you can reach once a start is.
+// What the panel shows before anything is picked, and the places you can reach once a start is:
+// how long you'll ride (the lines on the map grow with it), a few lenses (quick getaways,
+// overnight, weekends), and the places themselves, a handful at a time.
 import { fmtMins, plural } from "../core/format";
 import type { Network, Place } from "../core/network";
 import type { GuideView, Photo } from "../core/places";
@@ -16,14 +18,15 @@ export interface HomeView {
   fact: { text: string; href: string } | null;
 }
 
-const PLAN = `<svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="5" cy="5" r="2"/><circle cx="15" cy="15" r="2"/><path d="M7 5h5.5a2.5 2.5 0 0 1 0 5h-5a2.5 2.5 0 0 0 0 5H13"/></svg>`;
+const PLAN = `<svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><circle cx="5" cy="5" r="2"/><circle cx="15" cy="15" r="2"/><path d="M7 5h5.5a2.5 2.5 0 0 1 0 5h-5a2.5 2.5 0 0 0 0 5H13"/></svg>`;
 const BACK = `<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8a5 5 0 1 0 1.5-3.5M3 3v2.5h2.5"/></svg>`;
+const DICE = `<svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true"><rect x="3.5" y="3.5" width="13" height="13" rx="3"/><circle cx="7.5" cy="7.5" r=".6"/><circle cx="12.5" cy="12.5" r=".6"/><circle cx="12.5" cy="7.5" r=".6"/><circle cx="7.5" cy="12.5" r=".6"/></svg>`;
 
 /** Where most people start from. */
 export const POPULAR = ["bengaluru", "mumbai", "delhi", "kolkata", "chennai", "hyderabad"];
 /** Hill towns people ask about, none with a station of its own. */
 export const HILLS: [string, string][] = [["Munnar", "Kerala"], ["Manali", "Himachal Pradesh"], ["Kodaikanal", "Tamil Nadu"], ["Gangtok", "Sikkim"], ["Leh", "Ladakh"], ["Madikeri", "Karnataka"], ["Mussoorie", "Uttarakhand"], ["McLeod Ganj", "Himachal Pradesh"], ["Kasol", "Himachal Pradesh"], ["Tawang", "Arunachal Pradesh"]];
-const IDEAS: [string, string][] = [["Hampi", "Boulders and temples"], ["Darjeeling", "Tea, and the toy train"], ["Varanasi", "The ghats at dawn"], ["Goa", "Beaches and old churches"]];
+const IDEAS: [string, string][] = [["Hampi", "Boulders, ruins, sunsets"], ["Darjeeling", "Chai and the toy train"], ["Varanasi", "The ghats at dawn"], ["Udaipur", "Lakes and palaces"]];
 
 /**
  * The landing panel's content, the same in the app and in the page written at build time (which
@@ -55,22 +58,32 @@ export function landingView(o: {
 export function homeHtml(v: HomeView) {
   const face = (p: Photo | null) => (p ? `<img src="${esc(photoUrl(p, 120))}" alt="" loading="lazy" decoding="async" crossorigin="anonymous" referrerpolicy="no-referrer" />` : `<i></i>`);
   return `<div class="panel-scroll"><div class="home">
-    <h1 id="panel-title" tabindex="-1">Where can the train take you?</h1>
-    <p class="lede">Pick your station to see every place you can reach. Or search for where you want to go, even hill towns with no station of their own.</p>
-    <nav class="popular" aria-label="Popular places to start from">
-      ${v.last ? `<a class="pill last" href="${esc(v.last.href)}" data-act="from" data-id="${esc(v.last.id)}" title="Where you started last time">${BACK}${esc(v.last.name)}</a>` : ""}
-      ${v.popular.map((p) => `<a class="pill" href="${esc(p.href)}" data-act="from" data-id="${esc(p.id)}">${face(p.photo)}${esc(p.name)}</a>`).join("")}
+    <button class="here" type="button" data-act="near"><i aria-hidden="true"></i><span>I'm right here: use where I am</span></button>
+    <nav aria-label="Popular places to start from">
+      <span class="lbl">Or hop on at</span>
+      <div class="chips popular">
+        ${v.last ? `<a class="pill last" href="${esc(v.last.href)}" data-act="from" data-id="${esc(v.last.id)}" title="Where you started last time">${BACK}${esc(v.last.name)}</a>` : ""}
+        ${v.popular.map((p) => `<a class="pill" href="${esc(p.href)}" data-act="from" data-id="${esc(p.id)}">${face(p.photo)}${esc(p.name)}</a>`).join("")}
+      </div>
     </nav>
-    <button class="cta" type="button" data-act="plan"><span class="cta-icon">${PLAN}</span><span><b>Plan a trip</b><small>Several stops, the train that runs each day, and the weather when you're there.</small></span></button>
+    <button class="link-btn ask-to" type="button" data-act="ask-to">Already know where you're going? Search it →</button>
 
-    <h2>No station? No problem</h2>
-    <nav class="chips" aria-label="Places without a station">${v.hills.map((h) => `<a class="pill" href="${esc(h.href)}" data-act="goto" title="${esc(h.note)}">${esc(h.name)}</a>`).join("")}</nav>
+    <section class="hills" aria-labelledby="hills-h" style="margin:6px 0 0">
+      <h2 id="hills-h">No station? Koi gal nahi.</h2>
+      <p class="sub">The hills don't all have a station. We'll find the nearest one, and the road from there.</p>
+      <nav class="chips" aria-label="Places without a station">${v.hills.map((h) => `<a href="${esc(h.href)}" data-act="goto" title="${esc(h.note)}">${esc(h.name)}</a>`).join("")}</nav>
+    </section>
 
-    <h2>Ideas</h2>
-    <div class="idea-grid">${v.ideas
-      .map((i) => `<a class="idea" href="${esc(i.href)}" data-act="goto">${i.photo ? img(i.photo, `${coverWidth(i.photo, 180, 135)}px`, 250, 500) : ""}<span>${esc(i.title)}<small>${esc(i.note)}</small></span></a>`)
-      .join("")}</div>
-    ${v.fact ? `<p class="hero-fact"><span>Did you know?</span>${esc(v.fact.text)} <a href="${esc(v.fact.href)}" data-act="discover">More in Discover →</a></p>` : ""}
+    ${v.ideas.length ? `<section aria-labelledby="ideas-h" style="margin:6px 0 0">
+      <h2 id="ideas-h">Ideas, ekdum first class</h2>
+      <p class="sub">Not sure yet? Start with one of these.</p>
+      <div class="ideas">${v.ideas
+        .map((i) => `<a class="idea" href="${esc(i.href)}" data-act="goto"><span class="arch">${i.photo ? img(i.photo, `${coverWidth(i.photo, 90, 108)}px`, 250, 500) : `<i class="ph">${esc(i.title.charAt(0))}</i>`}</span><b>${esc(i.title)}</b><small>${esc(i.note)}</small></a>`)
+        .join("")}</div>
+    </section>` : ""}
+
+    <button class="cta" type="button" data-act="plan"><span class="cta-icon">${PLAN}</span><span><b>Plan a proper yatra</b><small>Several stops, the train that runs each day, and the weather when you're there.</small></span></button>
+    ${v.fact ? `<p class="hero-fact"><span>Oye, did you know?</span>${esc(v.fact.text)} <a href="${esc(v.fact.href)}" data-act="discover">More stories →</a></p>` : ""}
   </div></div>`;
 }
 
@@ -84,6 +97,7 @@ export interface ExploreItem {
   guide: boolean; // has a travel guide (a photo may still be missing)
   appeal: number; // how much there is to see
   href: string;
+  note?: string; // the train that fits the lens ("22:30 → 06:10 · Udyan Express")
 }
 
 export interface ExploreView {
@@ -100,52 +114,94 @@ export interface ExploreView {
   noneLeave: boolean; // nothing leaves from here at all
 }
 
-const WITHIN: [number, string][] = [[Infinity, "Any length"], [120, "Up to 2 h"], [240, "Up to 4 h"], [360, "Up to 6 h"], [600, "Up to 10 h"], [960, "Up to 16 h"], [1440, "Up to a day"]];
+/** How long you'll ride: the steps, and what each one feels like. */
+export const STEPS: [number, string, string][] = [
+  [120, "2 h", "Back home in time for lunch"],
+  [240, "4 h", "A quick getaway: there and back in a day"],
+  [480, "8 h", "One good nap and you're there"],
+  [720, "12 h", "A proper safar. Pack the parathas"],
+  [1440, "A day", "Bring the pillow and the achaar"],
+  [Infinity, "Any", "As far as the tracks go. Balle balle!"],
+];
+const SPAN: Record<number, string> = { 120: "2 hours", 240: "4 hours", 480: "8 hours", 720: "12 hours", 1440: "a day" };
+
+export type Lens = "quick" | "overnight" | "weekend" | null;
+/** The lens the filters amount to. */
+export function lensOf(within: number, leave: Leave): Lens {
+  if (leave === "overnight") return "overnight";
+  if (leave === "weekend") return "weekend";
+  if (within === 240 && leave === "any") return "quick";
+  return null;
+}
+
 const KINDS: [Kind, string][] = [["all", "All trains"], ["long", "Express and mail"], ["local", "Local: passenger, MEMU, DEMU"], ["toy", "Toy trains"]];
-const LEAVES: [Leave, string][] = [["any", "Leaving any time"], ["2h", "In the next 2 h"], ["6h", "In the next 6 h"], ["overnight", "Overnight"]];
+const LEAVES: [Leave, string][] = [["any", "Leaving any time"], ["2h", "In the next 2 h"], ["6h", "In the next 6 h"], ["overnight", "Overnight"], ["weekend", "For a weekend"]];
 
 const select = <T extends string | number>(name: string, label: string, value: T, options: [T, string][]) =>
   `<select data-f="${name}" aria-label="${esc(label)}" class="${value === options[0][0] ? "" : "on"}">${options
     .map(([v, t]) => `<option value="${esc(String(v))}"${v === value ? " selected" : ""}>${esc(t)}</option>`)
     .join("")}</select>`;
 
-/** Everywhere you can go from here, nearest first, with the filters that narrow it. */
+/** "<b>160</b> quick getaways, under 4 hours away" */
+function countLine(n: number, lens: Lens, within: number, stops: boolean) {
+  const what = (one: string) => (stops ? plural(n, "stop").replace(/^[\d,]+ /, "") : n === 1 ? one : `${one}s`);
+  const b = `<b>${n.toLocaleString("en-IN")}</b>`;
+  if (lens === "quick") return `${b} quick ${n === 1 ? "getaway" : "getaways"}, under 4 hours away`;
+  if (lens === "overnight") return `${b} ${what("place")} a night train gets you to by morning. Board after dinner, wake up there`;
+  if (lens === "weekend") return `${b} weekend ${n === 1 ? "escape" : "escapes"}: leave Friday night or Saturday morning`;
+  if (within === Infinity) return `${b} ${what("place")} by direct train, no changing`;
+  return `${b} ${what("place")} within ${SPAN[within] ?? fmtMins(within)}`;
+}
+
+/** Everywhere you can go from here, nearest first, with how long you'll ride and the lenses. */
 export function exploreHtml(v: ExploreView) {
-  const shown = v.showAll ? v.items : v.items.slice(0, 60);
-  const within = WITHIN.some(([w]) => w === v.within) ? v.within : Infinity;
-  const filtered = v.kind !== "all" || within !== Infinity || v.leave !== "any";
-  return `<div class="panel-scroll">
-    <header class="explore-head">
-      <div>
-        <h2 id="panel-title" tabindex="-1">From ${esc(v.from)}</h2>
-        <p>${v.noneLeave ? "No trains leave from here in the timetable" : `${plural(v.places, "place")} · ${plural(v.trains, "train")}`}</p>
-      </div>
-      <button class="btn" type="button" data-act="surprise">Surprise me</button>
+  const shown = v.showAll ? v.items : v.items.slice(0, 6);
+  const lens = lensOf(v.within, v.leave);
+  const step = STEPS.find(([w]) => w === v.within && v.leave !== "overnight" && v.leave !== "weekend");
+  const tuned = v.kind !== "all" || v.leave === "2h" || v.leave === "6h" || !v.withGuides || v.famous;
+  const lensBtn = (l: Exclude<Lens, null>, label: string) => `<button type="button" data-act="lens" data-lens="${l}" aria-pressed="${lens === l}">${label}</button>`;
+  return `<div class="panel-scroll"><div class="explore">
+    <header class="ex-head">
+      <h2 id="panel-title" tabindex="-1">From ${esc(v.from)}</h2>
+      <p>${v.noneLeave ? "No trains leave from here in our timetable. Try a bigger station nearby?" : "Pick how long you'll ride, and watch the lines light up."}</p>
     </header>
-    <div class="filters" role="group" aria-label="Filters">
-      ${select("kind", "Which trains", v.kind, KINDS)}
-      ${select("within", "Longest ride", within, WITHIN)}
-      ${select("leave", "When you leave", v.leave, LEAVES)}
+    ${v.noneLeave ? "" : `<div class="ride">
+      <span class="lbl" id="ride-l">How long will you ride?</span>
+      <div class="seg" role="group" aria-labelledby="ride-l">${STEPS.map(([w, l]) => `<button type="button" data-act="within" data-v="${w}" aria-pressed="${step?.[0] === w}">${l}</button>`).join("")}</div>
+      <p class="ride-cap" aria-live="polite">${step ? esc(step[2]) : lens === "overnight" ? "Sleep on the train, wake up somewhere new" : lens === "weekend" ? "Two days, one bag, zero tension" : ""}</p>
+      <span class="key" aria-hidden="true">Sooner<i></i>Later</span>
     </div>
-    <div class="explore-tools">
-      <div class="seg" role="group" aria-label="Show">
-        <button type="button" data-act="list-guides" aria-pressed="${v.withGuides}">With guides</button>
-        <button type="button" data-act="list-all" aria-pressed="${!v.withGuides}">Every stop</button>
-      </div>
-      ${v.withGuides ? `<select class="sort" data-sort aria-label="Order"><option value="near"${v.famous ? "" : " selected"}>Nearest first</option><option value="famous"${v.famous ? " selected" : ""}>Most to see first</option></select>` : ""}
-      ${filtered ? `<button class="link-btn" type="button" data-act="reset">Clear filters</button>` : ""}
+    <div class="chips lenses" role="group" aria-label="Kinds of trip">
+      ${lensBtn("quick", "Quick getaways")}${lensBtn("overnight", "Overnight")}${lensBtn("weekend", "Weekends")}
+      <button type="button" data-act="surprise">${DICE}Surprise me</button>
     </div>
+    <p class="count-line">${countLine(v.items.length, lens, v.within, !v.withGuides)}</p>`}
     ${shown.length
       ? `<ol class="dest-list">${shown
           .map(
             (it) => `<li><a href="${esc(it.href)}" data-act="nav" data-id="${esc(it.id)}">
               ${thumb(it.photo, it.title, it.guide)}
-              <span class="dl-name"><b>${esc(it.title)}</b><small>${esc(it.state)}</small></span>
+              <span class="dl-name"><b>${esc(it.title)}</b><small>${esc(it.note ?? it.state)}</small></span>
               <span class="dl-time"><b>${fmtMins(it.mins)}</b><small>${plural(it.trains, "train")}</small></span>
             </a></li>`,
           )
           .join("")}</ol>`
-      : `<p class="empty" style="margin: 16px 18px">${v.noneLeave ? "Try a nearby bigger station." : v.withGuides && v.places ? "None of these places has a travel guide. Try “Every stop”." : "No train matches these filters."}</p>`}
-    ${!v.showAll && v.items.length > shown.length ? `<button class="link-btn show-all" type="button" data-act="list-more">Show all ${v.items.length}</button>` : ""}
-  </div>`;
+      : v.noneLeave ? "" : `<p class="empty">${v.withGuides && v.places ? "Oho, none of these has a travel guide yet. Try “Every stop” below." : lens === "weekend" ? "No weekend trains from here, sadly. Try Overnight, or a longer ride." : "Oho, nothing this close. Try a longer ride."}</p>`}
+    ${!v.showAll && v.items.length > shown.length ? `<button class="link-btn show-all" type="button" data-act="list-more">See all ${v.items.length.toLocaleString("en-IN")} →</button>` : ""}
+    ${v.noneLeave ? "" : `<details class="fine"${tuned ? " open" : ""}>
+      <summary>Fine-tune</summary>
+      <div class="fine-body">
+        <div class="filters" role="group" aria-label="Filters">
+          ${select("kind", "Which trains", v.kind, KINDS)}
+          ${select("leave", "When you leave", v.leave, LEAVES)}
+          ${v.withGuides ? `<select class="sort" data-sort aria-label="Order"><option value="near"${v.famous ? "" : " selected"}>Nearest first</option><option value="famous"${v.famous ? " selected" : ""}>Most to see first</option></select>` : ""}
+        </div>
+        <div class="seg" role="group" aria-label="Show">
+          <button type="button" data-act="list-guides" aria-pressed="${v.withGuides}">Places with guides</button>
+          <button type="button" data-act="list-all" aria-pressed="${!v.withGuides}">Every stop</button>
+        </div>
+        ${v.kind !== "all" || v.within !== Infinity || v.leave !== "any" ? `<button class="link-btn" type="button" data-act="reset" style="justify-self:start">Clear it all, start fresh</button>` : ""}
+      </div>
+    </details>`}
+  </div></div>`;
 }

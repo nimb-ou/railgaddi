@@ -1,54 +1,80 @@
-# Railgaddi design: calm, clear, quick
+# Railgaddi design: India's trains, with a little masti
 
-Railgaddi is for deciding where to go. Everything on screen should help with that and nothing
-else: the map shows where, one panel beside it says what, and nothing moves unless you asked.
+Railgaddi is for deciding where to go by train, and enjoying the deciding. It should feel like
+India and its railways: the painted land, a station's yellow name board, a jharokha window, an
+old railway poster, phulkari embroidery. It looks simple and asks one thing at a time; it goes
+as deep as you want behind that.
 
-(The first version, September 2026, borrowed the journey's objects: split-flap times, LED
-boards, trains moving on the map, lines spreading out, a landscape passing while things load.
-Each was charming; together they made the site feel slow. They're gone, or quietened into their
-plain forms.)
+(The first version, September 2026, borrowed the journey's objects as motion: split-flap times,
+LED boards, trains moving on the map. Charming, but slow. The second, plain and white, was quick
+but had no character. This one, October 2026, keeps the speed and brings the character back
+through the look and the words, not through movement.)
+
+## The heart
+
+Pick your station and the map lights up every line you can ride from it, without changing.
+Choose how long you'll sit in the train (2 h, 4 h, 8 h, 12 h, a day, any) and the lines grow out
+from your station to that far, the places worth going to rising on the map as photos in arches.
+Lenses narrow it further: quick getaways, overnight (wake up there), weekends (Friday night or
+Saturday morning). Then a place: its photo in an arch, the ride on a ticket, and the depth
+behind pills (what to see, every train, a quicker way with a change, the weather, close by).
 
 ## Layout
 
-- **One panel** beside the map (a sheet you pull up on phones) holds everything, top to bottom:
-  the brand and a few icons; *Explore* or *Plan a trip*; the From / To fields; then what you're
-  looking at: the places you can reach, a place, a train, a trip, Discover, what you saved.
-- **The map** shows where. Lines from where you start, coloured by ride time; photos of the
-  places worth going to, a few at first and more as you zoom in; the picked place ringed.
-- **Over the map**, top right: the weather layer and zoom. Nothing else floats.
+- **The painted land** fills the window: Natural Earth's relief, reprojected to the map's own
+  conic (`pipeline/build_relief.py`), softened when you zoom in close.
+- **One ivory panel** floats over it (a sheet you pull up on phones): the name and a few icons,
+  a strip of phulkari, then one thing: the question (landing), the places from your station, a
+  place, a train, a trip, the stories, what you saved.
+- **Over the map**, top right: the weather layer (Mausam) and zoom. Nothing else floats.
+
+## On the map
+
+- **Your station** wears its name board, yellow with a black rim, in the local script, Hindi
+  and English, standing on two posts. "Use where I am" adds the blue dot.
+- **The lines** are drawn as track, rails with sleepers: cream across the land for the whole
+  network, and from your station madder (near) to turmeric (far). At night they glow amber.
+- **Places** are photos in a cusped Rajput arch with a turmeric rim, a few at first, more as you
+  zoom in; a place without a photo yet is its initial in an empty arch.
 
 ## Colour
 
-- **White surfaces**, a pale blue-grey sea, near-white land. Night swaps them for deep slate.
-- **Blue** is trains: the lines, a train's stops, links, the ride you're on.
-- **Red** is you and what you picked: where you start, the picked place, a trip's stops, the
-  pin of a place without a station. One red thing per view, ideally.
-- **Yellow** is the brand mark, and the soft note on things that aren't trains (a place with no
-  station, a toy train). Nothing loud.
-- Ride time on the map is one hue getting lighter the further you'd go, not a rainbow. The
-  weather layer is the one place with a full scale, because temperature has one.
+- **Day** is an old poster: ivory paper, indigo ink, madder and turmeric, peacock for links.
+- **Night** is the night train: deep indigo, lamp-lit ivory, the lines glowing.
+- **Rani pink** is you and what you picked (the selected place, the train you're on). The
+  phulkari brights (marigold, rani, parrot green) are for decoration only, in the band.
+- Ride time is one ramp, madder to turmeric, never a rainbow. The weather layer is the one full
+  scale, because temperature has one.
 
 All colours are CSS variables in `src/ui/style.css`; the canvas map reads the same variables.
 
 ## Type
 
-Archivo for everything, at reading width; Noto Sans for Indian scripts. Figures are tabular so
-times line up. Headings are semibold and small; the only big type is a place's name and a
-train's times.
+Tiro Devanagari Hindi for names (places, trains, headings), Hind for reading, Rozha One for the
+big numbers (times, durations, kilometres), as a railway poster sets them. Noto Sans for Indian
+scripts on boards. No Gurmukhi in the interface: the Punjabi flavour is in the words.
+
+## Voice
+
+Fun, warm, a bit Punjabi, always clear: Roman letters that everyone can read, with the English
+alongside or obvious from context. "Chalo! Where's the gaddi taking you?", "No station? Koi gal
+nahi.", "Balle balle!", "Gaddi aa rahi hai… loading the timetable". Facts stay exact: the jokes
+never change a time, a day or a distance. It's Railgaddi, never Railgaadi.
 
 ## Motion
 
-Short and only in answer to you: the view moves to what you picked in about half a second; the
-lines from a new start fade in over a quarter of a second; photos appear as they load. Nothing
-loops, nothing moves on its own, and `prefers-reduced-motion` makes all of it instant.
+Calm, and only in answer to you: lines spread out from your station over about a second, the
+view moves to what you picked in about half a second, panels rise, photos fade in as they
+load. Nothing loops, nothing moves on its own, and `prefers-reduced-motion` makes it instant.
 
 ## Rules
 
 1. One place for everything: if it isn't the map, it's in the panel.
-2. Show little at first. A dozen photos, four trains, the stops around yours; more when asked.
+2. Show little at first: six places, one train on the ticket, the stops around yours; more
+   behind a pill or a "see all".
 3. Say where facts come from (the timetable, Wikipedia, Open-Meteo) and when they're estimates
-   (road times).
-4. Cards only where there's a real thing (a ticket's facts, a train you could take, a trip's
-   stretch); otherwise ruled lines and space.
+   (road times, small stops placed between printed ones).
+4. A ticket only for a real ride; a board only for a real station; an arch only for a real photo
+   of a real place.
 5. Photos are real (Wikimedia Commons) and always credited.
 6. Every view has an address, so it can be shared and the Back button works.

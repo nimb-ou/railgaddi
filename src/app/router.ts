@@ -26,7 +26,7 @@ export interface Route {
   trip?: { stops: string[]; nights: number[]; date: string }; // a trip's stops (slugs), nights at each, first day
 }
 
-const LEAVES: Leave[] = ["any", "2h", "6h", "overnight"];
+const LEAVES: Leave[] = ["any", "2h", "6h", "overnight", "weekend"];
 const KINDS: Kind[] = ["all", "long", "local", "toy"];
 const base = () => import.meta.env.BASE_URL.replace(/\/$/, "");
 

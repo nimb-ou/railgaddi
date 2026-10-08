@@ -163,9 +163,9 @@ const urls: string[] = ["/"];
 // the landing page: canonical and absolute preview image
 render({
   path: "/",
-  title: "Railgaddi · where can the train take you?",
-  description: "Pick your station and see every place in India a train can take you without changing, with photos and what to see when you get there.",
-  body: `<h1>Where can the train take you?</h1><p>Pick your station and see every place in India a train can take you without changing.</p>
+  title: "Railgaddi · chalo, where's the train taking you?",
+  description: "Pick your station and watch every line you can ride light up across India: every place a direct train goes, with photos and what to see when you get there.",
+  body: `<h1>Chalo! Where's the gaddi taking you?</h1><p>Pick your station and see every place in India a train can take you without changing.</p>
     <h2>Start from</h2><ul>${[...origins].filter((o) => o.isCity).sort((a, b) => b.halts - a.halts).map((o) => `<li>${link(path(o), titleOf(o, null))}</li>`).join("")}</ul>`,
   jsonld: { "@context": "https://schema.org", "@type": "WebSite", name: "Railgaddi", url: `${SITE}/`, inLanguage: "en-IN" },
 });

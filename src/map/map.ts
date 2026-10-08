@@ -10,7 +10,7 @@ import type { Geom, Network, Place, Train } from "../core/network";
 import type { Photo } from "../core/places";
 import type { BubbleCandidate } from "../core/rank";
 import type { Leg } from "../core/trips";
-import { coverWidth, drawCover, loadedImage, photoUrl } from "../ui/photos";
+import { coverWidth, loadedImage, photoUrl } from "../ui/photos";
 
 export interface SightPin {
   i: number;
@@ -47,7 +47,7 @@ export interface Insets {
 interface Palette {
   sea: string; sea2: string; land: string; landEdge: string; ripple: string; border: string; net: string;
   ink: string; livery: string; accent: string; text: string; muted: string; halo: string; ring: string;
-  board: string; boardInk: string;
+  board: string; boardInk: string; rail: string; reliefAlpha: number;
 }
 
 interface Motion {
@@ -76,12 +76,36 @@ interface Shown {
 }
 
 const TAU = Math.PI * 2;
+/** An arch photo's size for a given half-width: a little taller than wide, like a jharokha. */
+const archH = (R: number) => R * 2.36;
+
+/** The cusped arch of a Rajput window, as a path in a w x h box (the same shape as the panel's). */
+function archPath(c: CanvasRenderingContext2D | Path2D, x: number, y: number, w: number, h: number) {
+  const X = (u: number) => x + u * w, Y = (v: number) => y + v * h;
+  c.moveTo(X(0), Y(1));
+  c.lineTo(X(0), Y(0.42));
+  c.bezierCurveTo(X(0), Y(0.36), X(0.02), Y(0.33), X(0.06), Y(0.31));
+  c.bezierCurveTo(X(0.06), Y(0.25), X(0.1), Y(0.21), X(0.16), Y(0.2));
+  c.bezierCurveTo(X(0.17), Y(0.13), X(0.23), Y(0.09), X(0.3), Y(0.09));
+  c.bezierCurveTo(X(0.34), Y(0.04), X(0.41), Y(0.02), X(0.46), Y(0.02));
+  c.lineTo(X(0.5), Y(0));
+  c.lineTo(X(0.54), Y(0.02));
+  c.bezierCurveTo(X(0.59), Y(0.02), X(0.66), Y(0.04), X(0.7), Y(0.09));
+  c.bezierCurveTo(X(0.77), Y(0.09), X(0.83), Y(0.13), X(0.84), Y(0.2));
+  c.bezierCurveTo(X(0.9), Y(0.21), X(0.94), Y(0.25), X(0.94), Y(0.31));
+  c.bezierCurveTo(X(0.98), Y(0.33), X(1), Y(0.36), X(1), Y(0.42));
+  c.lineTo(X(1), Y(1));
+  c.closePath();
+}
 const BUCKETS = 28;
 const MAX_MINS = 36 * 60;
 const bucketOf = (m: number) => Math.min(BUCKETS - 1, Math.floor(Math.sqrt(Math.max(0, m) / MAX_MINS) * BUCKETS));
 const bucketMins = (b: number) => ((b + 0.5) / BUCKETS) ** 2 * MAX_MINS;
+const bucketStart = (b: number) => (b / BUCKETS) ** 2 * MAX_MINS;
 const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-const FONT = "'Archivo Variable', 'Archivo', system-ui, sans-serif";
+const FONT = "Hind, system-ui, sans-serif";
+const NAME = "'Tiro Devanagari Hindi', Georgia, serif"; // place names, as on the panel
+const SCRIPTS = "'Noto Sans Kannada Variable', 'Noto Sans Tamil Variable', 'Noto Sans Telugu Variable', 'Noto Sans Malayalam Variable', 'Noto Sans Bengali Variable', 'Noto Sans Gujarati Variable', 'Noto Sans Gurmukhi Variable', 'Noto Sans Oriya Variable', 'Noto Sans Devanagari Variable', Hind, sans-serif";
 
 export class RailMap {
   private ctx: CanvasRenderingContext2D;
@@ -132,6 +156,9 @@ export class RailMap {
   private hover: Place | null = null;
   private hoverSight = -1;
   private fade = 1; // the routes fade in over a quarter of a second when the start changes
+  private limit = Infinity; // minutes from the start drawn so far: the lines spread outward
+  private growFrom = 0;
+  private growStart = 0;
   private fadeFrom = 0;
   private maxMins = 1;
   private lastDraw = 0;
@@ -141,6 +168,9 @@ export class RailMap {
   private weather: { img: HTMLCanvasElement; alpha: number; labels: { x: number; y: number; text: string; strong: boolean }[] } | null = null;
   private spot: { x: number; y: number; name: string; to: { anchor: number; label: string }[] } | null = null;
   private trip: { stops: { x: number; y: number; n: number; label: string }[]; legs: Leg[]; roads: [number, number, number][]; links: [number, number, number, number][] } | null = null;
+  private relief: HTMLImageElement | null = null; // the painted land (Natural Earth), in the map's own frame
+  private you: [number, number] | null = null; // where you are, if you said so (it never leaves the device)
+  private originBoards = new Map<string, HTMLCanvasElement>();
 
   /** What the app wants to hear about: picks, hovers, clicks on empty map. */
   hooks: Hooks = { onPick() {}, onPickSight() {}, onHover() {}, onBackground() {} };
@@ -200,10 +230,12 @@ export class RailMap {
       sea: v("--sea"), sea2: v("--sea-2"), land: v("--land"), landEdge: v("--land-edge"), ripple: v("--ripple"),
       border: v("--border"), net: v("--net"), ink: v("--ink"), livery: v("--livery"), accent: v("--accent"),
       text: v("--text"), muted: v("--muted"), halo: v("--halo"), ring: v("--ring"), board: v("--board"), boardInk: v("--board-ink"),
+      rail: v("--rail") || v("--net"), reliefAlpha: parseFloat(v("--relief")) || 0,
     };
     this.labelWidth.clear();
     this.nameWidth.clear();
     this.boards.clear();
+    this.originBoards?.clear();
     this.netStrength = parseFloat(v("--net-strength")) || 1;
     const scale = d3
       .scaleLinear<string>()
@@ -345,6 +377,7 @@ export class RailMap {
   setOrigin(origin: Place | null, active: Map<Train, ActiveTrain>, reach: Reach[], animate: boolean, toward = false) {
     this.dirty = true;
     const changed = origin !== this.origin || toward !== this.toward;
+    const prevMax = this.maxMins;
     this.origin = origin;
     this.toward = toward;
     this.reach = reach;
@@ -379,6 +412,13 @@ export class RailMap {
       this.fade = animate && !reduceMotion() && origin ? 0 : 1;
       this.fadeFrom = performance.now();
     }
+    // the lines spread out from the station: from nothing for a new start, from what was already
+    // drawn when the ride gets longer
+    if (animate && !reduceMotion() && origin) {
+      this.growFrom = changed ? 0 : Math.min(this.limit, prevMax);
+      this.growStart = performance.now();
+      this.limit = this.growFrom;
+    } else this.limit = Infinity;
   }
 
   select(place: Place | null) {
@@ -582,7 +622,19 @@ export class RailMap {
     this.fly(this.transformFor(b.box(0.12), maxK), duration);
   }
 
-  /** Is this point on India's land (not the sea)? */
+  /** Where you are (a blue dot), or null. */
+  setYou(at: { lat: number; lon: number } | null) {
+    this.dirty = true;
+    this.you = at ? (this.proj([at.lon, at.lat]) as [number, number]) : null;
+  }
+
+  /** The painted land: hills, plains and deserts under the lines (see pipeline/build_relief.py). */
+  setRelief(img: HTMLImageElement) {
+    this.relief = img;
+    this.baseKey = "";
+    this.dirty = true;
+  }
+
   /** Towns to name on the land when zoomed in, most important first (`rank`: bigger first). */
   setTowns(list: { lat: number; lon: number; name: string; rank: number }[]) {
     this.townsLL = [...list].sort((a, b) => b.rank - a.rank);
@@ -775,7 +827,20 @@ export class RailMap {
   private transformFor([[x0, y0], [x1, y1]]: [[number, number], [number, number]], maxK: number) {
     const { top, right, bottom, left } = this.insets;
     const L = left + 16, R = this.w - right - 16, T = top + 16, B = this.h - bottom - 16;
-    const k = Math.max(0.2, Math.min(maxK, (R - L) / Math.max(1, x1 - x0), (B - T) / Math.max(1, y1 - y0)));
+    const scale = () => Math.max(0.2, Math.min(maxK, (R - L) / Math.max(1, x1 - x0), (B - T) / Math.max(1, y1 - y0)));
+    let k = scale();
+    // your station's board stands above it: leave it room, so it isn't cut off at the edge
+    const o = this.origin;
+    if (o && !this.trip && this.ok[o.anchor]) {
+      const ox = this.sx[o.anchor], oy = this.sy[o.anchor];
+      if (ox >= x0 && ox <= x1 && oy >= y0 && oy <= y1) {
+        const [bw, bh] = this.originBoardSize(o);
+        y0 = Math.min(y0, oy - (bh + 10) / k);
+        x0 = Math.min(x0, ox - (bw / 2 + 6) / k);
+        x1 = Math.max(x1, ox + (bw / 2 + 6) / k);
+        k = scale();
+      }
+    }
     return d3.zoomIdentity.translate((L + R) / 2 - (k * (x0 + x1)) / 2, (T + B) / 2 - (k * (y0 + y1)) / 2).scale(k);
   }
 
@@ -848,8 +913,16 @@ export class RailMap {
    */
   private frame(now: number) {
     if (this.fade < 1) this.fade = Math.min(1, (now - this.fadeFrom) / 260);
+    let growing = false;
+    if (this.limit < this.maxMins) {
+      const t = Math.min(1, (now - this.growStart) / 1100);
+      const e = 1 - Math.pow(1 - t, 3);
+      this.limit = t >= 1 ? Infinity : this.growFrom + (this.maxMins - this.growFrom) * e;
+      growing = true;
+      this.dirty = true;
+    }
     if (this.baseCss && now - this.lastZoom >= 120) this.dirty = true; // the view settled: draw the land crisp
-    let fading = this.fade < 1;
+    let fading = this.fade < 1 || growing;
     for (const s of this.shown.values()) if (s.alpha !== s.target) fading = true;
     if (this.dirty || fading) {
       this.draw(Math.min(now - this.lastDraw, 100), true);
@@ -918,6 +991,17 @@ export class RailMap {
     }
     c.fillStyle = this.c.land;
     c.fill(this.landPath);
+    if (this.relief && this.c.reliefAlpha > 0) {
+      // the land itself: the Himalaya, the Thar, the Deccan, the Ghats
+      c.save();
+      c.clip(this.landPath);
+      // it's painted at two pixels a map unit: close in, it softens rather than blurs
+      c.globalAlpha = this.c.reliefAlpha * (1 - 0.45 * Math.min(1, Math.max(0, (k - 3) / 6)));
+      c.imageSmoothingEnabled = true;
+      c.imageSmoothingQuality = "high";
+      c.drawImage(this.relief, 0, 0, 1000, 1100);
+      c.restore();
+    }
     if (this.weather) {
       // the weather lies on the land only, softly, under the lines
       c.save();
@@ -938,22 +1022,32 @@ export class RailMap {
     c.setLineDash([6 / k, 5 / k]);
     c.stroke(this.tropicPath);
     c.setLineDash([]);
-    // every line in the country, faint, busier corridors a little darker
-    const faint = (this.origin ? 0.3 : 0.85) * this.netStrength;
-    const widths = [0.5, 0.7, 0.9, 1.1, 1.4];
-    const alphas = [0.14, 0.2, 0.28, 0.36, 0.46];
-    c.strokeStyle = this.c.net;
-    c.lineCap = "round";
+    // every line in the country, as rails: busier corridors a little heavier, and sleepers across
+    // them once you're close enough to see them; quieter while your own routes are drawn
+    const faint = (this.origin ? 0.45 : 1) * this.netStrength;
+    const widths = [0.55, 0.7, 0.85, 1.05, 1.3];
+    const alphas = [0.32, 0.4, 0.5, 0.6, 0.7];
+    c.strokeStyle = this.c.rail;
+    c.lineCap = "butt";
     this.netPaths.forEach((p, i) => {
       c.globalAlpha = Math.min(1, alphas[i] * faint);
       c.lineWidth = widths[i] / k;
       c.stroke(p);
     });
+    if (k >= 2.4) {
+      c.setLineDash([0.8 / k, 4.6 / k]);
+      c.lineWidth = 3.4 / k;
+      this.netPaths.forEach((p, i) => {
+        c.globalAlpha = Math.min(1, alphas[i] * faint * 0.75);
+        c.stroke(p);
+      });
+      c.setLineDash([]);
+    }
     c.globalAlpha = 1;
     c.restore();
     this.drawNames(c);
     const [tx, ty] = [this.tf.applyX(this.tropicLabel[0]), this.tf.applyY(this.tropicLabel[1])];
-    c.font = `italic 500 10.5px ${FONT}`;
+    c.font = `italic 400 11px ${NAME}`;
     c.fillStyle = this.c.muted;
     c.globalAlpha = 0.8;
     c.fillText("Tropic of Cancer", tx, ty - 6);
@@ -977,6 +1071,7 @@ export class RailMap {
     if (this.spot) this.drawSpot();
     if (layout) this.layoutBubbles(); // where photos go only changes with the view
     this.drawBubbles(dt);
+    this.drawYou();
     if (this.origin && !this.trip) {
       this.drawPicked();
       this.drawOrigin();
@@ -985,14 +1080,13 @@ export class RailMap {
     if (this.sights.length) this.drawSights();
   }
 
-  /** The railway-map symbol: once zoomed in, lines get pale sleeper ties. */
+  /** The railway-map symbol: sleepers across the rail, in the line's own colour. */
   private ties(stroke: () => void, width: number) {
     const ctx = this.ctx;
     ctx.save();
-    ctx.strokeStyle = this.c.land;
-    ctx.lineWidth = width;
+    ctx.lineWidth = width * 3.4;
     ctx.lineCap = "butt";
-    ctx.setLineDash([width * 2.4, width * 3]);
+    ctx.setLineDash([1.3, 5.2]);
     stroke();
     ctx.restore();
   }
@@ -1017,15 +1111,26 @@ export class RailMap {
       }
     }
     const cache = this.routeCache;
+    const grown = (b: number) => bucketStart(b) <= this.limit;
     ctx.save();
     ctx.setTransform(this.dpr * k, 0, 0, this.dpr * k, this.dpr * x, this.dpr * y);
-    ctx.lineWidth = (close ? 3 : 1.25) / k;
     ctx.globalAlpha = dim * this.fade;
+    // the rail, then sleepers across it: track, in the colour of how soon you're there
+    ctx.lineCap = "butt";
+    ctx.lineWidth = (close ? 2.4 : 1.5) / k;
     cache.forEach((p, b) => {
+      if (!grown(b)) return;
       ctx.strokeStyle = this.lut[b];
       ctx.stroke(p);
     });
-    if (close && dim > 0.5) this.ties(() => cache.forEach((p) => ctx.stroke(p)), 1.2 / k);
+    ctx.setLineDash([1.1 / k, (close ? 5.6 : 4.6) / k]);
+    ctx.lineWidth = (close ? 5.6 : 4) / k;
+    cache.forEach((p, b) => {
+      if (!grown(b)) return;
+      ctx.strokeStyle = this.lut[b];
+      ctx.stroke(p);
+    });
+    ctx.setLineDash([]);
     ctx.restore();
     // a place reached only with a change: its quickest way, in livery
     if (focus && !trainFocus && !this.sights.length && this.hintLegs.length) {
@@ -1073,8 +1178,15 @@ export class RailMap {
         ctx.globalAlpha = 1;
       }
       const ride = this.lineOf(t, t.km[leg.from] - 0.01, t.km[leg.to] + 0.01);
+      ctx.strokeStyle = this.c.halo;
+      ctx.lineWidth = 8;
+      ctx.lineCap = "round";
+      ctx.globalAlpha = 0.85;
+      ctx.stroke(ride);
+      ctx.globalAlpha = 1;
+      ctx.lineCap = "butt";
       ctx.strokeStyle = this.c.accent;
-      ctx.lineWidth = 4;
+      ctx.lineWidth = 3;
       ctx.stroke(ride);
       this.ties(() => ctx.stroke(ride), 1.4);
     }
@@ -1153,6 +1265,7 @@ export class RailMap {
       const p = d.place;
       if (!this.ok[p.anchor] || this.shown.get(p)?.alpha === 1) continue;
       if (p.halts < minHalts && p !== this.selected && p !== this.hover) continue;
+      if (d.mins > this.limit) continue;
       const x = this.tf.applyX(this.sx[p.anchor]);
       const y = this.tf.applyY(this.sy[p.anchor]);
       if (x < -5 || y < -5 || x > this.w + 5 || y > this.h + 5) continue;
@@ -1221,25 +1334,90 @@ export class RailMap {
     }
   }
 
-  /** Where you start: a solid dot in a ring, the one thing on the map in the accent colour. */
+  /**
+   * Where you start: its station's name board, the yellow one every Indian station has, in the
+   * local script, Hindi and English, standing on its two posts at the station.
+   */
   private drawOrigin() {
     const o = this.origin;
     if (!o || !this.ok[o.anchor]) return;
     const ctx = this.ctx;
     const x = this.tf.applyX(this.sx[o.anchor]), y = this.tf.applyY(this.sy[o.anchor]);
-    ctx.globalAlpha = 0.18;
-    ctx.fillStyle = this.c.accent;
     ctx.beginPath();
-    ctx.arc(x, y, 14, 0, TAU);
+    ctx.arc(x, y, 4, 0, TAU);
+    ctx.fillStyle = "#111";
     ctx.fill();
-    ctx.globalAlpha = 1;
+    const b = this.originBoard(o);
+    const w = b.width / this.dpr, h = b.height / this.dpr;
+    ctx.drawImage(b, x - w / 2, y - h - 2, w, h);
+  }
+
+  private originBoardSize(o: Place): [number, number] {
+    const b = this.originBoard(o);
+    return [b.width / this.dpr, b.height / this.dpr];
+  }
+
+  private originBoard(o: Place) {
+    const key = `${o.id}|${this.dpr}`;
+    const hit = this.originBoards.get(key);
+    if (hit) return hit;
+    const en = o.name.replace(/\s+(Junction|Jn\.?)$/i, "").replace(/\s*\((.+)\)$/, "").toUpperCase();
+    const lines: [string, string][] = [];
+    if (o.local && o.local !== o.hi) lines.push([o.local, `600 12px ${SCRIPTS}`]);
+    if (o.hi) lines.push([o.hi, `500 12.5px 'Noto Sans Devanagari Variable', ${NAME}`]);
+    lines.push([en, `600 10.5px ${FONT}`]);
+    const m = document.createElement("canvas").getContext("2d")!;
+    let tw = 0;
+    for (const [t, f] of lines) {
+      m.font = f;
+      tw = Math.max(tw, m.measureText(t).width + (f.includes(FONT) ? t.length * 0.8 : 0));
+    }
+    const W = Math.ceil(tw + 18), lineH = 15, boardH = lines.length * lineH + 7, legs = 7;
+    const cv = document.createElement("canvas");
+    cv.width = Math.ceil((W + 4) * this.dpr);
+    cv.height = Math.ceil((boardH + legs + 4) * this.dpr);
+    const c = cv.getContext("2d")!;
+    c.scale(this.dpr, this.dpr);
+    c.fillStyle = "#2b2b2b";
+    c.fillRect(W * 0.22, boardH, 2, legs + 2);
+    c.fillRect(W * 0.78, boardH, 2, legs + 2);
+    c.shadowColor = "rgba(0,0,0,0.3)";
+    c.shadowBlur = 5;
+    c.shadowOffsetY = 2;
+    c.fillStyle = "#f4c430";
+    c.fillRect(2, 2, W, boardH);
+    c.shadowColor = "transparent";
+    c.lineWidth = 1.5;
+    c.strokeStyle = "#111";
+    c.strokeRect(2, 2, W, boardH);
+    c.fillStyle = "#111";
+    c.textAlign = "center";
+    lines.forEach(([t, f], i) => {
+      c.font = f;
+      if (f.includes(FONT)) c.letterSpacing = "0.8px";
+      c.fillText(t, 2 + W / 2, 2 + 15 + i * lineH - 2);
+      c.letterSpacing = "0px";
+    });
+    this.originBoards.set(key, cv);
+    return cv;
+  }
+
+  /** Where you are: the blue dot of every map, quiet. */
+  private drawYou() {
+    if (!this.you) return;
+    const ctx = this.ctx;
+    const x = this.tf.applyX(this.you[0]), y = this.tf.applyY(this.you[1]);
+    ctx.fillStyle = "rgba(47, 125, 225, 0.18)";
     ctx.beginPath();
-    ctx.arc(x, y, 6.5, 0, TAU);
-    ctx.fillStyle = this.c.ring;
+    ctx.arc(x, y, 15, 0, TAU);
     ctx.fill();
+    ctx.fillStyle = "#fff";
     ctx.beginPath();
-    ctx.arc(x, y, 4.5, 0, TAU);
-    ctx.fillStyle = this.c.accent;
+    ctx.arc(x, y, 7, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = "#2f7de1";
+    ctx.beginPath();
+    ctx.arc(x, y, 5, 0, TAU);
     ctx.fill();
   }
 
@@ -1432,8 +1610,8 @@ export class RailMap {
   private labelWidth = new Map<string, number>();
 
   /** Label lettering: semibold, as written. */
-  private boardFont(size = 11.5) {
-    this.setFont(`620 ${size}px ${FONT}`, "normal");
+  private boardFont(size = 12.5) {
+    this.setFont(`400 ${size}px ${NAME}`, "normal");
   }
 
   private plainFont(weight: number, size: number) {
@@ -1492,12 +1670,12 @@ export class RailMap {
     c.roundRect(x - w / 2, top, w, h, h / 2);
     c.fill();
     c.shadowColor = "transparent";
-    c.font = `620 11.5px ${FONT}`;
+    c.font = `400 12.5px ${NAME}`;
     c.fillStyle = this.c.boardInk;
     c.textAlign = "center";
-    c.fillText(text, x, top + 13.4);
+    c.fillText(text, x, top + 13.8);
     if (under) {
-      c.font = `600 10.5px ${FONT}`;
+      c.font = `600 11px ${FONT}`;
       c.lineJoin = "round";
       c.lineWidth = 3;
       c.strokeStyle = this.c.halo;
@@ -1514,11 +1692,14 @@ export class RailMap {
     const R = this.radius();
     const narrow = this.w < 720;
     const k = this.tf.k;
-    const maxN = Math.round(Math.min(narrow ? 22 : 36, (narrow ? 6 : 11) + (narrow ? 4 : 6) * Math.log2(Math.max(1, k * 1.4))));
+    // a few photos, never crowding: more as you zoom in
+    const maxN = Math.round(Math.min(narrow ? 10 : 18, (narrow ? 4 : 7) + (narrow ? 2.5 : 4) * Math.log2(Math.max(1, k * 1.4))));
     const boxes: [number, number, number, number][] = this.safe.map((r) => [r.left - 8, r.top - 8, r.right + 8, r.bottom + 8]);
     if (this.origin && this.ok[this.origin.anchor]) {
+      // your station's board
       const ox = this.tf.applyX(this.sx[this.origin.anchor]), oy = this.tf.applyY(this.sy[this.origin.anchor]);
-      boxes.push([ox - 28, oy - 28, ox + 28, oy + 6]);
+      const [bw, bh] = this.originBoardSize(this.origin);
+      boxes.push([ox - bw / 2 - 4, oy - bh - 6, ox + bw / 2 + 4, oy + 8]);
     }
     const alone = this.pickedAlone();
     if (alone) {
@@ -1526,9 +1707,10 @@ export class RailMap {
       boxes.push([alone[0] - Math.max(half, 10), alone[1] - 10, alone[0] + Math.max(half, 10), alone[1] + 32]);
     }
     const placed = new Map<Place, [number, number]>();
-    const off = R + 8;
+    const H = archH(R);
+    const off = H / 2 + 8;
     // where a photo may float: above its station first, then below, beside, diagonal
-    const spots: [number, number][] = [[0, -off], [0, off + 4], [-off - 14, 0], [off + 14, 0], [-off, -off], [off, -off], [-off, off], [off, off]];
+    const spots: [number, number][] = [[0, -off], [0, off + 4], [-R - 22, -6], [R + 22, -6], [-R - 10, -off], [R + 10, -off], [-R - 10, off], [R + 10, off]];
     const overlaps = (box: [number, number, number, number]) => {
       if (box[0] < 4 || box[1] < 4 || box[2] > this.w - 4 || box[3] > this.h - 4) return true;
       for (const b of boxes) if (box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1]) return true;
@@ -1537,16 +1719,17 @@ export class RailMap {
     const tryPlace = (c: BubbleCandidate) => {
       const p = c.place;
       if (placed.size >= maxN || placed.has(p) || !this.ok[p.anchor]) return;
+      if (c.mins !== null && c.mins > this.limit) return; // the lines haven't reached it yet
       if (this.sights.length || this.spot || this.trip) return; // a place's sights, a place without a station, a trip: keep the map quiet
       const x = this.tf.applyX(this.sx[p.anchor]);
       const y = this.tf.applyY(this.sy[p.anchor]);
       const half = Math.max(R + 3, this.boardWidth(c.title) / 2 + 2);
-      const below = c.mins !== null ? 42 : 28; // board, then travel time
+      const below = 30; // its name
       const prev = this.shown.get(p);
       const order = prev?.target ? [[prev.dx, prev.dy] as [number, number], ...spots] : spots; // don't jump around
       for (const [dx, dy] of order) {
         const cx = x + dx, cy = y + dy;
-        const box: [number, number, number, number] = [cx - half, cy - R - 4, cx + half, cy + R + below];
+        const box: [number, number, number, number] = [cx - half, cy - H / 2 - 4, cx + half, cy + H / 2 + below];
         if (overlaps(box)) continue;
         boxes.push(box, [x - 4, y - 4, x + 4, y + 4]);
         placed.set(p, [dx, dy]);
@@ -1585,25 +1768,37 @@ export class RailMap {
     const hit = this.discs.get(id);
     if (hit) return hit;
     if (!photo) return null;
-    const d = 2 * R * this.dpr;
-    const img = loadedImage(photoUrl(photo, coverWidth(photo, d, d)), () => (this.dirty = true)); // draw it once it's here
+    const w = 2 * R, h = archH(R);
+    const img = loadedImage(photoUrl(photo, coverWidth(photo, w * this.dpr, h * this.dpr)), () => (this.dirty = true)); // draw it once it's here
     if (!img) return null;
-    const pad = 8;
-    const size = Math.ceil((R + pad) * 2 * this.dpr);
+    const pad = 6;
     const cv = document.createElement("canvas");
-    cv.width = cv.height = size;
+    cv.width = Math.ceil((w + pad * 2) * this.dpr);
+    cv.height = Math.ceil((h + pad * 2) * this.dpr);
     const c = cv.getContext("2d")!;
     c.scale(this.dpr, this.dpr);
-    const m = R + pad;
-    c.shadowColor = "rgba(0,0,0,0.3)";
-    c.shadowBlur = 7;
+    c.shadowColor = "rgba(20, 28, 60, 0.35)";
+    c.shadowBlur = 6;
     c.shadowOffsetY = 2;
     c.beginPath();
-    c.arc(m, m, R, 0, TAU);
+    archPath(c, pad, pad, w, h);
     c.fillStyle = this.c.ring;
     c.fill();
     c.shadowColor = "transparent";
-    drawCover(c, img, m, m, R - 2.5);
+    c.save();
+    c.beginPath();
+    archPath(c, pad + 1.5, pad + 1.5, w - 3, h - 3);
+    c.clip();
+    const sc = Math.max(w / img.naturalWidth, h / img.naturalHeight);
+    c.imageSmoothingQuality = "high";
+    c.drawImage(img, pad + w / 2 - (img.naturalWidth * sc) / 2, pad + h / 2 - (img.naturalHeight * sc) / 2, img.naturalWidth * sc, img.naturalHeight * sc);
+    c.restore();
+    // the rim, in turmeric, up the sides and round the cusps
+    c.beginPath();
+    archPath(c, pad + 0.8, pad + 0.8, w - 1.6, h - 1.6);
+    c.lineWidth = 1.8;
+    c.strokeStyle = "#d99a2b";
+    c.stroke();
     this.discs.set(id, cv);
     return cv;
   }
@@ -1623,57 +1818,61 @@ export class RailMap {
       const p = s.c.place;
       const sx = this.tf.applyX(this.sx[p.anchor]);
       const sy = this.tf.applyY(this.sy[p.anchor]);
-      const lift = p === this.hover || p === this.selected ? 1.12 : 1;
-      const pop = s.target ? d3.easeBackOut.overshoot(2.2)(s.alpha) : s.alpha;
-      const r = R * lift * (0.4 + 0.6 * pop);
+      const focus = p === this.hover || p === this.selected;
+      const pop = s.target ? d3.easeCubicOut(s.alpha) : s.alpha;
+      const scale = (focus ? 1.08 : 1) * (0.7 + 0.3 * pop);
+      const w = 2 * R * scale, h = archH(R) * scale;
       const bx = sx + s.dx * pop;
-      const y = sy + s.dy * pop; // the photo floats beside its station, tethered to it
+      const y = sy + s.dy * pop; // the arch floats beside its station, tethered to it
       s.x = bx;
       s.y = y;
-      // tether to the station circle
       const len = Math.hypot(bx - sx, y - sy);
+      ctx.globalAlpha = s.alpha * 0.55;
       ctx.strokeStyle = this.c.ink;
-      ctx.lineWidth = 1.2;
-      ctx.globalAlpha = s.alpha * 0.5;
-      if (len > r) {
+      ctx.lineWidth = 1.1;
+      if (len > h / 2) {
         ctx.beginPath();
         ctx.moveTo(sx, sy);
-        ctx.lineTo(bx - ((bx - sx) / len) * r, y - ((y - sy) / len) * r);
+        ctx.lineTo(bx - ((bx - sx) / len) * (h / 2), y - ((y - sy) / len) * (h / 2));
         ctx.stroke();
       }
       ctx.globalAlpha = s.alpha;
       ctx.beginPath();
-      ctx.arc(sx, sy, 3, 0, TAU);
+      ctx.arc(sx, sy, 2.8, 0, TAU);
       ctx.fillStyle = this.c.ring;
       ctx.fill();
-      ctx.lineWidth = 1.6;
-      ctx.strokeStyle = this.c.ink;
+      ctx.lineWidth = 1.5;
       ctx.stroke();
-      // the photo, in a white mount; red ring when it's the one you picked
       const disc = this.disc(s.c.photo, s.c.place.id, R);
       if (disc) {
-        const m = (R + 8) * (r / R);
-        ctx.drawImage(disc, bx - m, y - m, m * 2, m * 2);
+        const k = scale;
+        ctx.drawImage(disc, bx - (R + 6) * k, y - (archH(R) / 2 + 6) * k, (2 * R + 12) * k, (archH(R) + 12) * k);
       } else {
         ctx.beginPath();
-        ctx.arc(bx, y, r, 0, TAU);
+        archPath(ctx, bx - w / 2, y - h / 2, w, h);
         ctx.fillStyle = this.c.land;
         ctx.fill();
-        this.plainFont(800, Math.round(r * 0.8));
+        ctx.lineWidth = 1.8;
+        ctx.strokeStyle = "#d99a2b";
+        ctx.stroke();
+        ctx.font = `400 ${Math.round(R * 0.9)}px ${NAME}`;
+        this.font = "";
         ctx.fillStyle = this.c.ink;
         ctx.textAlign = "center";
-        ctx.fillText(s.c.title.slice(0, 1), bx, y + r * 0.28);
+        ctx.fillText(s.c.title.slice(0, 1), bx, y + R * 0.35);
         ctx.textAlign = "start";
       }
-      ctx.beginPath();
-      ctx.arc(bx, y, r + 0.5, 0, TAU);
-      ctx.lineWidth = p === this.selected ? 3 : 1;
-      ctx.strokeStyle = p === this.selected ? this.c.accent : "rgba(0,0,0,0.18)";
-      ctx.stroke();
-      // its name on a station board, and how long the ride is
+      if (p === this.selected) {
+        ctx.beginPath();
+        archPath(ctx, bx - w / 2 - 3, y - h / 2 - 3, w + 6, h + 6);
+        ctx.lineWidth = 2.4;
+        ctx.strokeStyle = this.c.accent;
+        ctx.stroke();
+      }
+      // its name, and how long the ride is when you're looking at it
       if (pop > 0.6) {
         ctx.globalAlpha = s.alpha * Math.min(1, (pop - 0.6) * 2.5);
-        this.stationBoard(s.c.title, bx, y + r + 5, s.c.mins !== null ? fmtMins(s.c.mins) : undefined);
+        this.stationBoard(s.c.title, bx, y + h / 2 + 4, focus && s.c.mins !== null ? fmtMins(s.c.mins) : undefined);
       }
     }
     ctx.globalAlpha = 1;

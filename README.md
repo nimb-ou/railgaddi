@@ -1,11 +1,18 @@
 # Railgaddi (रेलगाड़ी)
 
-Pick your station and see every place in India a train can take you. The best of them float on
-the map as photos; open one to see what it looks like, what to see there, the weather this week,
-and every train that goes. No booking and no live running status: the timetable, and the country
-it opens up.
+Chalo! Pick your station and watch every railway line you can ride from it light up across
+India, as far as you're happy to sit in the train: two hours, a night, a day, or as far as the
+tracks go. The best places along them rise on the map as photos in jharokha arches; open one to
+see what it looks like, what to see there, the weather this week, and every train that goes. No
+booking and no live running status: the timetable, and the country it opens up.
 
-One panel beside the map holds everything, calm and quick: see [DESIGN.md](DESIGN.md).
+It looks like India and its railways (the painted land, a station's yellow name board, an old
+railway poster's ticket, a strip of phulkari) and talks with a little Punjabi masti: see
+[DESIGN.md](DESIGN.md).
+
+- **How long will you ride?** 2 h, 4 h, 8 h, 12 h, a day or any: the lines grow out from your
+  station to that far. Lenses for quick getaways, overnight trains (board after dinner, wake up
+  there) and weekends (Friday night or Saturday morning).
 
 - **Places without a station.** Munnar, Manali, Kodaikanal, Gangtok, Leh (and any town you type):
   the stations to take a train to, the road from each, the nearest airport, and from where you
@@ -76,12 +83,13 @@ test/                  vitest
 
 | What | Source | Licence |
 |---|---|---|
-| Timetable, 3,256 trains (halts, times, distances, running days) | Indian Railways, *Trains at a Glance* 2026 (Railway Board). Permission to be requested before launch: [docs/permissions/tag2026.md](docs/permissions/tag2026.md) | © Indian Railways |
-| Timetable, the other 4,635 trains (passenger, MEMU, DEMU, toy trains and older expresses) | Indian Railways timetable on [data.gov.in](https://www.data.gov.in/catalog/indian-railways-train-time-table), Dec 2017 | GODL-India |
+| Timetable, 3,224 trains (halts, times, distances, running days) | Indian Railways, *Trains at a Glance* 2026 (Railway Board). Permission to be requested before launch: [docs/permissions/tag2026.md](docs/permissions/tag2026.md) | © Indian Railways |
+| Timetable, the other 4,641 trains (passenger, MEMU, DEMU, toy trains and older expresses) | Indian Railways timetable on [data.gov.in](https://www.data.gov.in/catalog/indian-railways-train-time-table), Dec 2017 | GODL-India |
 | Running days (the rest), trains introduced since | [Wikipedia](https://en.wikipedia.org) train articles (~1,750), checked against our end stations | CC BY-SA 4.0 |
 | Train names, types, track path between halts | [datameet/railways](https://github.com/datameet/railways), Aug 2016 | CC0 |
 | Station positions, names in Indian scripts | OpenStreetMap via Overpass | ODbL |
 | India outline, state borders | [datameet/maps](https://github.com/datameet/maps) (Survey of India boundary) | CC0 |
+| The painted relief under the map | [Natural Earth](https://www.naturalearthdata.com/) 1:10m cross-blended hypsometric tints (`pipeline/build_relief.py`) | Public domain |
 | Travel guides: intro, See / Do listings | [Wikivoyage](https://en.wikivoyage.org), matched to stations via Wikidata | CC BY-SA 4.0 |
 | Landmarks | [Wikidata](https://www.wikidata.org) (heritage sites, temples, forts, falls, parks…) | CC0 |
 | Photos | Wikimedia Commons, hotlinked; each credit links to the file page with author and licence | per file |
@@ -151,8 +159,8 @@ Every Wikimedia response is cached in `raw/`, so re-runs only ask for what is ne
 
 ## Known limits
 
-- **3,256 trains are on the 2026 timetable; 4,635 still have 2017 times.** The book prints
-  principal halts only and about 390 of its trains couldn't be read with full confidence; those,
+- **3,224 trains are on the 2026 timetable; 4,641 still have 2017 times.** The book prints
+  principal halts only and about 420 of its trains couldn't be read with full confidence; those,
   and the passenger and local trains it doesn't cover, keep their 2017 times. Small stops the book
   leaves out are kept from 2017 at estimated times, marked "~". The site says where each train's
   times come from and links to NTES.
