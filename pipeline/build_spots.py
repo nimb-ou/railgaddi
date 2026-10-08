@@ -20,6 +20,7 @@ Sources: GeoNames (CC BY 4.0), OurAirports (public domain).
 """
 import csv
 import json
+import urllib.parse
 import math
 import re
 from collections import Counter, defaultdict
@@ -184,6 +185,25 @@ path.write_text(json.dumps(out, ensure_ascii=False, separators=(",", ":")))
 print(f"wrote {path} ({path.stat().st_size // 1024} kB)")
 # each place's roads, in the same order: "CODE km mins;@IATA km mins" (station or airport, km, the
 # router's minutes); null where not fetched (the site estimates)
+# each place's usual weather (estimated from NASA POWER, corrected for its height) and height, in
+# the same order, for its "when to go": a file of its own, fetched when a place like this is opened
+from climate import Climate, flat, letters  # noqa: E402
+
+CL = Climate(ROOT / "raw")
+# a place with a Wikivoyage guide of its own is somewhere people go (Manali, Mussoorie), not just a
+# town on the way: the hills lens lists those
+wv = json.loads((ROOT / "raw" / "wv_india.json").read_text())["results"]["bindings"]
+GUIDED = {urllib.parse.unquote(b["article"]["value"].rsplit("/wiki/", 1)[1]).replace("_", " ").lower() for b in wv}
+weather = []
+for t in kept:
+    lat, lon = round(t["lat"], 4), round(t["lon"], 4)
+    months = CL.estimate(lat, lon)
+    h = CL.height(lat, lon)
+    guided = int(any(n.lower() in GUIDED for n in [t["name"], *[a for a in (t["aka"] or "").split(", ") if a]]))
+    weather.append([letters(months), round(h) if h is not None else None, flat(months), guided] if months else None)
+weather_path = ROOT / "data" / "spots-weather.json"
+weather_path.write_text(json.dumps(weather, separators=(",", ":")))
+print(f"wrote {weather_path} ({weather_path.stat().st_size // 1024} kB, {sum(1 for w in weather if w)} with usual weather)")
 roads_path = ROOT / "data" / "roads.json"
 roads_path.write_text(json.dumps([t["roads"] for t in kept], separators=(",", ":")))
 print(f"wrote {roads_path} ({roads_path.stat().st_size // 1024} kB)")

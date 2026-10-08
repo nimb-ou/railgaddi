@@ -9,6 +9,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { whenLine } from "../src/core/climate";
 import { daysLabel, fmtKm, fmtMins, fmtTime, plural, shiftDays } from "../src/core/format";
 import { decodeNetwork, onMainLine, type MetaFile, type Place, type TrainsFile } from "../src/core/network";
 import { buildGuideIndex, type ArticleDetail, type GuideView, type PlacesIndex } from "../src/core/places";
@@ -151,6 +152,7 @@ const newerList = (a: Place, b: Place) => {
     ? `<h2>Newer trains</h2><ul>${list.map((n) => `<li>${esc(n.name)} (${esc(n.numbers)})${daysLabel(n.days) ? `: ${daysLabel(n.days)}` : ""}${n.minutes ? `, ${fmtMins(n.minutes)}` : ""}</li>`).join("")}</ul>`
     : "";
 };
+const whenList = (gv: GuideView) => (gv.entry.w?.length === 12 ? `<h2>When to go</h2><p>${esc(whenLine(gv.entry.w))}</p>` : "");
 const sightsList = (d: ArticleDetail | undefined) =>
   d?.sights.length
     ? `<h2>Places to visit</h2><ul>${d.sights.map((s) => `<li><b>${esc(s.n)}</b>${s.d ? `: ${esc(s.d)}` : ""}</li>`).join("")}</ul>`
@@ -215,7 +217,7 @@ for (const p of placePages) {
     ),
     image: cover(gv),
     imageAlt: name,
-    body: `<h1>${esc(name)}</h1><p>${esc(p.state)}${gv.featured ? ` · nearest station ${esc(titleOf(p, null))}` : ""}</p>${intro ? `<p>${esc(intro)}</p>` : ""}${sightsList(d)}
+    body: `<h1>${esc(name)}</h1><p>${esc(p.state)}${gv.featured ? ` · nearest station ${esc(titleOf(p, null))}` : ""}</p>${intro ? `<p>${esc(intro)}</p>` : ""}${whenList(gv)}${sightsList(d)}
       ${fromCities.length ? `<h2>Direct trains from</h2><ul>${fromCities.map(([o, dd]) => `<li>${hasPair(o, p) ? link(path(o, p), titleOf(o, null)) : link(path(o), titleOf(o, null))}: ${fmtMins(dd.fastest)}, ${plural(dd.legs.length, "train")}</li>`).join("")}</ul>` : ""}`,
     jsonld: {
       "@context": "https://schema.org",
@@ -251,7 +253,7 @@ for (const [o, list] of pairs) {
         <p>${plural(dest.legs.length, "direct train")} · fastest ${fmtMins(dest.fastest)} · ${fmtKm(km)} km</p>
         <table><thead><tr><th>No.</th><th>Train</th><th>Leaves ${esc(from)}</th><th>Takes</th><th>Runs</th></tr></thead><tbody>${trainRows(dest.legs)}</tbody></table>
         ${newerList(o, p)}
-        ${d?.x ? `<h2>About ${esc(name)}</h2><p>${esc(d.x)}</p>` : ""}${sightsList(d)}
+        ${d?.x ? `<h2>About ${esc(name)}</h2><p>${esc(d.x)}</p>` : ""}${gv ? whenList(gv) : ""}${sightsList(d)}
         <p>${link(path(o), `Everywhere else from ${from}`)} · ${placePages.has(p) ? link(path(undefined, p), `${name} from other cities`) : ""}</p>`,
     });
     urls.push(path(o, p));

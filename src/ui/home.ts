@@ -1,6 +1,7 @@
 // What the panel shows before anything is picked, and the places you can reach once a start is:
 // how long you'll ride (the lines on the map grow with it), a few lenses (quick getaways,
 // overnight, weekends), and the places themselves, a handful at a time.
+import { MONTH_NAMES, MOODS, type Mood } from "../core/climate";
 import { fmtMins, plural } from "../core/format";
 import type { Network, Place } from "../core/network";
 import type { GuideView, Photo } from "../core/places";
@@ -20,6 +21,7 @@ export interface HomeView {
 
 const PLAN = `<svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><circle cx="5" cy="5" r="2"/><circle cx="15" cy="15" r="2"/><path d="M7 5h5.5a2.5 2.5 0 0 1 0 5h-5a2.5 2.5 0 0 0 0 5H13"/></svg>`;
 const BACK = `<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8a5 5 0 1 0 1.5-3.5M3 3v2.5h2.5"/></svg>`;
+const SUN = `<svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true"><circle cx="10" cy="10" r="3.5"/><path d="M10 2.5v2M10 15.5v2M2.5 10h2M15.5 10h2M4.7 4.7l1.4 1.4M13.9 13.9l1.4 1.4M4.7 15.3l1.4-1.4M13.9 6.1l1.4-1.4"/></svg>`;
 const DICE = `<svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true"><rect x="3.5" y="3.5" width="13" height="13" rx="3"/><circle cx="7.5" cy="7.5" r=".6"/><circle cx="12.5" cy="12.5" r=".6"/><circle cx="12.5" cy="7.5" r=".6"/><circle cx="7.5" cy="12.5" r=".6"/></svg>`;
 
 /** Where most people start from. */
@@ -98,6 +100,7 @@ export interface ExploreItem {
   appeal: number; // how much there is to see
   href: string;
   note?: string; // the train that fits the lens ("22:30 → 06:10 · Udyan Express")
+  img?: string; // a photo's address, for a place without a station (its Wikipedia summary's)
 }
 
 export interface ExploreView {
@@ -112,6 +115,10 @@ export interface ExploreView {
   within: number;
   leave: Leave;
   noneLeave: boolean; // nothing leaves from here at all
+  mood: Mood | null; // only places of this kind
+  moodsOpen: boolean; // the moods' chips are showing
+  good: boolean; // only places whose weather is good this month
+  month: number; // this month, 0 = January
 }
 
 /** How long you'll ride: the steps, and what each one feels like. */
@@ -142,15 +149,30 @@ const select = <T extends string | number>(name: string, label: string, value: T
     .map(([v, t]) => `<option value="${esc(String(v))}"${v === value ? " selected" : ""}>${esc(t)}</option>`)
     .join("")}</select>`;
 
-/** "<b>160</b> quick getaways, under 4 hours away" */
-function countLine(n: number, lens: Lens, within: number, stops: boolean) {
-  const what = (one: string) => (stops ? plural(n, "stop").replace(/^[\d,]+ /, "") : n === 1 ? one : `${one}s`);
+const NOUNS: Record<Mood, [string, string]> = {
+  sea: ["place by the sea", "places by the sea"],
+  hills: ["place up in the hills", "places up in the hills"],
+  spirit: ["temple town or shrine", "temple towns and shrines"],
+  heritage: ["place with forts and palaces", "places with forts and palaces"],
+  wild: ["wild, green place", "wild, green places"],
+  city: ["big city", "big cities"],
+};
+
+/** "<b>160</b> quick getaways, under 4 hours away", "<b>14</b> places by the sea within 8 hours, all good in October" */
+function countLine(v: ExploreView, lens: Lens) {
+  const n = v.items.length;
   const b = `<b>${n.toLocaleString("en-IN")}</b>`;
-  if (lens === "quick") return `${b} quick ${n === 1 ? "getaway" : "getaways"}, under 4 hours away`;
-  if (lens === "overnight") return `${b} ${what("place")} a night train gets you to by morning. Board after dinner, wake up there`;
-  if (lens === "weekend") return `${b} weekend ${n === 1 ? "escape" : "escapes"}: leave Friday night or Saturday morning`;
-  if (within === Infinity) return `${b} ${what("place")} by direct train, no changing`;
-  return `${b} ${what("place")} within ${SPAN[within] ?? fmtMins(within)}`;
+  const one = n === 1;
+  const noun = v.mood ? NOUNS[v.mood][one ? 0 : 1] : !v.withGuides ? (one ? "stop" : "stops") : one ? "place" : "places";
+  const good = v.good ? `, ${one ? "good" : "all good"} in ${MONTH_NAMES[v.month]}` : "";
+  if (lens === "quick" && !v.mood) return `${b} quick ${one ? "getaway" : "getaways"}, under 4 hours away${good}`;
+  if (lens === "quick") return `${b} ${noun} under 4 hours away${good}`;
+  if (lens === "overnight") return `${b} ${noun} a night train gets you to by morning${good}. Board after dinner, wake up there`;
+  if (lens === "weekend" && !v.mood) return `${b} weekend ${one ? "escape" : "escapes"}${good}: leave Friday night or Saturday morning`;
+  if (lens === "weekend") return `${b} ${noun} for a weekend${good}: leave Friday night or Saturday morning`;
+  if (v.mood === "hills") return `${b} ${noun}${v.within === Infinity ? "" : ` within ${SPAN[v.within] ?? fmtMins(v.within)} by train`}${good}: a direct train, then the road up where there's no station`;
+  if (v.within === Infinity) return `${b} ${noun} by direct train, no changing${good}`;
+  return `${b} ${noun} within ${SPAN[v.within] ?? fmtMins(v.within)}${good}`;
 }
 
 /** Everywhere you can go from here, nearest first, with how long you'll ride and the lenses. */
@@ -173,20 +195,25 @@ export function exploreHtml(v: ExploreView) {
     </div>
     <div class="chips lenses" role="group" aria-label="Kinds of trip">
       ${lensBtn("quick", "Quick getaways")}${lensBtn("overnight", "Overnight")}${lensBtn("weekend", "Weekends")}
+      <button type="button" data-act="good" aria-pressed="${v.good}">${SUN}Good in ${MONTH_NAMES[v.month]}</button>
+      <button type="button" data-act="moods" aria-expanded="${v.moodsOpen}" aria-pressed="${!!v.mood}">${v.mood ? esc(MOODS[v.mood].label) : "Moods"}<span aria-hidden="true">${v.moodsOpen ? "▴" : "▾"}</span></button>
       <button type="button" data-act="surprise">${DICE}Surprise me</button>
     </div>
-    <p class="count-line">${countLine(v.items.length, lens, v.within, !v.withGuides)}</p>`}
+    ${v.moodsOpen ? `<div class="moods-row" role="group" aria-label="Moods">${(Object.keys(MOODS) as Mood[])
+      .map((m) => `<button type="button" class="chip" data-act="mood" data-mood="${m}" aria-pressed="${v.mood === m}">${esc(MOODS[m].label)}</button>`)
+      .join("")}</div>` : ""}
+    <p class="count-line">${countLine(v, lens)}</p>`}
     ${shown.length
       ? `<ol class="dest-list">${shown
           .map(
             (it) => `<li><a href="${esc(it.href)}" data-act="nav" data-id="${esc(it.id)}">
-              ${thumb(it.photo, it.title, it.guide)}
+              ${it.img ? `<span class="arch sm"><img src="${esc(it.img)}" alt="" loading="lazy" decoding="async" crossorigin="anonymous" referrerpolicy="no-referrer" /></span>` : thumb(it.photo, it.title, it.guide)}
               <span class="dl-name"><b>${esc(it.title)}</b><small>${esc(it.note ?? it.state)}</small></span>
               <span class="dl-time"><b>${fmtMins(it.mins)}</b><small>${plural(it.trains, "train")}</small></span>
             </a></li>`,
           )
           .join("")}</ol>`
-      : v.noneLeave ? "" : `<p class="empty">${v.withGuides && v.places ? "Oho, none of these has a travel guide yet. Try “Every stop” below." : lens === "weekend" ? "No weekend trains from here, sadly. Try Overnight, or a longer ride." : "Oho, nothing this close. Try a longer ride."}</p>`}
+      : v.noneLeave ? "" : `<p class="empty">${v.mood || v.good ? "Oho, nothing like that within this ride. Try a longer ride, or another mood." : v.withGuides && v.places ? "Oho, none of these has a travel guide yet. Try “Every stop” below." : lens === "weekend" ? "No weekend trains from here, sadly. Try Overnight, or a longer ride." : "Oho, nothing this close. Try a longer ride."}</p>`}
     ${!v.showAll && v.items.length > shown.length ? `<button class="link-btn show-all" type="button" data-act="list-more">See all ${v.items.length.toLocaleString("en-IN")} →</button>` : ""}
     ${v.noneLeave ? "" : `<details class="fine"${tuned ? " open" : ""}>
       <summary>Fine-tune</summary>

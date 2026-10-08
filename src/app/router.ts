@@ -10,7 +10,8 @@
 //   /discover/konkan-railway/          one journey's story
 //   /to/kodaikanal/                    a place without a station: the stations to take a train to
 //   /trip/?stops=bengaluru,hampi,goa&nights=0,2,3&date=2026-10-10   a trip with several stops
-// Filters ride along in the query: ?within=360&leave=2h&trains=local
+// Filters ride along in the query: ?within=360&leave=2h&trains=local&mood=hills&good=month
+import { MOODS, type Mood } from "../core/climate";
 import type { Filters, Kind, Leave } from "../core/trips";
 
 export interface Route {
@@ -22,6 +23,8 @@ export interface Route {
   within?: number;
   leave?: Leave;
   kind?: Kind;
+  mood?: Mood; // only places of this kind (by the sea, in the hills, ...)
+  good?: boolean; // only places whose weather is good this month
   at?: string; // "32.01,77.32": where a place found by the online search is (it isn't in our list)
   trip?: { stops: string[]; nights: number[]; date: string }; // a trip's stops (slugs), nights at each, first day
 }
@@ -61,6 +64,9 @@ export function parse(url: URL = new URL(location.href)): Route {
   if (at && /^\d{1,2}\.\d{1,4},\d{2,3}\.\d{1,4}$/.test(at)) r.at = at;
   const kind = url.searchParams.get("trains") as Kind | null;
   if (kind && KINDS.includes(kind)) r.kind = kind;
+  const mood = url.searchParams.get("mood");
+  if (mood && mood in MOODS) r.mood = mood as Mood;
+  if (url.searchParams.get("good") === "month") r.good = true;
   return r;
 }
 
@@ -81,6 +87,8 @@ export function href(r: Route) {
   if (r.within && r.within !== Infinity) q.set("within", String(r.within));
   if (r.leave && r.leave !== "any") q.set("leave", r.leave);
   if (r.kind && r.kind !== "all") q.set("trains", r.kind);
+  if (r.mood) q.set("mood", r.mood);
+  if (r.good) q.set("good", "month");
   if (r.at) q.set("at", r.at);
   const qs = q.toString();
   // trailing slash: every prerendered view is a folder with an index.html, which any static host serves

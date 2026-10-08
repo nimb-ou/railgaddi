@@ -2,12 +2,13 @@
 // trip being planned), turns that into map and panel updates, and keeps the address bar in step.
 // Everything happens in one panel beside the map (a sheet on phones): search at the top, below it
 // the places you can reach, a place, a train, a trip.
+import { goodMonth, monthNow, MOODS, type Mood } from "../core/climate";
 import { fmtMins, fmtTime, istWeekMinute, plural } from "../core/format";
 import { onMainLine, type Network, type Place, type Train } from "../core/network";
 import { worthwhile, type ArticleDetail, type GuideView, type Photo, type PlaceDetails } from "../core/places";
 import { ICONIC, rankPlaces, sameTown } from "../core/rank";
 import { titleOf, type Slugs } from "../core/slugs";
-import { nearestAirports, nearestStations, type Spot, type Spots } from "../core/spots";
+import { nearestAirports, nearestStations, type StationChoice, type Spot, type Spots } from "../core/spots";
 import { planTrip, stopLatLon, stopName, type Plan, type Stop, type TripStop } from "../core/tripplan";
 import { ANY, arrivals, bySoonest, connections, departures, legPasses, newerBetween, reachable, type Connection, type Destination, type Filters, type Kind, type Leave, type Leg } from "../core/trips";
 import { forecast, grid, indiaGrid, valueOf, type Forecast, type GridPoint, type WeatherMode } from "../core/weather";
@@ -19,6 +20,8 @@ import { savedHtml, type SavedPlace, type SavedRoute } from "../ui/saved";
 import { spotHtml, type WayView } from "../ui/spot";
 import { tripHtml, type TripStopView } from "../ui/trip";
 import { legendHtml, weatherColor, weatherHtml, weatherLabel, weatherLine, weatherUnit } from "../ui/weather";
+import { whenHtml } from "../ui/when";
+import spotsWeatherUrl from "../../data/spots-weather.json?url";
 import { placeKey, routeKey, tripKey, type PlaceSave, type RouteSave, type TripSave } from "../core/saves";
 import { Saves } from "./saves";
 import discoverUrl from "../../data/discover.json?url";
@@ -38,10 +41,10 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 type Detail = { detail: ArticleDetail; photos: Map<string, Photo> };
 type Summary = { text: string; photo: string | null; page: string };
 type Open =
-  | { kind: "place"; place: Place; showAll: boolean; sight: number; legs: Leg[]; allFrom?: boolean; choosing?: boolean; tab?: PlaceTab }
+  | { kind: "place"; place: Place; showAll: boolean; sight: number; legs: Leg[]; allFrom?: boolean; choosing?: boolean; tab?: PlaceTab; month?: number }
   | { kind: "train"; place: Place; leg: Leg; stops: StopsOpen; journey?: Connection; fromTrip?: boolean }
   | { kind: "journey"; place: Place; conn: Connection }
-  | { kind: "spot"; spot: Spot }
+  | { kind: "spot"; spot: Spot; month?: number }
   | { kind: "saved" }
   | { kind: "discover"; fact: number; cat: string }
   | { kind: "story"; story: Story };
@@ -58,7 +61,7 @@ export class App {
   private reach = new Map<Place, Leg[]>();
   private filters: Filters = { ...ANY };
   private open: Open | null = null;
-  private list = { withGuides: true, showAll: false, famous: false }; // famous: most to see first, not nearest
+  private list = { withGuides: true, showAll: false, famous: false, mood: null as Mood | null, moodsOpen: false, good: false }; // famous: most to see first, not nearest
   private placeScroll = 0; // where the place panel was scrolled when a train was opened from it
   private trainPushed = false;
   private detailCache = new Map<string, Detail>();
@@ -283,6 +286,9 @@ export class App {
     }
     if (this.mode !== "explore") this.setMode("explore", false, false);
     this.filters = filtersOf(r);
+    this.list.mood = r.mood ?? null;
+    this.list.moodsOpen ||= !!r.mood;
+    this.list.good = !!r.good;
     const origin = (r.origin && this.slugs.find(r.origin)) || null;
     const place = (r.place && this.slugs.find(r.place)) || null;
     const spot = !place && r.place ? this.spotOf(r.place, r.at) : null;
@@ -592,7 +598,7 @@ export class App {
     const home = this.origin ? this.guides.get(this.origin)?.title : undefined;
     const pool = [...this.reach.keys()]
       .map((p) => ({ p, gv: this.guides.get(p) }))
-      .filter(({ p, gv }) => worthwhile(gv) && gv.icon && gv.title !== home && p !== this.destination() && !sameTown(this.origin, p, this.net));
+      .filter(({ p, gv }) => worthwhile(gv) && gv.icon && gv.title !== home && p !== this.destination() && !sameTown(this.origin, p, this.net) && this.fits(p));
     if (!pool.length) return this.toast("Nothing to surprise you with this close. Try a longer ride!");
     const weight = (x: (typeof pool)[number]) => Math.sqrt(1 + x.gv!.entry.appeal);
     let r = Math.random() * pool.reduce((a, x) => a + weight(x), 0);
@@ -674,12 +680,24 @@ export class App {
     this.reachTrains = trains.size;
     const reach = [...byPlace].map(([place, legs]) => ({ place, mins: Math.min(...legs.map((l) => l.dur)) }));
     this.map.setOrigin(hub, trains, reach, animate, !this.origin && !!target);
-    this.map.setCandidates(rankPlaces(this.guides, hub ? byPlace : null, hub, this.net));
+    const ranked = rankPlaces(this.guides, hub ? byPlace : null, hub, this.net);
+    this.map.setCandidates(this.origin ? ranked.filter((c) => this.fits(c.place)) : ranked);
     this.syncChrome();
     if (render && this.mode === "explore" && (!this.open || this.open.kind === "place")) this.renderPanel(false);
     if (this.weatherOn) this.paintWeather();
   }
   private reachTrains = 0;
+
+  /** A place passes the mood and the "good this month" lens (always, with neither on). */
+  private fits(p: Place) {
+    const { mood, good } = this.list;
+    if (!mood && !good) return true;
+    const gv = this.guides.get(p);
+    if (good && !goodMonth(gv?.entry.w, monthNow())) return false;
+    if (mood === "city") return p.isCity || (!!gv && this.titlePlace.get(gv.title)?.isCity === true);
+    if (mood) return !!gv && ((gv.entry.m ?? 0) & MOODS[mood].bit) !== 0;
+    return true;
+  }
 
   /** The route geometry arrived: redraw lines along the track. */
   networkDetailed() {
@@ -879,12 +897,34 @@ export class App {
   }
 
   /** A short description and a photo, from Wikipedia (only the place's name is sent). */
+  private spotsWeather: ([string, number | null, number[], number?] | null)[] | null = null;
+  private spotsWeatherLoad: Promise<void> | null = null;
+
+  /** The usual weather of a place without a station (its file is fetched the first time). */
+  private spotWhen(s: Spot, month?: number) {
+    if (!this.spotsWeather) {
+      this.spotsWeatherLoad ??= fetch(spotsWeatherUrl)
+        .then((r) => r.json())
+        .then((d) => {
+          this.spotsWeather = d;
+          if (this.open?.kind === "spot" || (!this.open && this.origin && this.list.mood === "hills")) this.renderPanel(false);
+        })
+        .catch(() => {});
+      return "";
+    }
+    const w = this.spotsWeather[this.spots.list.indexOf(s)];
+    if (!w) return "";
+    const now = monthNow();
+    return whenHtml(w[0], w[2], "est", month ?? now, now, s.name, w[1] ?? undefined);
+  }
+
   private loadSummary(s: Spot) {
     if (this.summaries.has(s.id)) return;
     this.summaries.set(s.id, "loading");
     const done = (v: Summary | null) => {
       this.summaries.set(s.id, v);
       if (this.open?.kind === "spot" && this.open.spot === s) this.renderPanel(false);
+      else if (!this.open && this.origin && this.list.mood === "hills" && v?.photo) this.redrawSoon(); // its photo, in the list
     };
     const q = `${s.name} ${s.state}`.trim();
     fetch(`https://en.wikipedia.org/w/rest.php/v1/search/page?${new URLSearchParams({ q, limit: "3" })}`)
@@ -1084,6 +1124,25 @@ export class App {
     if (back?.isConnected && back.offsetParent !== null) back.focus({ preventScroll: true });
     if (o.push) this.sync("push");
     this.describe();
+  }
+
+  /** A place's "when to go": the month strip, with numbers once its details have arrived. */
+  private whenFor(gv: GuideView | null, place: Place, month?: number) {
+    const w = gv?.entry.w;
+    if (!gv || !w) return "";
+    const d = this.detailCache.get(gv.title)?.detail;
+    const now = monthNow();
+    return whenHtml(w, d?.c ?? null, d?.cs ?? "est", month ?? now, now, this.name(place), gv.entry.e);
+  }
+
+  /** The forecast for the day you'd get in, `inMins` from now, if the week's forecast is here. */
+  private arrivalWeather(lat: number | null, lon: number | null, inMins: number) {
+    if (lat === null || lon === null) return "";
+    const f = this.forecasts.get(`${lat.toFixed(2)},${lon.toFixed(2)}`);
+    if (!f || f === "loading" || f === "error") return "";
+    const iso = isoDay(new Date(Date.now() + inMins * 60_000));
+    const day = f.days.find((d) => d.date === iso);
+    return day ? weatherLine(day) : "";
   }
 
   private detailFor(gv: GuideView | null, place: Place): Detail | "loading" | null {
@@ -1355,19 +1414,31 @@ export class App {
     } else if (!o) {
       if (this.origin) {
         this.panel.dataset.view = "explore";
+        const exploreList = this.exploreItems(this.list.withGuides, this.list.famous && this.list.withGuides);
         this.panel.innerHTML = exploreHtml({
           from: titleOf(this.origin, null),
           places: this.reach.size,
           trains: this.reachTrains,
-          items: this.exploreItems(this.list.withGuides, this.list.famous && this.list.withGuides),
+          items: exploreList,
           showAll: this.list.showAll,
           withGuides: this.list.withGuides,
-          famous: this.list.famous,
+          famous: this.list.famous || this.list.mood === "hills",
           kind: this.filters.kind ?? "all",
           within: this.filters.within,
           leave: this.filters.leave,
           noneLeave: !this.dests.size,
+          mood: this.list.mood,
+          moodsOpen: this.list.moodsOpen,
+          good: this.list.good,
+          month: monthNow(),
         });
+        if (this.list.mood === "hills") {
+          const shown = this.list.showAll ? exploreList : exploreList.slice(0, 6);
+          for (const it of shown) {
+            const s = !this.net.places.has(it.id) ? this.spots.list.find((x) => x.id === it.id) : undefined;
+            if (s && !this.summaries.has(s.id)) this.loadSummary(s);
+          }
+        }
       } else {
         this.panel.dataset.view = "home";
         this.panel.innerHTML = homeHtml(this.homeView());
@@ -1396,6 +1467,8 @@ export class App {
         summary: this.summaries.get(s.id) ?? null,
         weather: this.weatherAt(s.lat, s.lon, s.name, () => this.open?.kind === "spot" && this.open.spot === s),
         saved: this.saves.has(placeKey(s.id)),
+        when: this.spotWhen(s, o.month),
+        height: this.spotsWeather?.[this.spots.list.indexOf(s)]?.[1] ?? null,
         fromChoices: `<div class="gh-search">
           <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" /><path d="M13 13l4.5 4.5" /></svg>
           <input id="gh-input" type="search" enterkeyhint="go" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Your station or city, ji" aria-label="Where do you start?" />
@@ -1458,6 +1531,8 @@ export class App {
         weather: this.weatherAt(gv?.entry.ll?.[0] ?? place.lat, gv?.entry.ll?.[1] ?? place.lon, this.name(place), () => this.open?.kind === "place" && this.open.place === place),
         tab: o.tab ?? null,
         back: this.origin ? `From ${titleOf(this.origin, null)}` : "Home",
+        when: this.whenFor(gv, place, o.month),
+        arrivalWeather: (inMins) => this.arrivalWeather(gv?.entry.ll?.[0] ?? place.lat, gv?.entry.ll?.[1] ?? place.lon, inMins),
       });
       const gh = this.panel.querySelector<HTMLInputElement>("#gh-input");
       if (gh) {
@@ -1507,6 +1582,7 @@ export class App {
     for (const [place, legs] of this.reach) {
       const gv = this.guides.get(place) ?? null;
       if (withGuides && (!worthwhile(gv) || gv.title === home || sameTown(this.origin, place, this.net))) continue;
+      if (!this.fits(place)) continue;
       const item = {
         appeal: gv ? gv.entry.appeal + (ICONIC.includes(gv.title) ? 60 : 0) : 0,
         id: place.id,
@@ -1525,8 +1601,90 @@ export class App {
       const prev = rows.get(key);
       if (!prev || (item.city && !prev.city) || (item.city === prev.city && item.mins < prev.mins)) rows.set(key, item);
     }
-    const rows2 = [...rows.values()];
+    const rows2: ExploreItem[] = [...rows.values()];
+    if (withGuides && this.list.mood === "hills") {
+      rows2.push(...this.hillTowns(new Set(rows2.map((r) => r.title))));
+      famous = true;
+    }
     return famous ? rows2.sort((a, b) => b.appeal - a.appeal || a.mins - b.mins) : rows2.sort((a, b) => a.mins - b.mins);
+  }
+
+  private hillNear = new Map<object, StationChoice[]>();
+  private redrawing = false;
+
+  /** Draw the panel again once, after a burst of things arriving (photos for a list). */
+  private redrawSoon() {
+    if (this.redrawing) return;
+    this.redrawing = true;
+    setTimeout(() => {
+      this.redrawing = false;
+      if (!this.open && this.origin) this.renderPanel(false);
+    }, 250);
+  }
+
+  /**
+   * Hill towns with no station of their own (Shimla is a toy-train ride, Mussoorie and Nainital
+   * none at all): the train you'd ride, within the filters, to the main-line station nearest each,
+   * then the road. Their heights come with the places-without-a-station weather file.
+   */
+  /** A place without a station's photo for a list row, from its Wikipedia summary (asked for once). */
+  private spotThumb(s: Spot) {
+    const sum = this.summaries.get(s.id);
+    if (sum === undefined) return undefined;
+    return sum && sum !== "loading" && sum.photo ? sum.photo.replace(/\/960px-/, "/120px-") : undefined;
+  }
+
+  private hillTowns(listed: Set<string>): ExploreItem[] {
+    if (!this.spotsWeather) {
+      this.spotWhen(this.spots.list[0]); // fetches the file, and draws the list again when it's here
+      return [];
+    }
+    const out: ExploreItem[] = [];
+    const month = monthNow();
+    /** The quickest way in: a train (within the filters) to a main-line station near, then the road. */
+    const wayIn = (key: object, at: { lat: number; lon: number; roads?: Spot["roads"] }, self?: Place) => {
+      let near = this.hillNear.get(key);
+      if (!near) this.hillNear.set(key, (near = nearestStations(this.net, at, 3, (p) => p !== self && this.mainLine(p))));
+      let best: { c: StationChoice; legs: Leg[]; total: number } | null = null;
+      for (const c of near) {
+        const legs = this.reach.get(c.place);
+        if (!legs?.length || sameTown(this.origin, c.place, this.net)) continue;
+        const total = Math.min(...legs.map((l) => l.dur)) + 30 + c.road.mins;
+        if (!best || total < best.total) best = { c, legs, total };
+      }
+      return best;
+    };
+    const via = (b: { c: StationChoice }) => `Train to ${titleOf(b.c.place, null)}, then ${fmtMins(b.c.road.mins)} by road`;
+    // hill towns with a station no direct train reaches from here (Shimla: only the toy train from Kalka)
+    for (const [p, gv] of this.guides) {
+      if (!((gv.entry.m ?? 0) & MOODS.hills.bit) || this.reach.has(p) || listed.has(gv.title) || !worthwhile(gv)) continue;
+      if (this.list.good && !goodMonth(gv.entry.w, month)) continue;
+      const ll = gv.entry.ll ?? (p.lat !== null && p.lon !== null ? [p.lat, p.lon] : null);
+      if (!ll) continue;
+      const b = wayIn(p, { lat: ll[0], lon: ll[1] }, p);
+      if (!b) continue;
+      listed.add(gv.title);
+      out.push({
+        id: p.id, title: gv.title, state: p.state, mins: b.total, trains: new Set(b.legs.map((l) => l.train)).size,
+        photo: gv.icon, guide: true, appeal: gv.entry.appeal + (ICONIC.includes(gv.title) ? 60 : 0),
+        href: href({ origin: this.slugs.of(this.origin!), place: this.slugs.of(p) }), note: via(b),
+      });
+    }
+    // and hill towns with no station at all, the ones with a travel guide of their own
+    this.spots.list.forEach((s, i) => {
+      const w = this.spotsWeather![i];
+      if (!w || (w[1] ?? 0) < 1000 || !(w[3] || s.pop === 0) || listed.has(s.name) || listed.has(s.name.split(", ")[0])) return;
+      if (this.list.good && !goodMonth(w[0], month)) return;
+      const b = wayIn(s, s);
+      if (!b) return;
+      listed.add(s.name);
+      out.push({
+        id: s.id, title: s.name, state: s.state, mins: b.total, trains: new Set(b.legs.map((l) => l.train)).size,
+        photo: null, guide: true, appeal: 30 + Math.log10(Math.max(10, s.pop)) * 3,
+        href: href({ origin: this.slugs.of(this.origin!), place: s.id }), note: via(b), img: this.spotThumb(s),
+      });
+    });
+    return out;
   }
 
   // ---------------------------------------------------------------- clicks in the panel
@@ -1619,6 +1777,34 @@ export class App {
         this.panel.querySelector<HTMLElement>(`[data-act="lens"][data-lens="${l}"]`)?.focus({ preventScroll: true });
         break;
       }
+      case "good":
+        this.list.good = !this.list.good;
+        this.list.showAll = false;
+        this.refresh(false);
+        this.sync("replace");
+        this.panel.querySelector<HTMLElement>(`[data-act="good"]`)?.focus({ preventScroll: true });
+        break;
+      case "moods":
+        this.list.moodsOpen = !this.list.moodsOpen;
+        this.renderPanel(false);
+        this.panel.querySelector<HTMLElement>(`[data-act="moods"]`)?.focus({ preventScroll: true });
+        break;
+      case "mood": {
+        const m = el.dataset.mood as Mood;
+        this.list.mood = this.list.mood === m ? null : m;
+        this.list.showAll = false;
+        this.refresh(false);
+        this.sync("replace");
+        this.panel.querySelector<HTMLElement>(`[data-act="mood"][data-mood="${m}"]`)?.focus({ preventScroll: true });
+        break;
+      }
+      case "month":
+        if (o?.kind === "place" || o?.kind === "spot") {
+          o.month = Number(el.dataset.m);
+          this.renderPanel(false);
+          this.panel.querySelector<HTMLElement>(`[data-act="month"][data-m="${o.month}"]`)?.focus({ preventScroll: true });
+        }
+        break;
       case "tab":
         if (o?.kind === "place") {
           o.tab = el.dataset.tab as PlaceTab;
@@ -1644,6 +1830,8 @@ export class App {
         break;
       case "reset":
         this.list.showAll = false;
+        this.list.mood = null;
+        this.list.good = false;
         this.setFilters({ ...ANY }, true);
         break;
       case "share":
@@ -2011,6 +2199,8 @@ export class App {
         within: this.filters.within,
         leave: this.filters.leave,
         kind: this.filters.kind,
+        mood: this.origin ? this.list.mood ?? undefined : undefined,
+        good: this.origin ? this.list.good || undefined : undefined,
       },
       mode,
     );
@@ -2048,7 +2238,8 @@ export class App {
       this.map.setInsets({ top: Math.max(16, tools.bottom + 8), right: 8, bottom: H - top + 8, left: 8 });
     } else {
       const side = this.side.getBoundingClientRect();
-      this.map.setInsets({ top: 24, right: Math.max(24, window.innerWidth - tools.left + 8), bottom: 24, left: side.right + 24 });
+      // the map's buttons sit top right (none showing: nothing to keep clear)
+      this.map.setInsets({ top: 24, right: tools.width ? Math.max(24, window.innerWidth - tools.left + 8) : 24, bottom: 24, left: side.right + 24 });
     }
   }
 

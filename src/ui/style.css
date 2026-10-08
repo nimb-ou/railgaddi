@@ -575,6 +575,27 @@ section .dest-list li a:hover { background: none; }
 .wx-mini .wx-icon { width: 18px; height: 18px; }
 .wx-loading { color: var(--muted); font-size: 13px; }
 
+/* when to go: the year in a strip */
+.k-B { --k: #2f9e44; } .k-G { --k: #94d82d; } .k-R { --k: #74c0fc; } .k-W { --k: #1971c2; }
+.k-M { --k: #ffa94d; } .k-H { --k: #e8590c; } .k-C { --k: #9775fa; }
+.when-line { margin: 0 0 12px; font-size: 14.5px; line-height: 1.55; }
+.months { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 3px; margin: 0; padding: 0; list-style: none; }
+.mo { display: grid; justify-items: center; gap: 4px; width: 100%; padding: 5px 0 6px; border: 0; border-radius: 10px; background: none; font-size: 11.5px; font-weight: 600; color: var(--muted); transition: background 0.2s; }
+.mo i { width: 100%; max-width: 26px; height: 24px; border-radius: 7px; background: var(--k); }
+.mo:hover, .mo[aria-pressed="true"] { background: var(--paper-2); color: var(--text); }
+.mo[aria-pressed="true"] i { box-shadow: 0 0 0 2px var(--paper), 0 0 0 3.5px var(--ink); }
+.mo.now .mo-i { color: var(--madder); }
+.mo-t { font-size: 10.5px; font-weight: 500; }
+.when-key { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 10px 0 0; font-size: 12px; color: var(--muted); }
+.when-key span { display: inline-flex; align-items: center; gap: 5px; }
+.when-key i { width: 10px; height: 10px; border-radius: 3px; background: var(--k); }
+.when-detail { margin: 10px 0 0; padding: 10px 12px; border-radius: 14px; background: var(--paper-2); font-size: 14px; }
+.when-detail b { font-weight: 600; }
+.moods-row { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px; border-radius: 16px; background: var(--paper-2); }
+.moods-row > button { padding: 6px 12px; font-size: 13.5px; }
+.tk-wx { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.tk-wx .wx-icon { width: 18px; height: 18px; }
+
 /* ---------------------------------------------------------------- a place without a station */
 .ways { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .way { display: grid; grid-template-columns: 28px 1fr auto; gap: 10px; align-items: start; padding: 13px 14px; border: 1px solid var(--rule); border-radius: 16px; background: var(--card); }

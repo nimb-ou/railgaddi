@@ -1,4 +1,4 @@
-/* Indian scripts, self-hosted: only each script's own glyphs (Latin comes from Archivo), and the
+/* Indian scripts, self-hosted: only each script's own glyphs (Latin comes from Hind), and the
    browser downloads a file only when text in that script is on screen. Variable weight: one file
    per script covers 600-900. From @fontsource-variable (SIL Open Font License). */
 @font-face {

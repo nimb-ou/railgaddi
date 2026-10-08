@@ -99,6 +99,10 @@ export interface PlaceView {
   tab: PlaceTab | null;
   /** Where the back button goes: "From Bengaluru", or "Home". */
   back: string;
+  /** When to go: the year's usual weather (rendered by ui/when), or "". */
+  when: string;
+  /** The forecast for the day you'd get in, `inMins` from now, as a line, or "" if not known. */
+  arrivalWeather: (inMins: number) => string;
   /** Ways with one change from where you start (when there's no direct train, or they're much quicker). */
   changes: Connection[];
   /** No direct train: a train to a main-line station near here, then the road (Darjeeling via New Jalpaiguri). */
@@ -108,7 +112,7 @@ export interface PlaceView {
   fact: string; // a "Did you know?" note about this place, if there is one
 }
 
-export type PlaceTab = "sights" | "trains" | "changes" | "weather" | "nearby";
+export type PlaceTab = "sights" | "when" | "trains" | "changes" | "weather" | "nearby";
 
 export interface GetHereItem {
   id: string;
@@ -170,6 +174,7 @@ export function placeHtml(v: PlaceView) {
     ? `${esc(place.state || "")} · nearest station <b>${esc(titleOf(place, null))}</b> (${esc(codes[0])})`
     : `${esc(place.state || "")}${place.state ? " · " : ""}${esc(codes.slice(0, 4).join(" · "))}${codes.length > 4 ? " …" : ""}`;
   const script = gv?.featured ? "" : scriptLine(place);
+  const up = gv?.entry.e !== undefined && gv.entry.e >= 600 ? ` · ${gv.entry.e.toLocaleString("en-IN")} m up` : "";
 
   // ---- the ride, on a ticket
   let ticket = "";
@@ -180,7 +185,9 @@ export function placeHtml(v: PlaceView) {
     // a long ride: the night train, so you sleep through it; otherwise the next one that fits
     const night = fastest >= 300 ? legs.find((l) => v.passes(l) && overnight(l)) : undefined;
     const pick = night ?? legs.find(v.passes) ?? legs[0];
-    const when = dayWord(v.now, waitFor(pick, v.now));
+    const wait = waitFor(pick, v.now);
+    const when = dayWord(v.now, wait);
+    const getIn = v.arrivalWeather(wait + pick.dur);
     const plusDay = Math.floor(pick.train.arr[pick.to] / 1440) - Math.floor(pick.train.dep[pick.from] / 1440);
     const trains = new Set(legs.map((l) => l.train)).size;
     ticket = `<div class="ticket">
@@ -193,6 +200,7 @@ export function placeHtml(v: PlaceView) {
           <span class="l">${night ? "Sleep on it: the night train" : "Next gaddi"}, ${when}</span>
           <b>${esc(pick.train.no)} ${esc(pick.train.name)}</b>
           <span class="when">${flapHtml(fmtTime(pick.dep))} → ${flapHtml(fmtTime(pick.train.arr[pick.to]))}${plusDay > 0 ? ` <small class="muted">${plusDay > 1 ? `${plusDay} days later` : "next day"}</small>` : ""}</span>
+          ${getIn ? `<span class="tk-wx">The day you get in: ${getIn}</span>` : ""}
           <span class="go">See its stops →</span>
         </button>
         <span class="tk-side">
@@ -293,6 +301,7 @@ export function placeHtml(v: PlaceView) {
   const changes = origin && legs.length && v.changes.length ? changesHtml(v.changes, titleOf(origin, null), title, true, v.name) : "";
   const tabs: [PlaceTab, string, string][] = [];
   if (sights || (gv && v.detail === "loading")) tabs.push(["sights", "What to see", sights || `<div class="skeleton">${landscapeHtml()}</div>`]);
+  if (v.when) tabs.push(["when", "When to go", v.when]);
   if (trains) tabs.push(["trains", `All ${new Set(legs.map((l) => l.train)).size} trains`, trains]);
   if (changes) tabs.push(["changes", "Quicker with a change", changes]);
   if (v.weather) tabs.push(["weather", "Weather", v.weather]);
@@ -316,7 +325,7 @@ export function placeHtml(v: PlaceView) {
     <div class="pl-name">
       ${script ? `<span class="script">${esc(script)}</span>` : ""}
       <h2 class="name" id="panel-title" tabindex="-1">${esc(title)}</h2>
-      <p class="where">${where}</p>
+      <p class="where">${where}${up}</p>
     </div>
     ${ticket}
     ${v.roadWays.length ? `<section aria-labelledby="road-h">

@@ -27,6 +27,8 @@ export interface SpotView {
   saved: boolean;
   fromChoices: string; // a search box to pick where you start, when none is
   back: string; // where the back button goes: "From Bengaluru", or "Home"
+  when: string; // when to go (ui/when), or ""
+  height: number | null; // metres above the sea
 }
 
 const ICON = {
@@ -91,11 +93,12 @@ export function spotHtml(v: SpotView) {
     ${cover}
     <div class="pl-name">
       <h2 class="name" id="panel-title" tabindex="-1">${esc(s.name)}</h2>
-      <p class="where">${esc(s.state)}${people}</p>
+      <p class="where">${esc(s.state)}${people}${v.height !== null && v.height >= 600 ? ` · ${v.height.toLocaleString("en-IN")} m up` : ""}</p>
       <span class="spot-badge">${ICON.pin}${badge}</span>
     </div>
     ${intro}
     ${v.weather}
+    ${v.when}
     <section aria-labelledby="ways-h">
       <div class="section-head"><h3 id="ways-h">${v.from ? `Getting here from ${esc(v.from)}` : "How to get here"}</h3></div>
       ${v.from ? `<p class="gh-lede">Quickest first: the train, then the road from the station. ${real ? "Road times by taxi or bus are estimates." : "Road distances and times are estimates."}</p>` : `<p class="gh-lede">No station here, koi gal nahi. Take a train to one of these, then a taxi or bus. Tell us where you start to see the whole way.</p>${v.fromChoices}`}

@@ -589,6 +589,41 @@ for title, a in pseudo.items():
     out_articles[title] = {"x": a["x"], "icon": photo_key(a["lead"]) if a["lead"] and not NOT_A_PHOTO.search(a["lead"]) else None, "banner": None, "ll": [a["lat"], a["lon"]],
                            "sights": [sight_out(s) for s in sights[title]], "appeal": round(a["appeal"], 1), "src": "wd"}
 
+# ---------------------------------------------------------------- 6. what the land and the weather are like
+# the usual weather month by month (a guide's IMD climate chart, else NASA POWER corrected for
+# height), the town's height, and what kind of place it is (see pipeline/climate.py)
+from climate import Climate, flat, letters, mood_counts, moods as moods_of  # noqa: E402
+
+MOOD_DEBUG = {}
+
+CL = Climate(RAW)
+PILGRIM = {"Varanasi", "Tirupati", "Amritsar", "Puri", "Haridwar", "Rishikesh", "Shirdi", "Bodh Gaya", "Ajmer", "Madurai",
+           "Rameswaram", "Dwarka", "Somnath", "Ujjain", "Katra", "Mathura", "Vrindavan", "Ayodhya", "Pushkar", "Kanyakumari",
+           "Guruvayur", "Gaya", "Nashik", "Pandharpur", "Srisailam", "Tiruvannamalai", "Kanchipuram", "Chidambaram",
+           "Kumbakonam", "Palani", "Sringeri", "Udupi", "Gokarna", "Velankanni", "Nanded", "Deoghar", "Kollur", "Murudeshwar",
+           "Thanjavur", "Bhubaneswar", "Konark", "Kedarnath", "Badrinath", "Hemkund", "Mahabalipuram"}
+CITY_GUIDES = set(city_links.values())
+climate_src = {"imd": 0, "est": 0}
+for title, a in out_articles.items():
+    if not a["ll"] or a["ll"][0] is None:
+        continue
+    lat, lon = a["ll"]
+    months, src = CL.normals(lat, lon, REVISIONS.get(title))
+    if months:
+        a["climate"], a["climate_src"] = months, src
+        climate_src[src] += 1
+    core = list(dict.fromkeys(f"{it['n']} {it.get('d') or ''}" for it in [*listings.get(title, []), *a["sights"]]))
+    near = list(dict.fromkeys([*core, *(f"{lm['n']} {lm['d']}" for lm in landmarks_near(lat, lon, 12))]))
+    h = CL.height(lat, lon)
+    a["elev"] = round(h) if h is not None else None
+    a["moods"] = moods_of(core, near, a["x"], CL.coast_km(lat, lon), h, CL.hilliness(lat, lon), title in PILGRIM, title in CITY_GUIDES,
+                           [f"{it['n']} {it.get('d') or ''}" for it in a["sights"][:3]], title)
+    MOOD_DEBUG[title] = {"m": a["moods"], "core": mood_counts(core) | {"n": len(core)}, "coast": round(CL.coast_km(lat, lon), 1), "h": h, "hilly": CL.hilliness(lat, lon)}
+(RAW / "climate" / "moods-debug.json").write_text(json.dumps(MOOD_DEBUG, indent=0))
+print("usual weather: from a guide's chart", climate_src["imd"], "· estimated", climate_src["est"])
+print("moods:", {name: sum(1 for a in out_articles.values() if a.get("moods", 0) & bit) for name, bit in
+                 (("sea", 1), ("hills", 2), ("spiritual", 4), ("heritage", 8), ("wild", 16))})
+
 # ---------------------------------------------------------------- write: an index for the map, details in shards
 def fnv1a(text):
     """32-bit FNV-1a over UTF-8; the app computes the same to find a place's shard."""
@@ -630,12 +665,21 @@ for title, a in out_articles.items():
     if a.get("src"):
         entry["src"] = a["src"]
     entry["n"] = len(a["sights"])
+    if a.get("climate"):
+        entry["w"] = letters(a["climate"])  # the month by month verdict, B best ... W very wet
+    if a.get("elev") is not None:
+        entry["e"] = a["elev"]
+    if a.get("moods"):
+        entry["m"] = a["moods"]
     index["articles"][title] = entry
     for k in (a["icon"], a["banner"]):
         if k:
             index["photos"][k] = photo_out(k)
     shard = shards[fnv1a(title) % SHARDS]
     shard["articles"][title] = {"x": a["x"], "sights": a["sights"]}
+    if a.get("climate"):
+        shard["articles"][title]["c"] = flat(a["climate"])  # low, high, rain for each month
+        shard["articles"][title]["cs"] = a["climate_src"]
     for sight in a["sights"]:
         if sight.get("img"):
             shard["photos"][sight["img"]] = photo_out(sight["img"])

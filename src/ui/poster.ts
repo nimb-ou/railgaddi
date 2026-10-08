@@ -1,5 +1,6 @@
-// Sharing a place makes a railway poster of it (see DESIGN.md): its photo screen-printed in five
-// flat inks, the name in big condensed capitals, and how far it is by train. Drawn on a canvas
+// Sharing a place makes a railway poster of it (see DESIGN.md): its photo screen-printed in the
+// site's five inks inside a jharokha arch, standing on a strip of track, its name in Tiro, how far
+// it is by train on a ribbon, and a strip of phulkari. Drawn on a canvas
 // in the browser, so every one of the site's places has one, and nothing is uploaded anywhere.
 import type { Photo } from "../core/places";
 import { esc } from "./esc";
@@ -16,19 +17,22 @@ export interface PosterInfo {
 
 const W = 1080;
 const H = 1350;
-const FRAME = 40;
-// the inks, darkest first: a travel poster's navy, teal, terracotta, marigold and paper
+const FRAME = 28;
+// the inks, darkest first: indigo, peacock, madder, turmeric and ivory (the site's own)
 const INKS = [
-  [30, 58, 76],
-  [47, 111, 115],
-  [201, 115, 58],
-  [242, 169, 59],
-  [246, 231, 200],
+  [34, 48, 94],
+  [15, 107, 99],
+  [158, 58, 43],
+  [217, 154, 43],
+  [248, 242, 231],
 ];
-const NAVY = "#1e3a4c";
-const PAPER = "#f3e7cf";
-const FONT = "'Archivo Variable', 'Archivo', system-ui, sans-serif";
-const SCRIPTS = "'Archivo Variable', 'Noto Sans Devanagari Variable', 'Noto Sans Kannada Variable', 'Noto Sans Tamil Variable', 'Noto Sans Telugu Variable', 'Noto Sans Malayalam Variable', 'Noto Sans Bengali Variable', 'Noto Sans Gujarati Variable', 'Noto Sans Gurmukhi Variable', 'Noto Sans Oriya Variable', system-ui, sans-serif";
+const INDIGO = "#22305e";
+const IVORY = "#f8f2e7";
+const MADDER = "#9e3a2b";
+const TURMERIC = "#d99a2b";
+const NAME = "'Tiro Devanagari Hindi', Georgia, serif";
+const TEXT = "Hind, system-ui, sans-serif";
+const SCRIPTS = "'Noto Sans Devanagari Variable', 'Noto Sans Kannada Variable', 'Noto Sans Tamil Variable', 'Noto Sans Telugu Variable', 'Noto Sans Malayalam Variable', 'Noto Sans Bengali Variable', 'Noto Sans Gujarati Variable', 'Noto Sans Gurmukhi Variable', 'Noto Sans Oriya Variable', Hind, sans-serif";
 
 function load(url: string): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
@@ -83,60 +87,115 @@ function screenPrint(img: HTMLImageElement, w: number, h: number) {
 /** No photo: a sun over hills, in the same inks. */
 function scenery(c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
   const sky = c.createLinearGradient(0, y, 0, y + h);
-  sky.addColorStop(0, "#f2a93b");
-  sky.addColorStop(0.7, "#f6d38a");
+  sky.addColorStop(0, TURMERIC);
+  sky.addColorStop(0.7, "#f3d79a");
   c.fillStyle = sky;
   c.fillRect(x, y, w, h);
-  c.fillStyle = "#fff1c7";
+  c.fillStyle = IVORY;
   c.beginPath();
-  c.arc(x + w / 2, y + h * 0.36, w * 0.12, 0, Math.PI * 2);
+  c.arc(x + w / 2, y + h * 0.4, w * 0.13, 0, Math.PI * 2);
   c.fill();
-  c.fillStyle = "#c9733a";
+  c.fillStyle = MADDER;
   c.beginPath();
-  c.moveTo(x, y + h * 0.62);
-  [[0.18, 0.45], [0.34, 0.58], [0.52, 0.4], [0.7, 0.55], [0.86, 0.44], [1, 0.52]].forEach(([fx, fy]) => c.lineTo(x + w * fx, y + h * fy));
+  c.moveTo(x, y + h * 0.66);
+  [[0.18, 0.5], [0.34, 0.62], [0.52, 0.45], [0.7, 0.6], [0.86, 0.49], [1, 0.57]].forEach(([fx, fy]) => c.lineTo(x + w * fx, y + h * fy));
   c.lineTo(x + w, y + h);
   c.lineTo(x, y + h);
   c.fill();
-  c.fillStyle = "#2f6f73";
+  c.fillStyle = "#0f6b63";
   c.beginPath();
-  c.moveTo(x, y + h * 0.78);
-  c.quadraticCurveTo(x + w * 0.5, y + h * 0.66, x + w, y + h * 0.76);
+  c.moveTo(x, y + h * 0.8);
+  c.quadraticCurveTo(x + w * 0.5, y + h * 0.7, x + w, y + h * 0.79);
   c.lineTo(x + w, y + h);
   c.lineTo(x, y + h);
   c.fill();
 }
 
-/** The largest size (down to `min`) at which `text` fits `width`, in the station-board face. */
-function fit(c: CanvasRenderingContext2D, text: string, style: string, max: number, min: number, width: number) {
+/** The jharokha: a cusped Rajput arch over the box (the same shape as the site's photos). */
+function arch(c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
+  const X = (v: number) => x + (v / 100) * w;
+  const Y = (v: number) => y + (v / 100) * h;
+  c.beginPath();
+  c.moveTo(X(0), Y(100));
+  c.lineTo(X(0), Y(42 * 0.6));
+  const seg = (pts: number[]) => c.bezierCurveTo(X(pts[0]), Y(pts[1] * 0.6), X(pts[2]), Y(pts[3] * 0.6), X(pts[4]), Y(pts[5] * 0.6));
+  seg([0, 36, 2, 33, 6, 31]);
+  seg([6, 25, 10, 21, 16, 20]);
+  seg([17, 13, 23, 9, 30, 9]);
+  seg([34, 4, 41, 2, 46, 2]);
+  c.lineTo(X(50), Y(0));
+  c.lineTo(X(54), Y(2 * 0.6));
+  seg([59, 2, 66, 4, 70, 9]);
+  seg([77, 9, 83, 13, 84, 20]);
+  seg([90, 21, 94, 25, 94, 31]);
+  seg([98, 33, 100, 36, 100, 42]);
+  c.lineTo(X(100), Y(100));
+  c.closePath();
+}
+
+/** A strip of phulkari: bright diamonds on madder, as embroidered on a dupatta. */
+function phulkari(c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
+  c.fillStyle = "#7a2318";
+  c.fillRect(x, y, w, h);
+  const step = h * 3.2;
+  const r = h * 0.38;
+  for (let k = 0, cx = x + step / 4; cx < x + w; k++, cx += step / 2) {
+    const big = k % 2 === 0;
+    c.fillStyle = big ? (k % 4 === 0 ? "#f59f00" : "#e64980") : "#40c057";
+    c.beginPath();
+    if (big) {
+      c.moveTo(cx, y + h / 2 - r);
+      c.lineTo(cx + r, y + h / 2);
+      c.lineTo(cx, y + h / 2 + r);
+      c.lineTo(cx - r, y + h / 2);
+      c.closePath();
+    } else c.arc(cx, y + h / 2, r * 0.32, 0, Math.PI * 2);
+    c.fill();
+    if (big) {
+      c.fillStyle = "#fff3bf";
+      c.beginPath();
+      c.moveTo(cx, y + h / 2 - r * 0.48);
+      c.lineTo(cx + r * 0.48, y + h / 2);
+      c.lineTo(cx, y + h / 2 + r * 0.48);
+      c.lineTo(cx - r * 0.48, y + h / 2);
+      c.closePath();
+      c.fill();
+    }
+  }
+}
+
+/** The largest size (down to `min`) at which `text` fits `width`. */
+function fit(c: CanvasRenderingContext2D, text: string, font: string, max: number, min: number, width: number) {
   let size = max;
   for (; size > min; size -= 4) {
-    c.font = `${style} ${size}px ${FONT}`;
+    c.font = `${size}px ${font}`;
     if (c.measureText(text).width <= width) break;
   }
   return size;
 }
 
 export async function drawPoster(info: PosterInfo): Promise<HTMLCanvasElement> {
-  // the condensed width is only used here: the rest of the site loads the lighter weight-only font
-  await import("@fontsource-variable/archivo/wdth.css").catch(() => {});
   await Promise.all(
-    [document.fonts?.load(`900 condensed 100px ${FONT}`), document.fonts?.load(`900 100px ${FONT}`), document.fonts?.load(`700 30px ${FONT}`), info.script ? document.fonts?.load(`700 36px ${SCRIPTS}`, info.script) : null].map((p) => p?.catch(() => {})),
+    [document.fonts?.load(`400 120px ${NAME}`), document.fonts?.load(`600 28px ${TEXT}`), document.fonts?.load(`500 20px ${TEXT}`), info.script ? document.fonts?.load(`600 44px ${SCRIPTS}`, info.script) : null].map((p) => p?.catch(() => {})),
   );
   const cv = document.createElement("canvas");
   cv.width = W;
   cv.height = H;
   const c = cv.getContext("2d")!;
 
-  // the frame and the paper
-  c.fillStyle = NAVY;
+  // the frame, the paper, a strip of phulkari at the top
+  c.fillStyle = INDIGO;
   c.fillRect(0, 0, W, H);
-  c.fillStyle = PAPER;
+  c.fillStyle = IVORY;
   c.fillRect(FRAME, FRAME, W - 2 * FRAME, H - 2 * FRAME);
+  phulkari(c, FRAME, FRAME, W - 2 * FRAME, 34);
 
-  // the picture
-  const ax = FRAME + 20, ay = FRAME + 20, aw = W - 2 * ax, ah = 870;
+  // the picture, in the arch, with a turmeric rim
+  const aw = 720, ah = 800, ax = (W - aw) / 2, ay = 108;
   const img = info.photo ? await load(photoUrl(info.photo, coverWidth(info.photo, aw / 2, ah / 2))) : null;
+  c.save();
+  arch(c, ax, ay, aw, ah);
+  c.clip();
   let printed = false;
   if (img) {
     try {
@@ -147,93 +206,67 @@ export async function drawPoster(info: PosterInfo): Promise<HTMLCanvasElement> {
     }
   }
   if (!printed) scenery(c, ax, ay, aw, ah);
-  // sun rays over the sky, faint, as printed posters had
-  c.save();
-  c.beginPath();
-  c.rect(ax, ay, aw, ah * 0.55);
-  c.clip();
-  c.globalAlpha = 0.07;
-  c.fillStyle = "#fff6dc";
-  const [sx, sy] = [ax + aw / 2, ay + ah * 0.34];
-  for (let a = 0; a < Math.PI * 2; a += Math.PI / 14) {
-    c.beginPath();
-    c.moveTo(sx, sy);
-    c.arc(sx, sy, 1400, a, a + Math.PI / 30);
-    c.fill();
-  }
   c.restore();
+  arch(c, ax - 14, ay - 14, aw + 28, ah + 14);
+  c.strokeStyle = TURMERIC;
+  c.lineWidth = 6;
+  c.stroke();
 
-  // a train crossing the foot of the picture, on its embankment
-  const ty = ay + ah - 74;
-  c.fillStyle = NAVY;
-  c.fillRect(ax, ty + 52, aw, 22);
-  const coaches = 5;
-  for (let k = 0; k < coaches; k++) {
-    const x = ax + 90 + k * 158;
-    c.beginPath();
-    c.roundRect(x, ty, 152, 48, k === 0 ? [22, 5, 5, 5] : 4);
-    c.fill();
-  }
-  c.fillStyle = "#f6d38a";
-  for (let k = 0; k < coaches; k++) for (let w = 0; w < 5; w++) c.fillRect(ax + 104 + k * 158 + w * 27, ty + 10, 17, 13);
-  c.fillStyle = "#c9733a";
-  for (let k = 0; k < coaches; k++) c.fillRect(ax + 90 + k * 158, ty + 32, 152, 4); // the livery stripe
+  // the track it all stands on: two rails and their sleepers
+  const ty = ay + ah + 26;
+  c.fillStyle = INDIGO;
+  for (let x = FRAME + 30; x < W - FRAME - 30; x += 30) c.fillRect(x, ty - 8, 9, 34);
+  c.fillRect(FRAME + 20, ty, W - 2 * FRAME - 40, 5);
+  c.fillRect(FRAME + 20, ty + 14, W - 2 * FRAME - 40, 5);
 
-  // the name in the local script, then big in capitals
-  let y = ay + ah;
+  // the name in its own script, then big
+  let y = ty + 36;
   c.textAlign = "center";
   c.textBaseline = "alphabetic";
   if (info.script) {
-    y += 62;
-    c.font = `700 46px ${SCRIPTS}`;
-    c.fillStyle = "#c9733a";
+    y += 52;
+    c.font = `600 44px ${SCRIPTS}`;
+    c.fillStyle = MADDER;
     c.fillText(info.script, W / 2, y);
   }
-  const name = info.title.toUpperCase();
-  // condensed capitals, as on a station board (the width is part of the font shorthand: setting
-  // ctx.font resets ctx.fontStretch)
-  const size = fit(c, name, "900 condensed", info.script ? 176 : 196, 70, aw - 30);
-  c.font = `900 condensed ${size}px ${FONT}`;
-  y += 22 + size * 0.74;
-  const ny = y;
-  c.fillStyle = NAVY;
-  c.fillText(name, W / 2, ny);
+  const size = fit(c, info.title, `400 ${NAME}`, info.script ? 128 : 144, 60, W - 2 * FRAME - 80);
+  c.font = `400 ${size}px ${NAME}`;
+  y += 10 + size * 0.86;
+  c.fillStyle = INDIGO;
+  c.fillText(info.title, W / 2, y);
 
+  // how far by train, on a madder ribbon
   const line = `BY TRAIN · ${info.line.toUpperCase()}`;
-  c.font = `800 29px ${FONT}`;
-  c.letterSpacing = "5px";
-  const lw = c.measureText(line).width + 44;
-  const ly = ny + 28;
-  c.fillStyle = NAVY;
-  c.fillRect(W / 2 - lw / 2, ly, lw, 54);
-  c.fillStyle = PAPER;
-  c.fillText(line, W / 2 + 3, ly + 38);
+  c.font = `600 27px ${TEXT}`;
+  c.letterSpacing = "4px";
+  const lw = c.measureText(line).width + 48;
+  const ly = y + 26;
+  c.fillStyle = MADDER;
+  c.fillRect(W / 2 - lw / 2, ly, lw, 52);
+  c.fillStyle = IVORY;
+  c.fillText(line, W / 2 + 2, ly + 36);
   c.letterSpacing = "0px";
 
-  // the maker's mark: a small station board, and where to find it
-  const by = H - FRAME - 64;
-  c.textAlign = "left";
-  c.fillStyle = "#ffd02b";
-  c.beginPath();
-  c.roundRect(ax, by, 150, 40, 4);
-  c.fill();
+  // the maker's mark: a station's name board, and where to find it
+  const by = H - FRAME - 70;
+  c.fillStyle = "#f4c430";
+  c.fillRect(FRAME + 32, by, 196, 46);
   c.strokeStyle = "#111";
-  c.lineWidth = 2;
-  c.beginPath();
-  c.roundRect(ax + 4, by + 4, 142, 32, 3);
-  c.stroke();
-  c.font = `900 condensed 24px ${FONT}`;
+  c.lineWidth = 3;
+  c.strokeRect(FRAME + 32, by, 196, 46);
+  c.font = `600 25px ${TEXT}`;
+  c.letterSpacing = "3px";
   c.fillStyle = "#111";
-  c.textAlign = "center";
-  c.fillText("RAILGADDI", ax + 75, by + 28);
+  c.fillText("RAILGADDI", FRAME + 32 + 98 + 1, by + 32);
+  c.letterSpacing = "0px";
   c.textAlign = "right";
-  c.font = `600 22px ${FONT}`;
-  c.fillStyle = NAVY;
-  c.fillText(info.url.replace(/^https?:\/\//, "").replace(/\/$/, ""), W - ax, by + 20);
+  c.font = `500 22px ${TEXT}`;
+  c.fillStyle = INDIGO;
+  c.fillText(info.url.replace(/^https?:\/\//, "").replace(/\/$/, ""), W - FRAME - 32, by + 20);
   if (info.photo && printed) {
-    c.font = `500 17px ${FONT}`;
+    c.font = `400 17px ${TEXT}`;
     c.globalAlpha = 0.7;
-    c.fillText(`Photo: ${credit(info.photo)}, adapted`.slice(0, 90), W - ax, by + 44);
+    c.fillText(`Photo: ${credit(info.photo)}, adapted`.slice(0, 90), W - FRAME - 32, by + 44);
     c.globalAlpha = 1;
   }
   return cv;
@@ -248,10 +281,10 @@ export async function openPosterSheet(info: PosterInfo, toast: (s: string) => vo
   sheet.setAttribute("aria-modal", "true");
   sheet.setAttribute("aria-label", `Share ${info.title}`);
   sheet.innerHTML = `<div class="ps-card">
-      <div class="ps-art"><div class="ps-wait">Printing the poster…</div></div>
+      <div class="ps-art"><div class="ps-wait">Printing your poster, ek minute…</div></div>
       <div class="ps-text">
         <h2>Share ${esc(info.title)}</h2>
-        <p>A poster to send, and the link to this page.</p>
+        <p>A poster for the family group, and the link to this page.</p>
         <div class="ps-actions">
           <button type="button" class="ps-main" data-ps="share" disabled>Share poster</button>
           <button type="button" data-ps="save" disabled>Save image</button>
@@ -301,7 +334,7 @@ export async function openPosterSheet(info: PosterInfo, toast: (s: string) => vo
       if (act === "close") close();
       else if (act === "link") {
         await navigator.clipboard.writeText(info.url);
-        toast("Link copied");
+        toast("Link copied. Send it to the gang!");
       } else if (act === "save" && file) {
         const a = document.createElement("a");
         a.href = URL.createObjectURL(file);

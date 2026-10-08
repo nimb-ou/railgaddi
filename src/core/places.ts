@@ -28,11 +28,16 @@ export interface ArticleEntry {
   appeal: number; // how much there is to see: ranks which places get a photo bubble
   src?: "wd"; // no Wikivoyage guide: put together from Wikidata landmarks
   n: number; // number of sights
+  w?: string; // the usual weather, a letter a month (see core/climate.ts)
+  e?: number; // height above the sea, metres
+  m?: number; // moods, a bit each (core/climate.ts MOODS)
 }
 
 export interface ArticleDetail {
   x: string;
   sights: Sight[];
+  c?: number[]; // the usual weather: low, high (degC) and rain (mm), for each month in turn
+  cs?: "imd" | "est"; // from a guide's IMD climate chart, or estimated (NASA POWER, height-corrected)
 }
 
 interface RawPhoto {

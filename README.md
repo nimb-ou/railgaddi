@@ -20,7 +20,10 @@ railway poster's ticket, a strip of phulkari) and talks with a little Punjabi ma
 - **Plan a trip.** Stops in order, nights at each: the train that runs that day for every
   stretch (or the best way with one change, or the road where no train goes), dates, the weather
   on the day you arrive, and a link to share or save it.
-- **Weather.** Live, from Open-Meteo: the week ahead on every place, and a layer over the map
+- **When to go, and moods.** Twelve months on every place, coloured by the usual weather, a lens
+  for places that are good this month, and moods (sea and sand, up in the hills, temples and
+  shrines, forts and palaces, wild and green, big city buzz), each worked out from real data.
+- **Weather.** Live, from Open-Meteo: the week ahead on every place, the day you'd get in on the ticket, and a layer over the map
   for temperature, rain or cloud.
 - **Every kind of train.** Express, local (passenger, MEMU, DEMU) and the hill railways' toy
   trains (Kalka–Shimla, Darjeeling, Nilgiri, Kangra Valley), with a filter for each.
@@ -97,6 +100,8 @@ test/                  vitest
 | Road distances from towns without a station | [OpenStreetMap](https://www.openstreetmap.org/copyright), routed with [OSRM](https://project-osrm.org) (`pipeline/fetch_roads.py`) | ODbL |
 | Airports | [OurAirports](https://ourairports.com), those with scheduled flights | public domain |
 | Weather, place search for towns not in the list | [Open-Meteo](https://open-meteo.com), fetched in the browser when you look | CC BY 4.0 |
+| When to go: the usual weather month by month | the IMD's station averages, as Wikivoyage guides quote them; elsewhere [NASA POWER](https://power.larc.nasa.gov/)'s 2001–2020 climatology, corrected for height (`pipeline/fetch_climate.py`, `pipeline/climate.py`) | NASA: free to use, with credit |
+| Heights (hill towns), the coastline (by the sea) | SRTM 90 m via [OpenTopoData](https://www.opentopodata.org/); [Natural Earth](https://www.naturalearthdata.com/) 1:10m coastline | Public domain |
 | Summaries of towns without a station | [Wikipedia](https://en.wikipedia.org), fetched in the browser when you open one | CC BY-SA 4.0 |
 | Fonts | Archivo, Noto Sans (Indian scripts), self-hosted via Fontsource | SIL OFL 1.1 |
 
@@ -129,9 +134,18 @@ python3 pipeline/route_paths.py raw            # lines follow that track where d
 ```
 
 The official 2026 timetable is read from the Railway Board's PDFs (`fetch_tag.sh`,
-`import_tag.py`, which checks every train, then `merge_tag.py`). `merge_tag.py` only writes to
+`import_tag.py`, which checks every train, then `merge_tag.py`, then `fix_small_stops.py`, which
+re-times the estimated small stops wherever 2017's rhythm would make a stretch impossibly quick). `merge_tag.py` only writes to
 `db/` once a decision to use that edition is on record in `docs/permissions/`; the 2026 one says
 how to undo it if permission is refused ([docs/permission-requests.md](docs/permission-requests.md)).
+
+### When to go, heights and moods
+
+```bash
+python3 pipeline/fetch_climate.py raw          # heights (SRTM), NASA POWER normals, the coastline -> raw/climate/ (slow, cached)
+python3 pipeline/build_places.py raw --quick   # then the guides get their month by month weather, height and moods
+python3 pipeline/build_spots.py                # and the places without a station their weather (data/spots-weather.json)
+```
 
 ### Places without a station
 

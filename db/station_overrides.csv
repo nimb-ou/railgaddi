@@ -20,3 +20,13 @@ MNDP,state,Meghalaya,"Mendipathar, in North Garo Hills, is Meghalaya's first sta
 CRZ,state,Goa,Caranzol is in Goa on the Braganza Ghat line
 DWF,state,Goa,"Dudhsagar falls and its station are in Goa, by the Karnataka border"
 CGL,name,Chengalpattu Junction,"OpenStreetMap spells it with three t's (""Chengalpatttu"")"
+JSM,lat,26.91502,"no position in the timetable's sources; OpenStreetMap's station Jaisalmer (ref JSM)"
+JSM,lon,70.92675,"no position in the timetable's sources; OpenStreetMap's station Jaisalmer (ref JSM)"
+NGB,lat,26.87011,"no position in the timetable's sources; OpenStreetMap's station Nawabganj Gonda (ref NGB)"
+NGB,lon,82.14902,"no position in the timetable's sources; OpenStreetMap's station Nawabganj Gonda (ref NGB)"
+SJDA,lat,15.26567,"no position in the timetable's sources; OpenStreetMap's station Sanjuje-Da-Areyal (ref SJDA)"
+SJDA,lon,74.0108,"no position in the timetable's sources; OpenStreetMap's station Sanjuje-Da-Areyal (ref SJDA)"
+MQA,lat,22.88382,"no position in the timetable's sources; OpenStreetMap's station Matoda (ref MQA)"
+MQA,lon,72.39956,"no position in the timetable's sources; OpenStreetMap's station Matoda (ref MQA)"
+HYG,lat,22.9049,"no position in the timetable's sources; OpenStreetMap's station Hooghly Ghat (ref HYG)"
+HYG,lon,88.39656,"no position in the timetable's sources; OpenStreetMap's station Hooghly Ghat (ref HYG)"

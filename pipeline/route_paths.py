@@ -16,6 +16,12 @@ RAW = Path(sys.argv[1])
 MIN_KM = 15  # shorter stretches look straight anyway
 
 stations = {r["code"]: (float(r["lat"]), float(r["lon"])) for r in read_table("stations") if r["lat"]}
+# positions set by hand (db/station_overrides.csv), as build_network.py applies them
+pos = {}
+for o in read_table("station_overrides"):
+    if o["field"] in ("lat", "lon"):
+        pos.setdefault(o["code"], {})[o["field"]] = float(o["value"])
+stations.update({c: (p["lat"], p["lon"]) for c, p in pos.items() if "lat" in p and "lon" in p})
 track = Track(RAW, stations)
 print(f"track: {len(track.adj)} junctions and stations; {len(track.node_of)} of {len(stations)} stations on it")
 

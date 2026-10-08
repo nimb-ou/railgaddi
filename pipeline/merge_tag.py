@@ -17,6 +17,8 @@ What it does, for every train that passed all of import_tag.py's checks:
      that db/ already knows (TAG prints main halts only, which would otherwise draw chords);
   4. trains that now have halts leave newer_trains.csv.
 Trains TAG doesn't cover (mostly passenger and local trains) keep their 2017 timetable.
+Run fix_small_stops.py afterwards: it re-times the estimated small stops where scaling 2017's
+schedule makes a stretch impossibly quick.
 """
 import heapq
 import json

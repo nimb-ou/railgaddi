@@ -47,9 +47,9 @@ for r in read_table("stations"):
                                lat=float(r["lat"]) if r["lat"] else None, lon=float(r["lon"]) if r["lon"] else None)
 
 for o in read_table("station_overrides"):  # hand corrections to stations, like overrides.csv for trains
-    if o["code"] not in stations or o["field"] not in ("name", "hi", "local", "state"):
+    if o["code"] not in stations or o["field"] not in ("name", "hi", "local", "state", "lat", "lon"):
         sys.exit(f"station_overrides.csv: can't set {o['field']!r} on {o['code']!r}")
-    stations[o["code"]][o["field"]] = o["value"]
+    stations[o["code"]][o["field"]] = float(o["value"]) if o["field"] in ("lat", "lon") else o["value"]
 
 train_rows = {r["number"]: r for r in read_table("trains")}
 for o in read_table("overrides"):  # hand corrections win over every importer

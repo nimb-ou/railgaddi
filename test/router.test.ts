@@ -17,6 +17,7 @@ describe("addresses", () => {
       { discover: "" },
       { discover: "konkan-railway" },
       { origin: "delhi", within: 360, leave: "2h" as const },
+      { origin: "bengaluru", within: 480, leave: "weekend" as const, mood: "hills" as const, good: true },
     ];
     for (const r of routes) expect(parse(url(href(r)))).toEqual(r);
   });
@@ -24,6 +25,7 @@ describe("addresses", () => {
   it("tolerates a missing trailing slash and ignores junk", () => {
     expect(parse(url("/from/bengaluru/to/mysuru"))).toEqual({ origin: "bengaluru", place: "mysuru" });
     expect(parse(url("/from/bengaluru/?leave=soon&within=-3"))).toEqual({ origin: "bengaluru" });
+    expect(parse(url("/from/bengaluru/?mood=moon&good=yes"))).toEqual({ origin: "bengaluru" });
   });
 
   it("gives every place a unique address that leads back to it", () => {
