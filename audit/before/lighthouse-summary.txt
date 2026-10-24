@@ -1,0 +1,6 @@
+home-mobile | perf 78 | a11y 100 | bp 100 | seo 100 | LCP 1965ms | CLS 0.003 | TBT 663ms | FCP 1965ms | requests 46 | bytes 1874KiB | images 404KiB
+home-desktop | perf 80 | a11y 100 | bp 100 | seo 100 | LCP 241ms | CLS 0.039 | TBT 433ms | FCP 241ms | requests 52 | bytes 1911KiB | images 442KiB
+place-mobile | perf 37 | a11y 100 | bp 79 | seo 100 | LCP 10664ms | CLS 0.014 | TBT 2797ms | FCP 1762ms | requests 55 | bytes 2429KiB | images 842KiB
+place-desktop | perf 80 | a11y 100 | bp 78 | seo 100 | LCP 1187ms | CLS 0.004 | TBT 376ms | FCP 155ms | requests 86 | bytes 2346KiB | images 760KiB
+discover-mobile | perf 35 | a11y 100 | bp 100 | seo 100 | LCP 12865ms | CLS 0.081 | TBT 2918ms | FCP 1903ms | requests 58 | bytes 2402KiB | images 911KiB
+discover-desktop | perf 88 | a11y 100 | bp 100 | seo 100 | LCP 1014ms | CLS 0.022 | TBT 270ms | FCP 181ms | requests 61 | bytes 2132KiB | images 641KiB
