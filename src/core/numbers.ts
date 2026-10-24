@@ -1,5 +1,6 @@
 // Records from the timetable itself: the longest run, the most stops, the fastest train, the
 // busiest station. Computed from the network the site shows, so they always agree with it.
+import { fmtMins } from "./format";
 import type { Network, Place, Train } from "./network";
 
 export interface Record {
@@ -11,7 +12,7 @@ export interface Record {
 }
 
 const km = (n: number) => `${Math.round(n).toLocaleString("en-IN")} km`;
-const hrs = (m: number) => (m >= 1440 ? `${Math.floor(m / 1440)} d ${Math.round((m % 1440) / 60)} h` : `${Math.floor(m / 60)} h ${Math.round(m % 60)} m`);
+const hrs = fmtMins;
 
 export function records(net: Network): Record[] {
   const out: Record[] = [];
@@ -28,7 +29,7 @@ export function records(net: Network): Record[] {
   out.push({ label: "Longest run", value: km(run(longest)), detail: `${longest.no} ${longest.name}, ${ends(longest)}, ${hrs(time(longest))}`, train: whole(longest) });
 
   const most = best(trains, (t) => t.st.length);
-  out.push({ label: "Most stops", value: `${most.st.length} halts`, detail: `${most.no} ${most.name}, ${ends(most)}`, train: whole(most) });
+  out.push({ label: "Most stops", value: `${most.st.length} stops`, detail: `${most.no} ${most.name}, ${ends(most)}`, train: whole(most) });
 
   const speed = (t: Train) => run(t) / (time(t) / 60);
   // a record needs a believable distance: rails wind, but not to half as far again as the

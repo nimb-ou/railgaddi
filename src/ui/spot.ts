@@ -46,7 +46,7 @@ export function waysHtml(ways: WayView[], from: boolean) {
         w.train
           ? `<span>${ICON.train}${w.train.change ? `${fmtMins(w.train.mins)} by train, changing at ${esc(w.train.change)}` : `${fmtMins(w.train.mins)} by train · ${plural(w.train.trains, "direct train")}`} to ${esc(w.station)}</span>`
           : `<span>${ICON.train}Train to ${esc(w.station)} (${esc(w.code)})</span>`,
-        `<span>${ICON.car}then about ${fmtMins(w.roadMins)} by road, ${w.roadKm} km</span>`,
+        `<span>${ICON.car}then about ${fmtMins(w.roadMins)} by taxi or bus${w.total !== null ? `, ${w.roadKm} km` : ""}</span>`,
       ];
       return `<li class="way ${i === 0 && from ? "best" : ""}">
         <span class="way-n">${i + 1}</span>
@@ -58,9 +58,16 @@ export function waysHtml(ways: WayView[], from: boolean) {
     .join("")}</ol>`;
 }
 
+/** The first `n` sentences of a summary (Wikipedia's run on). */
+function firstSentences(text: string, n: number) {
+  const parts = text.match(/[^.!?]+(?:[.!?]+(?=\s+[A-Z(“"]|\s*$)|$)/g) ?? [text];
+  return parts.slice(0, n).join("").trim();
+}
+
 export function spotHtml(v: SpotView) {
   const s = v.spot;
-  const nearest = v.ways.length ? Math.min(...v.ways.map((w) => w.roadKm)) : null;
+  const near = v.ways.length ? v.ways.reduce((a, b) => (b.roadKm < a.roadKm ? b : a)) : null;
+  const nearest = near ? near.roadKm : null;
   const real = !!s.roads; // road distances from OpenStreetMap, not estimated
   const island = !!s.roads && ![...s.roads.keys()].some((k) => !k.startsWith("@")); // roads to airports only: an island
   const people = s.popShown && s.pop >= 1000 ? ` · a ${s.pop >= 100000 ? "city" : "town"} of ${plural(s.pop >= 10000 ? Math.round(s.pop / 1000) * 1000 : s.pop, "people", "people")}` : "";
@@ -68,14 +75,14 @@ export function spotHtml(v: SpotView) {
     ? `Only local trains stop at ${esc(s.local)}${nearest !== null ? ` · long-distance trains about ${nearest} km away` : ""}`
     : island
       ? "No railway station, and no road to one"
-      : `No railway station${nearest !== null ? ` · nearest about ${nearest} km by road` : ""}`;
+      : `No railway station${near ? ` · nearest is ${esc(near.station)}, about ${near.roadKm} km by road` : ""}`;
   const cover = v.summary && v.summary !== "loading" && v.summary.photo
     ? `<figure class="pl-cover"><span class="arch shot" data-key="${esc(v.summary.photo)}"><img src="${esc(v.summary.photo)}" alt="" fetchpriority="high" decoding="async" crossorigin="anonymous" referrerpolicy="no-referrer" /></span></figure>`
     : `<figure class="pl-cover bare"><span class="arch" aria-hidden="true"><i class="ph">${esc(s.name.charAt(0))}</i></span></figure>`;
   const intro = v.summary === "loading"
     ? `<div class="skeleton"><span class="shimmer"></span></div>`
     : v.summary?.text
-      ? `<p class="intro">${esc(v.summary.text)}</p>`
+      ? `<p class="intro">${esc(firstSentences(v.summary.text, 2))}</p>`
       : "";
   const ways = v.ways.length
     ? waysHtml(v.ways, !!v.from)
@@ -86,8 +93,8 @@ export function spotHtml(v: SpotView) {
     <div class="top-bar">
       <button class="back" type="button" data-act="close">← ${esc(v.back)}</button>
       <span class="top-tools">
-        <button class="round save-place" type="button" data-act="save-spot" aria-pressed="${v.saved}" aria-label="${v.saved ? `On your bucket list: remove ${esc(s.name)}` : `Add ${esc(s.name)} to your bucket list`}">${HEART}</button>
-        <button class="round" type="button" data-act="share" aria-label="Share ${esc(s.name)}">${ICON.share}</button>
+        <button class="round save-place" type="button" data-act="save-spot" aria-pressed="${v.saved}" aria-label="${v.saved ? `On your bucket list: remove ${esc(s.name)}` : `Add ${esc(s.name)} to your bucket list`}" title="${v.saved ? "On your bucket list" : "Add to bucket list"}">${HEART}</button>
+        <button class="round" type="button" data-act="share" aria-label="Share ${esc(s.name)}" title="Share">${ICON.share}</button>
       </span>
     </div>
     ${cover}
@@ -101,7 +108,7 @@ export function spotHtml(v: SpotView) {
     ${v.when}
     <section aria-labelledby="ways-h">
       <div class="section-head"><h3 id="ways-h">${v.from ? `Getting here from ${esc(v.from)}` : "How to get here"}</h3></div>
-      ${v.from ? `<p class="gh-lede">Quickest first: the train, then the road from the station. ${real ? "Road times by taxi or bus are estimates." : "Road distances and times are estimates."}</p>` : `<p class="gh-lede">No station here, koi gal nahi. Take a train to one of these, then a taxi or bus. Tell us where you start to see the whole way.</p>${v.fromChoices}`}
+      ${v.from ? `<p class="gh-lede">Quickest first: the train, then the road from the station. ${real ? "Road times by taxi or bus are estimates." : "Road distances and times are estimates."}</p>` : `<p class="gh-lede">No station here, but getting in is easy: take a train to one of these, then a taxi or bus. Tell us where you start and we'll show the whole way.</p>${v.fromChoices}`}
       ${ways}
     </section>
     ${v.airports.length ? `<section aria-labelledby="air-h">

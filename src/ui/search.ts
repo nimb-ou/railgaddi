@@ -190,7 +190,7 @@ export class SearchBox {
   private render() {
     const q = this.input.value.trim();
     if (!this.results.length) {
-      this.list.innerHTML = q ? `<li class="none" aria-disabled="true">${esc(this.opts.empty ?? "No station or city by that name in this timetable")}</li>` : "";
+      this.list.innerHTML = q ? `<li class="none" aria-disabled="true">${esc(this.opts.empty ?? "No station, town or famous place by that name. Try another spelling?")}</li>` : "";
       this.list.hidden = !q;
     } else {
       this.list.innerHTML = this.results
@@ -199,7 +199,7 @@ export class SearchBox {
             const s = it.s;
             return `<li role="option" id="${this.id}-${i}" data-i="${i}" aria-selected="${i === this.active}">
               <span class="s-img s-spot" aria-hidden="true">${PIN}</span><span class="s-name">${esc(s.name)}</span><span class="s-script"></span>
-              <span class="s-meta">${esc(`${s.state ? `${s.state} · ` : ""}${s.fromSearch ? "found online · " : ""}no station: see how to get there`)}</span></li>`;
+              <span class="s-meta">${esc(`${s.state ? `${s.state} · ` : ""}no station${s.fromSearch ? " · from the web" : ""}`)}</span></li>`;
           }
           if (it.t) {
             const t = it.t;

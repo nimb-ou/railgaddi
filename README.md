@@ -7,10 +7,10 @@ see what it looks like, what to see there, the weather this week, and every trai
 booking and no live running status: the timetable, and the country it opens up.
 
 It looks like India and its railways (the painted land, a station's yellow name board, an old
-railway poster's ticket, a strip of phulkari) and talks with a little Punjabi masti: see
+railway poster's ticket, a strip of phulkari) and talks in warm, plain, slightly quirky English: see
 [DESIGN.md](DESIGN.md).
 
-- **How long will you ride?** 2 h, 4 h, 8 h, 12 h, a day or any: the lines grow out from your
+- **How long will you ride?** 2h, 4h, 8h, 12h, a day or any: the lines grow out from your
   station to that far. Lenses for quick getaways, overnight trains (board after dinner, wake up
   there) and weekends (Friday night or Saturday morning).
 

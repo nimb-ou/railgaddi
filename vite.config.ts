@@ -36,7 +36,7 @@ export default defineConfig({
       manifest: {
         name: "Railgaddi",
         short_name: "Railgaddi",
-        description: "Chalo! Pick your station and watch every line you can ride light up across India, with what to see and when to go.",
+        description: "Pick your station and watch every line you can ride light up across India, with what to see and when to go.",
         lang: "en-IN",
         start_url: base,
         scope: base,

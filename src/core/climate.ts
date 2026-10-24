@@ -66,7 +66,7 @@ export function spanWords([a, b]: [number, number]) {
 export function whenLine(w: string) {
   const parts: string[] = [];
   const best = runs(w, (k) => k === "B" || k === "G");
-  if (best.length) parts.push(best[0][0] === 0 && best[0][1] === 11 ? "Good all year round, balle balle." : `Best from ${best.map(spanWords).join(" and ")}.`);
+  if (best.length) parts.push(best[0][0] === 0 && best[0][1] === 11 ? "Good all year round: go whenever you like." : `Best from ${best.map(spanWords).join(" and ")}.`);
   const wet = runs(w, (k) => k === "W");
   if (wet.length) parts.push(`${wet.map(spanWords).join(" and ")}: the monsoon pours.`);
   const hot = runs(w, (k) => k === "H");

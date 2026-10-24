@@ -236,7 +236,7 @@ export async function drawPoster(info: PosterInfo): Promise<HTMLCanvasElement> {
   c.fillText(info.title, W / 2, y);
 
   // how far by train, on a madder ribbon
-  const line = `BY TRAIN · ${info.line.toUpperCase()}`;
+  const line = `BY TRAIN · ${info.line.replace(/[^\s·]+/g, (w) => (/^\d+[hm]$/.test(w) ? w : w.toUpperCase()))}`;
   c.font = `600 27px ${TEXT}`;
   c.letterSpacing = "4px";
   const lw = c.measureText(line).width + 48;
@@ -281,7 +281,7 @@ export async function openPosterSheet(info: PosterInfo, toast: (s: string) => vo
   sheet.setAttribute("aria-modal", "true");
   sheet.setAttribute("aria-label", `Share ${info.title}`);
   sheet.innerHTML = `<div class="ps-card">
-      <div class="ps-art"><div class="ps-wait">Printing your poster, ek minute…</div></div>
+      <div class="ps-art"><div class="ps-wait">Printing your poster, one moment…</div></div>
       <div class="ps-text">
         <h2>Share ${esc(info.title)}</h2>
         <p>A poster for the family group, and the link to this page.</p>

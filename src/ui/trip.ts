@@ -50,7 +50,7 @@ const rideDep = (r: Ride) => (r.kind === "direct" ? r.leg.dep : r.conn.legs[0].d
 function hopHtml(v: TripView, leg: PlannedLeg, i: number) {
   if (leg.roadOnly) {
     return `<div class="hop none"><div class="hop-card"><b>By road, about ${fmtMins(leg.roadOnly.mins)}</b><div class="hop-when"><span>${v.dayOf(leg.depart)} · about ${leg.roadOnly.km} km by bus or taxi</span></div>
-      <div class="road">No train links these within a week, even with one change. The road is the way most people go.</div></div></div>`;
+      <div class="road">No train links these two, even with one change. The road is how most people go.</div></div></div>`;
   }
   if (!leg.rail) {
     const mins = (leg.roadBefore?.road.mins ?? 0) + (leg.roadAfter?.road.mins ?? 0);
@@ -61,8 +61,8 @@ function hopHtml(v: TripView, leg: PlannedLeg, i: number) {
     leg.roadAfter ? `Then road from ${esc(v.name(leg.roadAfter.place))}: about ${fmtMins(leg.roadAfter.road.mins)} (${leg.roadAfter.road.km} km)` : "",
   ].filter(Boolean);
   if (!leg.ride) {
-    return `<div class="hop none"><div class="hop-card"><b>No train from ${esc(v.name(leg.rail.a))} to ${esc(v.name(leg.rail.b))} within a week</b>
-      <div class="road">Not even with one change in our timetable. Try a stop in between, or go by road.</div></div></div>`;
+    return `<div class="hop none"><div class="hop-card"><b>No train from ${esc(v.name(leg.rail.a))} to ${esc(v.name(leg.rail.b))}, even with one change</b>
+      <div class="road">Not in our timetable, on any day of the week. Try a stop in between, or go by road.</div></div></div>`;
   }
   const chosen = leg.ride;
   const tm = leg.times[leg.chosen];
@@ -138,6 +138,6 @@ export function tripHtml(v: TripView) {
       <button class="btn" type="button" data-act="share">${ICON.share}Share</button>
       <button class="btn" type="button" data-act="trip-clear">Start again</button>
     </div>
-    <p class="note" style="margin-top:12px">Times from the timetable; running days where known, otherwise assumed daily. Check <a href="https://enquiry.indianrail.gov.in/mntes/" target="_blank" rel="noopener">NTES</a> and book on IRCTC.</p>` : ""}
+    <p class="note" style="margin-top:12px">Times from the timetable; running days where known, otherwise assumed daily. Check live times on <a href="https://enquiry.indianrail.gov.in/mntes/" target="_blank" rel="noopener">NTES</a> and book on IRCTC.</p>` : ""}
   </div></div>`;
 }

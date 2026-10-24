@@ -17,8 +17,8 @@ export function setupChrome(map: RailMap, onTheme: () => void) {
   const mark = () => {
     const night = document.documentElement.dataset.theme === "night";
     icon.setAttribute("d", night ? SUN : MOON);
-    btn.setAttribute("aria-label", night ? "Switch to day" : "Switch to the night train");
-    btn.title = night ? "Day" : "Night train";
+    btn.setAttribute("aria-label", night ? "Switch to day colours" : "Switch to night colours");
+    btn.title = night ? "Day colours" : "Night colours";
   };
   mark();
   btn.addEventListener("click", () => {

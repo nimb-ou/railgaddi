@@ -33,7 +33,7 @@ export function weatherHtml(f: Forecast | "loading" | "error", where: string) {
     <div class="wx-head">
       ${iconSvg(now.icon)}
       <span class="wx-temp">${deg(f.now.temp)}</span>
-      <span class="wx-what"><b>${esc(now.text)}</b><small>Feels ${deg(f.now.feels)}${today ? ` · ${deg(today.max)} / ${deg(today.min)} today` : ""}${today && today.rainChance >= 20 ? ` · ${today.rainChance}% rain` : ""}</small></span>
+      <span class="wx-what"><b>${esc(now.text)}</b><small>Feels like ${deg(f.now.feels)}${today ? ` · ${deg(today.max)} / ${deg(today.min)} today` : ""}${today && today.rainChance >= 20 ? ` · ${today.rainChance}% chance of rain` : ""}</small></span>
     </div>
     <ol class="wx-days">${f.days
       .slice(0, 7)
@@ -50,7 +50,7 @@ export function weatherHtml(f: Forecast | "loading" | "error", where: string) {
 /** A day's weather in a line (for a trip's stops). */
 export function weatherLine(d: { code: number; max: number; min: number; rainChance: number }) {
   const w = describe(d.code);
-  return `<span class="wx-mini" title="${esc(w.text)}">${iconSvg(w.icon)}${deg(d.max)} / ${deg(d.min)}${d.rainChance >= 30 ? ` · ${d.rainChance}% rain` : ""}</span>`;
+  return `<span class="wx-mini" title="${esc(w.text)}">${iconSvg(w.icon)}${deg(d.max)} / ${deg(d.min)}${d.rainChance >= 30 ? ` · ${d.rainChance}% chance of rain` : ""}</span>`;
 }
 
 // ---------------------------------------------------------------- the map layer

@@ -193,6 +193,9 @@ svg { flex: none; }
 .ask { padding: 18px 22px 2px; }
 .hello { margin: 0 0 4px; font-size: 13.5px; color: var(--muted); }
 .hello b { font-weight: 600; color: var(--madder); }
+.hello.miss { color: var(--text); }
+.hello.miss b { color: var(--caution); }
+.ask-sub { margin: -6px 0 14px; font-size: 14px; line-height: 1.45; color: var(--muted); text-wrap: pretty; }
 .ask-q { margin: 0 0 14px; font: 400 30px/1.08 var(--f-name); letter-spacing: -0.01em; text-wrap: balance; }
 body:not([data-view="home"]) .ask { display: none; }
 
@@ -304,6 +307,10 @@ body[data-view="home"] .route { margin-top: 0; }
 .info .info-lede { margin: 0 0 12px; color: var(--madder); font-weight: 500; }
 .info p { margin: 0 0 10px; color: var(--muted); }
 .info b { color: var(--text); font-weight: 600; }
+.info-list { margin: 0 0 12px; padding-left: 18px; color: var(--muted); }
+.info-list li { margin-bottom: 4px; }
+.info-src { margin: 0 0 10px; }
+.info-src summary { cursor: pointer; color: var(--peacock); font-weight: 600; margin-bottom: 8px; }
 @media (max-width: 720px) { .info { left: 16px; top: 16px; } }
 
 .loading { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: var(--paper); transition: opacity 0.35s; }

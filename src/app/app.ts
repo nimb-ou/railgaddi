@@ -123,7 +123,7 @@ export class App {
       spots: () => this.spots,
       onSpot: (s) => this.openSpot(s, { push: true }),
       online: true,
-      empty: "No station, town or famous place by that name",
+      empty: "No station, town or famous place by that name. Try another spelling?",
     });
     // typed before the timetable arrived: answer it now
     for (const id of ["from-input", "to-input"]) {
@@ -224,7 +224,7 @@ export class App {
     if (this.net.ready) return fn();
     this.waiting = fn; // the last thing asked for
     document.body.classList.add("waiting");
-    this.toast("Gaddi aa rahi hai… loading the timetable", 120000);
+    this.toast("The train's pulling in… loading the timetable", 120000);
   }
 
   timetableReady() {
@@ -266,6 +266,9 @@ export class App {
     // measure the panel (the sheet, on phones) before framing anything on the map: a shared link
     // to a place must show the place, not leave it under the sheet
     if (first) this.settle();
+    if (first && !Object.keys(r).length && !/^\/(privacy\/?)?$/.test(location.pathname.slice(import.meta.env.BASE_URL.length - 1))) {
+      this.notice("This page has left the platform.", "Search for a station or place below, or pick one to start.");
+    }
     if (r.discover !== undefined) {
       // Discover leaves the map as it is: where you start stays where you start
       this.setMode("explore", false);
@@ -281,7 +284,7 @@ export class App {
       });
       this.trip = { stops, date: r.trip.date || this.trip.date || this.defaultDate(), choice: [] };
       this.setMode("trip", false);
-      if (missing.length) this.toast(`Oops, couldn't find ${missing.map((m) => `“${m.replace(/-/g, " ")}”`).join(", ")}.`, 5000);
+      if (missing.length) this.toast(`We couldn't find ${missing.map((m) => `“${m.replace(/-/g, " ")}”`).join(", ")}, so ${missing.length > 1 ? "they're" : "it's"} left out of the trip.`, 5000);
       return;
     }
     if (this.mode !== "explore") this.setMode("explore", false, false);
@@ -323,7 +326,9 @@ export class App {
     const missing = (r.origin && !origin ? r.origin : null) ?? (r.place && !place && !spot ? r.place : null);
     if (missing) {
       // an old or mistyped link: say so, and show the address of what we could open
-      this.toast(`Oops, couldn't find “${missing.replace(/-/g, " ")}”. Try the search?`, 5000);
+      const name = missing.replace(/-/g, " ");
+      this.toast(`We couldn't find “${name}”. Try the search?`, 5000);
+      this.notice(`We couldn't find “${name}”.`, "It may have been renamed. Search for it below, or pick a station to start.");
       this.sync("replace");
     }
     this.syncChrome();
@@ -405,7 +410,16 @@ export class App {
   private greet() {
     const h = new Date().getHours();
     const when = h < 5 ? "Up late?" : h < 12 ? "Good morning!" : h < 17 ? "Good afternoon!" : "Good evening!";
-    $("hello").innerHTML = `<b>Ji aayan nu!</b> ${when}`;
+    const hello = $("hello");
+    hello.classList.remove("miss");
+    hello.innerHTML = `<b>Welcome aboard!</b> ${when}`;
+  }
+
+  /** Something went wrong with the address: said where the landing page says hello, until the next pick. */
+  private notice(head: string, then: string) {
+    const hello = $("hello");
+    hello.classList.add("miss");
+    hello.innerHTML = `<b>${esc(head)}</b> ${esc(then)}`;
   }
 
   /** Back to the start: nothing picked. */
@@ -417,6 +431,7 @@ export class App {
 
   private chooseFrom(p: Place) {
     if (!this.net.ready) return this.whenReady(() => this.chooseFrom(p));
+    if ($("hello").classList.contains("miss")) this.greet();
     if (this.mode === "trip") this.setMode("explore", false, false);
     if (p === this.destination()) this.closePanel({ push: false, refit: false }); // "from" the place you were looking at
     this.setOrigin(p, { push: true });
@@ -426,7 +441,7 @@ export class App {
     if (!this.net.ready) return this.whenReady(() => this.chooseTo(p));
     if (this.mode === "trip") this.setMode("explore", false, false);
     if (p === this.origin) {
-      this.toast(`That's home, ji! Pick somewhere to go.`);
+      this.toast(`That's where you're starting from. Pick somewhere to go!`);
       return this.syncChrome(true);
     }
     this.openPlace(p, { push: true });
@@ -436,7 +451,7 @@ export class App {
   private startNear(s: Spot) {
     const best = this.nearestFor(s);
     if (!best) return this.toast(`No station with trains near ${s.name}, sadly.`);
-    this.toast(`${s.name} has no station, koi gal nahi: starting from ${this.name(best.place)}, about ${best.road.km} km away`, 4500);
+    this.toast(`${s.name} has no station, so we're starting you from ${this.name(best.place)}, about ${best.road.km} km away`, 4500);
     this.chooseFrom(best.place);
   }
 
@@ -454,7 +469,7 @@ export class App {
       const s = this.open.spot;
       const best = this.nearestFor(s);
       if (!best) return this.toast(`No station with trains near ${s.name}, sadly.`);
-      this.toast(`${s.name} has no station, koi gal nahi: starting from ${this.name(best.place)}, about ${best.road.km} km away`, 4500);
+      this.toast(`${s.name} has no station, so we're starting you from ${this.name(best.place)}, about ${best.road.km} km away`, 4500);
       this.closePanel({ push: false, refit: false });
       this.setOrigin(best.place, { push: !o || o === best.place, keep: false });
       if (o && o !== best.place) this.openPlace(o, { push: true });
@@ -1309,7 +1324,7 @@ export class App {
     const last = this.trip.stops[this.trip.stops.length - 1];
     const same = (a: Stop, b: Stop) => (a.kind === "place" && b.kind === "place" && a.place === b.place) || (a.kind === "spot" && b.kind === "spot" && a.spot === b.spot);
     if (last && same(last.stop, stop)) return this.toast("That's already your last stop!");
-    if (this.trip.stops.length >= 12) return this.toast("Twelve stops is the most a trip can take. Bas, enough!");
+    if (this.trip.stops.length >= 12) return this.toast("Twelve stops is the most a trip can take. That's a proper grand tour!");
     // a stop you stay at: two nights unless you say otherwise (the first stop is where you set off)
     if (this.trip.stops.length) this.trip.stops[this.trip.stops.length - 1].nights ||= this.trip.stops.length > 1 ? 2 : 0;
     this.trip.stops.push({ stop, nights: this.trip.stops.length ? 2 : 0 });
@@ -1471,7 +1486,7 @@ export class App {
         height: this.spotsWeather?.[this.spots.list.indexOf(s)]?.[1] ?? null,
         fromChoices: `<div class="gh-search">
           <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" /><path d="M13 13l4.5 4.5" /></svg>
-          <input id="gh-input" type="search" enterkeyhint="go" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Your station or city, ji" aria-label="Where do you start?" />
+          <input id="gh-input" type="search" enterkeyhint="go" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Your station or city" aria-label="Where do you start?" />
           <ul class="suggest" id="gh-list" aria-label="Where you could start" hidden></ul>
         </div>`,
         back: this.origin ? `From ${titleOf(this.origin, null)}` : "Home",
@@ -1492,7 +1507,7 @@ export class App {
     } else if (o.kind === "story") {
       this.panel.dataset.view = "story";
       const codes = o.story.rides.flatMap((r) => [r.from, r.to]);
-      this.panel.innerHTML = storyHtml(o.story, this.rideViews(o.story), this.factsAt(codes, 2), this.discoverData!.facts);
+      this.panel.innerHTML = storyHtml(o.story, this.rideViews(o.story), this.factsAt(codes, 6), this.discoverData!.facts);
     } else if (o.kind === "saved") {
       this.panel.dataset.view = "saved";
       this.panel.innerHTML = savedHtml(this.savedView());
@@ -1878,20 +1893,20 @@ export class App {
       case "save-place":
         if (o?.kind === "place") {
           const on = this.saves.toggle({ key: placeKey(this.slugs.of(o.place)), kind: "place", data: { slug: this.slugs.of(o.place), title: this.name(o.place), state: o.place.state } });
-          this.toast(on ? `Balle balle! ${this.name(o.place)} is on your bucket list` : `Off the bucket list`, 2400, on ? { label: "See it", run: () => this.openSaved() } : undefined);
+          this.toast(on ? `Yay! ${this.name(o.place)} is on your bucket list` : `Off the bucket list`, 2400, on ? { label: "Open Saved", run: () => this.openSaved() } : undefined);
         }
         break;
       case "save-spot":
         if (o?.kind === "spot") {
           const s = o.spot;
           const on = this.saves.toggle({ key: placeKey(s.id), kind: "place", data: { slug: s.id, title: s.name, state: s.state } });
-          this.toast(on ? `Balle balle! ${s.name} is on your bucket list` : `Off the bucket list`, 2400, on ? { label: "See it", run: () => this.openSaved() } : undefined);
+          this.toast(on ? `Yay! ${s.name} is on your bucket list` : `Off the bucket list`, 2400, on ? { label: "Open Saved", run: () => this.openSaved() } : undefined);
         }
         break;
       case "save-route":
         if ((o?.kind === "place" || o?.kind === "journey") && this.origin) {
           const on = this.saves.toggle(this.routeSave(o.place, o.kind === "journey" ? o.conn : undefined));
-          this.toast(on ? "Route saved. Chalo!" : "Route removed", 2400, on ? { label: "Saved", run: () => this.openSaved() } : undefined);
+          this.toast(on ? "Route saved. Off you go!" : "Route removed", 2400, on ? { label: "Open Saved", run: () => this.openSaved() } : undefined);
         }
         break;
       case "unsave": {
@@ -2125,7 +2140,7 @@ export class App {
       await navigator.clipboard.writeText(url);
       this.toast("Link copied. Send it to the gang!");
     } catch (err) {
-      if ((err as DOMException)?.name !== "AbortError") this.toast("Couldn't share. Copy the address from the address bar.");
+      if ((err as DOMException)?.name !== "AbortError") this.toast("Couldn't share from here. Copy the link from the address bar instead.");
     }
   }
 
@@ -2210,17 +2225,17 @@ export class App {
   private describe() {
     const o = this.open;
     const from = this.origin ? titleOf(this.origin, null) : null;
-    let title = "Railgaddi · chalo, where's the train taking you?";
+    let title = "Railgaddi · Every place a direct train can take you";
     if (this.mode === "trip" && o?.kind !== "train") title = this.trip.stops.length ? `Trip: ${this.tripTitle()} · Railgaddi` : "Plan a trip by train · Railgaddi";
     else if (o?.kind === "train") title = `${o.leg.train.no} ${o.leg.train.name} · ${fmtTime(o.leg.dep)} · Railgaddi`;
-    else if (o?.kind === "discover") title = "Stories: journeys worth taking, and facts from India's railways · Railgaddi";
+    else if (o?.kind === "discover") title = "Stories from the rails: journeys and facts from India's railways · Railgaddi";
     else if (o?.kind === "story") title = `${o.story.title} · Railgaddi`;
     else if (o?.kind === "journey") title = `${from} to ${this.name(o.place)} with one change at ${this.name(o.conn.via)} · Railgaddi`;
     else if (o?.kind === "spot") title = `${o.spot.name} by train${from ? ` from ${from}` : ""}: the nearest stations · Railgaddi`;
     else if (o?.kind === "place") {
       const name = titleOf(o.place, this.guides.get(o.place));
-      title = from ? `${name} by train from ${from} · Railgaddi` : `${name} by train: direct from ${plural(this.reach.size, "place")} · Railgaddi`;
-    } else if (from) title = `Trains from ${from}: ${plural(this.reach.size, "place")} without changing · Railgaddi`;
+      title = from ? `${name} by train from ${from} · Railgaddi` : `${name} by train: direct from ${plural(this.reach.size, "station")} · Railgaddi`;
+    } else if (from) title = `Trains from ${from}: ${plural(this.reach.size, "station")} without changing · Railgaddi`;
     document.title = title;
   }
 

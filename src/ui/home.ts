@@ -71,21 +71,21 @@ export function homeHtml(v: HomeView) {
     <button class="link-btn ask-to" type="button" data-act="ask-to">Already know where you're going? Search it →</button>
 
     <section class="hills" aria-labelledby="hills-h" style="margin:6px 0 0">
-      <h2 id="hills-h">No station? Koi gal nahi.</h2>
+      <h2 id="hills-h">No station? No problem.</h2>
       <p class="sub">The hills don't all have a station. We'll find the nearest one, and the road from there.</p>
       <nav class="chips" aria-label="Places without a station">${v.hills.map((h) => `<a href="${esc(h.href)}" data-act="goto" title="${esc(h.note)}">${esc(h.name)}</a>`).join("")}</nav>
     </section>
 
     ${v.ideas.length ? `<section aria-labelledby="ideas-h" style="margin:6px 0 0">
-      <h2 id="ideas-h">Ideas, ekdum first class</h2>
+      <h2 id="ideas-h">First-class ideas</h2>
       <p class="sub">Not sure yet? Start with one of these.</p>
       <div class="ideas">${v.ideas
         .map((i) => `<a class="idea" href="${esc(i.href)}" data-act="goto"><span class="arch">${i.photo ? img(i.photo, `${coverWidth(i.photo, 90, 108)}px`, 250, 500) : `<i class="ph">${esc(i.title.charAt(0))}</i>`}</span><b>${esc(i.title)}</b><small>${esc(i.note)}</small></a>`)
         .join("")}</div>
     </section>` : ""}
 
-    <button class="cta" type="button" data-act="plan"><span class="cta-icon">${PLAN}</span><span><b>Plan a proper yatra</b><small>Several stops, the train that runs each day, and the weather when you're there.</small></span></button>
-    ${v.fact ? `<p class="hero-fact"><span>Oye, did you know?</span>${esc(v.fact.text)} <a href="${esc(v.fact.href)}" data-act="discover">More stories →</a></p>` : ""}
+    <button class="cta" type="button" data-act="plan"><span class="cta-icon">${PLAN}</span><span><b>Plan a proper trip</b><small>Several stops, the train that runs each day, and the weather when you're there.</small></span></button>
+    ${v.fact ? `<p class="hero-fact"><span>Did you know?</span>${esc(v.fact.text)} <a href="${esc(v.fact.href)}" data-act="discover">More stories →</a></p>` : ""}
   </div></div>`;
 }
 
@@ -123,12 +123,12 @@ export interface ExploreView {
 
 /** How long you'll ride: the steps, and what each one feels like. */
 export const STEPS: [number, string, string][] = [
-  [120, "2 h", "Back home in time for lunch"],
-  [240, "4 h", "A quick getaway: there and back in a day"],
-  [480, "8 h", "One good nap and you're there"],
-  [720, "12 h", "A proper safar. Pack the parathas"],
-  [1440, "A day", "Bring the pillow and the achaar"],
-  [Infinity, "Any", "As far as the tracks go. Balle balle!"],
+  [120, "2h", "Back home in time for lunch"],
+  [240, "4h", "A quick getaway: there and back in a day"],
+  [480, "8h", "One good nap and you're there"],
+  [720, "12h", "A proper journey. Pack the parathas"],
+  [1440, "A day", "Bring a pillow and the achaar"],
+  [Infinity, "Any", "As far as the tracks go. Full steam ahead!"],
 ];
 const SPAN: Record<number, string> = { 120: "2 hours", 240: "4 hours", 480: "8 hours", 720: "12 hours", 1440: "a day" };
 
@@ -141,7 +141,7 @@ export function lensOf(within: number, leave: Leave): Lens {
   return null;
 }
 
-const KINDS: [Kind, string][] = [["all", "All trains"], ["long", "Express and mail"], ["local", "Local: passenger, MEMU, DEMU"], ["toy", "Toy trains"]];
+const KINDS: [Kind, string][] = [["all", "All trains"], ["long", "Long-distance (express, mail, superfast)"], ["local", "Local and passenger (MEMU, DEMU)"], ["toy", "Toy trains"]];
 const LEAVES: [Leave, string][] = [["any", "Leaving any time"], ["2h", "In the next 2 h"], ["6h", "In the next 6 h"], ["overnight", "Overnight"], ["weekend", "For a weekend"]];
 
 const select = <T extends string | number>(name: string, label: string, value: T, options: [T, string][]) =>
@@ -191,11 +191,11 @@ export function exploreHtml(v: ExploreView) {
       <span class="lbl" id="ride-l">How long will you ride?</span>
       <div class="seg" role="group" aria-labelledby="ride-l">${STEPS.map(([w, l]) => `<button type="button" data-act="within" data-v="${w}" aria-pressed="${step?.[0] === w}">${l}</button>`).join("")}</div>
       <p class="ride-cap" aria-live="polite">${step ? esc(step[2]) : lens === "overnight" ? "Sleep on the train, wake up somewhere new" : lens === "weekend" ? "Two days, one bag, zero tension" : ""}</p>
-      <span class="key" aria-hidden="true">Sooner<i></i>Later</span>
+      <span class="key" aria-hidden="true">Shorter ride<i></i>Longer ride</span>
     </div>
     <div class="chips lenses" role="group" aria-label="Kinds of trip">
       ${lensBtn("quick", "Quick getaways")}${lensBtn("overnight", "Overnight")}${lensBtn("weekend", "Weekends")}
-      <button type="button" data-act="good" aria-pressed="${v.good}">${SUN}Good in ${MONTH_NAMES[v.month]}</button>
+      <button type="button" data-act="good" aria-pressed="${v.good}" title="Only places with good weather in ${MONTH_NAMES[v.month]}">${SUN}Good in ${MONTH_NAMES[v.month]}</button>
       <button type="button" data-act="moods" aria-expanded="${v.moodsOpen}" aria-pressed="${!!v.mood}">${v.mood ? esc(MOODS[v.mood].label) : "Moods"}<span aria-hidden="true">${v.moodsOpen ? "▴" : "▾"}</span></button>
       <button type="button" data-act="surprise">${DICE}Surprise me</button>
     </div>
@@ -213,8 +213,8 @@ export function exploreHtml(v: ExploreView) {
             </a></li>`,
           )
           .join("")}</ol>`
-      : v.noneLeave ? "" : `<p class="empty">${v.mood || v.good ? "Oho, nothing like that within this ride. Try a longer ride, or another mood." : v.withGuides && v.places ? "Oho, none of these has a travel guide yet. Try “Every stop” below." : lens === "weekend" ? "No weekend trains from here, sadly. Try Overnight, or a longer ride." : "Oho, nothing this close. Try a longer ride."}</p>`}
-    ${!v.showAll && v.items.length > shown.length ? `<button class="link-btn show-all" type="button" data-act="list-more">See all ${v.items.length.toLocaleString("en-IN")} →</button>` : ""}
+      : v.noneLeave ? "" : `<p class="empty">${v.mood || v.good ? "Nothing like that on this ride. Try a longer ride, or another mood." : v.withGuides && v.places ? "None of these has a travel guide yet. Try “Every stop” under Fine-tune." : lens === "weekend" ? "No weekend trains from here, sadly. Try Overnight, or a longer ride." : "Nothing this close. Try a longer ride."}</p>`}
+    ${!v.showAll && v.items.length > shown.length ? `<button class="link-btn show-all" type="button" data-act="list-more">Show all ${v.items.length.toLocaleString("en-IN")}</button>` : ""}
     ${v.noneLeave ? "" : `<details class="fine"${tuned ? " open" : ""}>
       <summary>Fine-tune</summary>
       <div class="fine-body">

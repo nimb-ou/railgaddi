@@ -52,14 +52,18 @@ All colours are CSS variables in `src/ui/style.css`; the canvas map reads the sa
 
 Tiro Devanagari Hindi for names (places, trains, headings), Hind for reading, Rozha One for the
 big numbers (times, durations, kilometres), as a railway poster sets them. Noto Sans for Indian
-scripts on boards. No Gurmukhi in the interface: the Punjabi flavour is in the words.
+scripts on boards. No Gurmukhi in the interface's words (a Punjab station's own board may show it).
 
 ## Voice
 
-Fun, warm, a bit Punjabi, always clear: Roman letters that everyone can read, with the English
-alongside or obvious from context. "Chalo! Where's the gaddi taking you?", "No station? Koi gal
-nahi.", "Balle balle!", "Gaddi aa rahi hai… loading the timetable". Facts stay exact: the jokes
-never change a time, a day or a distance. It's Railgaddi, never Railgaadi.
+Fun, warm, a little quirky, always clear, in plain Indian English (October 2026: no Punjabi
+words any more). Say what something is before the joke: "Chalo! Where can a train take you?",
+then "Pick your station: the map lights up every place a direct train can take you". A
+pan-Indian word only where it's obvious from the sentence and adds warmth ("Pack the
+parathas"), at most one a screen, and never in a label, a button or a placeholder. One name per
+thing: Saved, Stories, Weather, stops. Errors say what happened and what to do next ("We
+couldn't load the timetable. Check your connection and try again."). Facts stay exact: the
+jokes never change a time, a day or a distance. It's Railgaddi, never Railgaadi.
 
 ## Motion
 

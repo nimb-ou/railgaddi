@@ -118,7 +118,7 @@ async function boot() {
   });
   ready.catch((err) => {
     console.error(err);
-    app.toast("Oho, couldn't load the timetable. Check your connection and reload.", 60000);
+    app.toast("We couldn't load the timetable. Check your connection and reload.", 60000);
   });
   await ready.catch(() => {});
   if (!net.ready) return;
@@ -156,6 +156,6 @@ async function boot() {
 boot().catch((err) => {
   console.error(err);
   const box = document.getElementById("loading")!;
-  box.innerHTML = `<b>Railgaddi</b><p>Oho, the gaddi got stuck: couldn't load the timetable. Check your connection and try again.</p><button type="button">Try again</button>`;
+  box.innerHTML = `<b>Railgaddi</b><p>We're stuck at a signal: we couldn't load the timetable. Check your connection and try again.</p><button type="button">Try again</button>`;
   box.querySelector("button")!.addEventListener("click", () => location.reload());
 });

@@ -46,7 +46,7 @@ const host = (u: string) => u.replace(/^https?:\/\/(en\.)?/, "").split("/")[0];
 /** One fact, as a note in a timetable book. */
 export function noteHtml(f: Fact, n: number, total: number, withNav: boolean) {
   return `<figure class="note" aria-live="polite">
-    <figcaption><span class="note-no">Note ${n}</span><span class="note-cat">${esc(f.cat)}</span>${withNav ? `<span class="note-of">${n} of ${total}</span>` : ""}</figcaption>
+    <figcaption><span class="note-no">Note ${n}${withNav ? ` of ${total}` : ""}</span><span class="note-cat">${esc(f.cat)}</span></figcaption>
     <p>${esc(f.text)}</p>
     <a class="note-src" href="${esc(f.source)}" target="_blank" rel="noopener">Source: ${esc(host(f.source))} ↗</a>
     ${withNav ? `<div class="note-nav">
@@ -75,7 +75,7 @@ export function discoverHtml(d: DiscoverData, v: { fact: number; cat: string; re
   const n = d.facts.indexOf(f) + 1;
   return `<div class="panel-scroll discover">
     <header class="list-head">
-      <div class="masthead"><span class="eyebrow">Kisse, kahaniyan</span><h2 id="panel-title" tabindex="-1">Stories from the rails</h2></div>
+      <div class="masthead"><span class="eyebrow">Discover</span><h2 id="panel-title" tabindex="-1">Stories from the rails</h2></div>
       <button class="round" type="button" data-act="close" aria-label="Close">${CLOSE}</button>
     </header>
 
@@ -108,7 +108,15 @@ export function discoverHtml(d: DiscoverData, v: { fact: number; cat: string; re
   </div>`;
 }
 
+/** A fact whose every number the story already gives (Note 18 under "Three days on one train"). */
+function toldIn(f: Fact, body: string[]) {
+  const text = body.join(" ");
+  const nums = f.text.match(/\d[\d,.]*\d|\d/g)?.filter((n) => n.length > 1) ?? [];
+  return nums.length > 0 && nums.every((n) => text.includes(n));
+}
+
 export function storyHtml(s: Story, rides: RideView[], facts: Fact[], allFacts: Fact[]) {
+  facts = facts.filter((f) => !toldIn(f, s.body)).slice(0, 2);
   const cover = s.photo
     ? `<figure class="story-cover"><div class="shot">${img(s.photo, `(max-width: 720px) 100vw, ${coverWidth(s.photo, 360, 210)}px`, 500, 1920, s.title, true)}</div></figure>`
     : "";

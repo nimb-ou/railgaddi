@@ -165,9 +165,9 @@ const urls: string[] = ["/"];
 // the landing page: canonical and absolute preview image
 render({
   path: "/",
-  title: "Railgaddi · chalo, where's the train taking you?",
-  description: "Pick your station and watch every line you can ride light up across India: every place a direct train goes, with photos and what to see when you get there.",
-  body: `<h1>Chalo! Where's the gaddi taking you?</h1><p>Pick your station and see every place in India a train can take you without changing.</p>
+  title: "Railgaddi · Every place a direct train can take you",
+  description: "Pick your station and see every place in India a direct train can take you: the trains, what to see, when to go, and the hill towns without a station.",
+  body: `<h1>Chalo! Where can a train take you?</h1><p>Pick your station: the map lights up every place a direct train can take you, and how long the ride is. We don't sell tickets, we just help you choose.</p>
     <h2>Start from</h2><ul>${[...origins].filter((o) => o.isCity).sort((a, b) => b.halts - a.halts).map((o) => `<li>${link(path(o), titleOf(o, null))}</li>`).join("")}</ul>`,
   jsonld: { "@context": "https://schema.org", "@type": "WebSite", name: "Railgaddi", url: `${SITE}/`, inLanguage: "en-IN" },
 });
@@ -186,12 +186,12 @@ for (const o of origins) {
   });
   render({
     path: path(o),
-    title: `Trains from ${from}: ${plural(dests.length, "place")} without changing · Railgaddi`,
+    title: `Trains from ${from}: ${plural(dests.length, "station")} without changing · Railgaddi`,
     description: clip(
-      `${plural(dests.length, "place")} you can reach from ${from} by train without changing${famous.length ? `, including ${famous.join(", ")}` : ""}. Photos, what to see, and every direct train.`,
+      `${plural(dests.length, "station")} you can reach from ${from} by train without changing${famous.length ? `, including ${famous.join(", ")}` : ""}. Photos, what to see, and every direct train.`,
     ),
     image: o.isCity ? null : cover(guides.get(o)),
-    body: `<h1>Trains from ${esc(from)}</h1><p>${plural(dests.length, "place")} you can reach without changing trains, nearest first.</p><ol>${items.join("")}</ol>`,
+    body: `<h1>Trains from ${esc(from)}</h1><p>${plural(dests.length, "station")} you can reach without changing trains, nearest first.</p><ol>${items.join("")}</ol>`,
   });
   urls.push(path(o));
   count++;
@@ -209,11 +209,11 @@ for (const p of placePages) {
   const ways = arrivals(net, p).size; // as the app titles this view
   render({
     path: path(undefined, p),
-    title: ways ? `${name} by train: direct from ${plural(ways, "place")} · Railgaddi` : `${name} by train · Railgaddi`,
+    title: ways ? `${name} by train: direct from ${plural(ways, "station")} · Railgaddi` : `${name} by train · Railgaddi`,
     description: clip(
       intro
-        ? `${firstSentence(intro)} Direct trains from ${plural(ways, "place")}, and ${plural(d!.sights.length, "place")} to see.`
-        : `${name}, ${p.state}: direct trains from ${plural(ways, "place")}, and what to see.`,
+        ? `Direct trains to ${name} from ${plural(ways, "station")}, ${plural(d!.sights.length, "sight")} to see, and when to go. ${firstSentence(intro)}`
+        : `${name}, ${p.state}: direct trains from ${plural(ways, "station")}, what to see, and when to go.`,
     ),
     image: cover(gv),
     imageAlt: name,
@@ -266,9 +266,9 @@ const discover = JSON.parse(read("discover.json").toString()) as DiscoverData;
 const codePlace = new Map(net.stations.map((st) => [st.code, net.placeOf[st.i]]));
 render({
   path: "/discover/",
-  title: "Discover: journeys worth taking, and facts from India's railways · Railgaddi",
-  description: clip(`${discover.stories.map((st) => st.title).slice(0, 6).join(", ")}, and ${discover.facts.length} facts about India's trains, track and stations.`),
-  body: `<h1>Discover: stories from the rails</h1>
+  title: "Stories from the rails: journeys and facts from India's railways · Railgaddi",
+  description: clip(`${discover.stories.length} railway journeys worth the ticket, from the Konkan coast to the Chenab bridge, and ${discover.facts.length} facts about India's trains, track and stations.`),
+  body: `<h1>Stories from the rails</h1>
     <h2>Journeys worth taking</h2><ul>${discover.stories.map((st) => `<li>${link(`/discover/${st.slug}/`, st.title)}: ${esc(st.dek)}</li>`).join("")}</ul>
     <h2>Did you know?</h2><ol>${discover.facts.map((f) => `<li>${esc(f.text)} (<a href="${esc(f.source)}">source</a>)</li>`).join("")}</ol>`,
 });
@@ -305,7 +305,7 @@ for (const s of spots.list.filter((x) => x.pop >= 20000 || x.pop === 0)) {
   render({
     path: `/to/${s.id}/`,
     title: `${s.name} by train: the nearest stations · Railgaddi`,
-    description: clip(`${s.name}, ${s.state}, has ${s.local ? "only a local station" : "no railway station"}. Take a train to ${ways.map((w) => titleOf(w.place, null)).slice(0, 3).join(", ")}, then about ${fmtMins(best.road.mins)} by road. The weather there, and the trains.`),
+    description: clip(`${s.name}, ${s.state}, has ${s.local ? "only a local station" : "no railway station"}. Quickest: a train to ${titleOf(best.place, null)}, then about ${fmtMins(best.road.mins)} by road.${ways.length > 1 ? ` Also near: ${ways.slice(1, 3).map((w) => titleOf(w.place, null)).join(", ")}.` : ""} Plus the week's weather.`),
     body: `<h1>${esc(s.name)} by train</h1><p>${esc(s.name)} (${esc(s.state)}) has ${s.local ? `only a local station (${esc(s.local)})` : "no railway station of its own"}. The stations to take a train to, and the road from each${best.road.real ? "" : " (estimated)"}:</p>
       <ol>${ways.map((w) => `<li>${link(path(undefined, w.place), titleOf(w.place, null))}: about ${w.road.km} km, ${fmtMins(w.road.mins)} by road</li>`).join("")}</ol>
       ${air ? `<p>Nearest airport: ${esc(air.airport.name)} (${esc(air.airport.iata)}), about ${air.road.km} km.</p>` : ""}`,
@@ -330,8 +330,8 @@ render({
   body: `<h1>Privacy</h1>
     <p>Railgaddi has no analytics, no advertising and no tracking.</p>
     <p>Places and routes you save are kept in your browser, on your device.</p>
-    <p>If you sign in with Google to keep them on every device, Railgaddi stores Google's account number for you, your first name and profile picture (to show who's signed in), and what you saved. It never receives or stores your email address. You can delete your account and everything in it at any time from "Your trips"; signing out keeps a copy on the device you're using.</p>
-    <p>"Use my location" asks your browser for your location and uses it only on your device, to pick a station; it is never sent anywhere.</p>
+    <p>If you sign in with Google to keep them on every device, Railgaddi stores your Google account ID, your first name and profile picture (to show who's signed in), and what you saved. It never receives or stores your email address. You can delete your account and everything in it at any time from Saved; signing out keeps a copy on the device you're using.</p>
+    <p>"Use where I am" asks your browser for your location and uses it only on your device, to pick a station; it is never sent anywhere.</p>
     <p>The weather comes from Open-Meteo: for the places you look at, their coordinates (never yours) are sent to it. A place name you search for that isn't in Railgaddi's own list is looked up with Open-Meteo's place search, and the summary of a place without a station comes from Wikipedia; only the name is sent.</p>
     <p>Photos load from Wikimedia Commons, and Google's sign-in button from Google, under their own privacy policies.</p>
     <p>Questions: <a href="https://github.com/nimb-ou/railgaddi/issues">github.com/nimb-ou/railgaddi/issues</a>.</p>`,

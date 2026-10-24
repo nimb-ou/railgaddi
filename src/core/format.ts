@@ -28,6 +28,7 @@ export function istNow(date = new Date()) {
 }
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const WEEKDAYS_FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 /** Minutes since Monday 00:00 in India: the "now" that running days are checked against. */
 export function istWeekMinute(date = new Date()) {
@@ -55,6 +56,6 @@ export function dayWord(now: number, wait: number) {
   const days = Math.floor(((now % 1440) + wait) / 1440);
   if (days === 0) return "today";
   if (days === 1) return "tomorrow";
-  return WEEKDAYS[(Math.floor(now / 1440) + days) % 7];
+  return `on ${WEEKDAYS_FULL[(Math.floor(now / 1440) + days) % 7]}`;
 }
 

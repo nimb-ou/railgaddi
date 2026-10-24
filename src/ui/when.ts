@@ -27,8 +27,8 @@ export function whenHtml(w: string, c: number[] | null, src: string, month: numb
       .map((x, m) => {
         const t = at(m);
         const label = `${MONTH_NAMES[m]}: ${KIND_WORDS[x as MonthKind].toLowerCase()}${t ? `, ${t.hi}° by day` : ""}`;
-        return `<li><button type="button" class="mo k-${x}${m === now ? " now" : ""}" data-act="month" data-m="${m}" aria-pressed="${m === month}" aria-label="${esc(label)}" title="${esc(label)}">
-          <span class="mo-i">${INITIAL[m]}</span><i aria-hidden="true"></i>${t ? `<span class="mo-t">${t.hi}°</span>` : ""}</button></li>`;
+        return `<li><button type="button" class="mo k-${x}${m === now ? " now" : ""}" data-act="month" data-m="${m}" aria-pressed="${m === month}" title="${esc(label)}">
+          <span class="mo-i" aria-hidden="true">${INITIAL[m]}</span><span class="vh">${esc(label)}</span><i aria-hidden="true"></i>${t ? `<span class="mo-t" aria-hidden="true">${t.hi}°</span>` : ""}</button></li>`;
       })
       .join("")}</ol>
     <p class="when-key" aria-hidden="true">${(["B", "G", "R", "W", "M", "H", "C"] as MonthKind[]).filter((x) => w.includes(x)).map((x) => `<span class="k-${x}"><i></i>${KIND_WORDS[x]}</span>`).join("")}</p>
