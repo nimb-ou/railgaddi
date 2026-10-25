@@ -168,30 +168,30 @@ Impact, Effort and Confidence 1–5; **Priority = Impact × Confidence ÷ Effort
 | # | Item | Findings | I | E | C | Priority | Status |
 |---|---|---|---|---|---|---|---|
 | 1 | Copy: no Punjabi, what it is first, exact facts, one name per thing, errors that help | CW-01..58, 61..70 (except 59, 60, 65) | 5 | 2 | 5 | 12.5 | done (8de3515) |
-| 2 | Correct the stories and facts | RAIL-01..09, 12..14, CW-59, CW-60 | 4 | 1 | 5 | 20 | todo |
-| 3 | Smaller arch on phones so the next train shows | UI-01, UX-02 | 4 | 1 | 4 | 16 | todo |
-| 4 | Netaji Express name for 12311/12312 | RAIL-10 | 3 | 1 | 5 | 15 | todo |
-| 5 | Header fits at 320 px | UI-03, UX-04 | 3 | 1 | 5 | 15 | todo |
-| 6 | Selected ride length visible at night | UI-02 | 3 | 1 | 5 | 15 | todo |
-| 7 | Inputs at 16 px (no iOS zoom) | UI-10, UX-07 | 3 | 1 | 5 | 15 | todo |
-| 8 | "Book on IRCTC" and "Live status on NTES" at the end of a train | UX-06 | 3 | 1 | 4 | 12 | todo |
-| 9 | Tap targets ≥ 44 px (≥ 24 px minimum) | UI-04, UX-03, ENG-06, UI-11 | 4 | 2 | 5 | 10 | todo |
-| 10 | Contrast: --go, rani text on tints | UI-05 | 2 | 1 | 5 | 10 | todo |
-| 11 | Inline the theme script (no render-blocking request) | ENG-03 | 2 | 1 | 4 | 8 | todo |
-| 12 | A 640 px photo size for covers | ENG-04 | 2 | 1 | 4 | 8 | todo |
-| 13 | Place tabs in one row | UI-08 | 2 | 1 | 4 | 8 | todo |
-| 14 | Arrow keys between place tabs | ENG-07 | 2 | 1 | 4 | 8 | todo |
-| 15 | Deep links draw the view at once | ENG-01, UX-01, UI-12 | 5 | 3 | 4 | 6.7 | todo |
-| 16 | Toy train named in the hills lens | UX-05, RAIL-11 | 3 | 2 | 4 | 6 | todo |
-| 17 | An h1 on every view | ENG-05 | 3 | 2 | 4 | 6 | todo |
-| 18 | The map in a landmark | ENG-08 | 1 | 1 | 5 | 5 | todo |
-| 19 | Dead code out | ENG-09 | 1 | 1 | 5 | 5 | todo |
-| 20 | Shorter long tasks after the timetable lands | ENG-02 | 3 | 2 | 3 | 4.5 | todo |
-| 21 | Ride caption not in error red | UI-09 | 1 | 1 | 4 | 4 | todo |
-| 22 | One height on a hill town's page | CW-56 (rest) | 1 | 1 | 4 | 4 | todo |
-| 23 | Ooty, not only Udhagamandalam | CW-61, UX-09, RAIL-15 | 2 | 2 | 3 | 3 | todo |
-| 24 | Type and radius tokens | UI-06, UI-07 | 2 | 3 | 4 | 2.7 | todo |
-| 25 | Re-measure the story tap | UX-08 | 1 | 1 | 5 | 5 | todo |
+| 2 | Correct the stories and facts | RAIL-01..09, 12..14, CW-59, CW-60 | 4 | 1 | 5 | 20 | done (4541ce4) |
+| 3 | Smaller arch on phones so the next train shows | UI-01, UX-02 | 4 | 1 | 4 | 16 | done (cbf1848) |
+| 4 | Netaji Express name for 12311/12312 | RAIL-10 | 3 | 1 | 5 | 15 | done (4541ce4) |
+| 5 | Header fits at 320 px | UI-03, UX-04 | 3 | 1 | 5 | 15 | done (cbf1848) |
+| 6 | Selected ride length visible at night | UI-02 | 3 | 1 | 5 | 15 | done (cbf1848) |
+| 7 | Inputs at 16 px (no iOS zoom) | UI-10, UX-07 | 3 | 1 | 5 | 15 | done (cbf1848) |
+| 8 | "Book on IRCTC" and "Live status on NTES" at the end of a train | UX-06 | 3 | 1 | 4 | 12 | done (cbf1848) |
+| 9 | Tap targets ≥ 44 px (≥ 24 px minimum) | UI-04, UX-03, ENG-06, UI-11 | 4 | 2 | 5 | 10 | done (cbf1848) |
+| 10 | Contrast: --go, rani text on tints | UI-05 | 2 | 1 | 5 | 10 | done (cbf1848) |
+| 11 | Inline the theme script (no render-blocking request) | ENG-03 | 2 | 1 | 4 | 8 | done (cbf1848) |
+| 12 | A 640 px photo size for covers | ENG-04 | 2 | 1 | 4 | 8 | done: phones get the arch's own size (640 px isn't a Commons step) (cbf1848) |
+| 13 | Place tabs in one row | UI-08 | 2 | 1 | 4 | 8 | done (cbf1848) |
+| 14 | Arrow keys between place tabs | ENG-07 | 2 | 1 | 4 | 8 | done (cbf1848) |
+| 15 | Deep links draw the view at once | ENG-01, UX-01, UI-12 | 5 | 3 | 4 | 6.7 | done (2b11eaa) |
+| 16 | Toy train named in the hills lens | UX-05, RAIL-11 | 3 | 2 | 4 | 6 | done (cbf1848) |
+| 17 | An h1 on every view | ENG-05 | 3 | 2 | 4 | 6 | done (cbf1848) |
+| 18 | The map in a landmark | ENG-08 | 1 | 1 | 5 | 5 | done (cbf1848) |
+| 19 | Dead code out | ENG-09 | 1 | 1 | 5 | 5 | done (cbf1848) |
+| 20 | Shorter long tasks after the timetable lands | ENG-02 | 3 | 2 | 3 | 4.5 | done (cbf1848) |
+| 21 | Ride caption not in error red | UI-09 | 1 | 1 | 4 | 4 | done (cbf1848) |
+| 22 | One height on a hill town's page | CW-56 (rest) | 1 | 1 | 4 | 4 | done (cbf1848) |
+| 23 | Ooty, not only Udhagamandalam | CW-61, UX-09, RAIL-15 | 2 | 2 | 3 | 3 | dropped: station names follow the official name (Udhagamandalam); preferring Wikivoyage's titles would bring back old names (Bangalore, Mysore) for 852 places; the story already says "Udhagamandalam (Ooty)" |
+| 24 | Type and radius tokens | UI-06, UI-07 | 2 | 3 | 4 | 2.7 | done (cbf1848) |
+| 25 | Re-measure the story tap | UX-08 | 1 | 1 | 5 | 5 | done: 90 ms (2.3); the 1.7 s was a measuring artefact |
 
 ### Dropped
 | Finding | Why |
@@ -200,3 +200,70 @@ Impact, Effort and Confidence 1–5; **Priority = Impact × Confidence ÷ Effort
 | ENG-10 (Wikimedia's third-party cookie) | Set by upload.wikimedia.org on hotlinked photos; avoiding it means proxying every photo |
 | ENG-11 (split app.ts) | A large refactor with no user-visible gain; next round |
 | RAIL §2d new stories | Each needs its own sourcing first; listed as next steps |
+
+
+---
+
+## 2.3 Verification
+
+All after numbers are from the production build (`vite preview`). Screenshots: `audit/after/`
+(the same 20 views × 3 widths × 2 themes as before).
+
+### Before and after, measured side by side
+Lighthouse's blocking time swings a lot from run to run on one machine (the landing page gave
+643 ms and 1,868 ms on two runs in a row), so the old build (f357a81, rebuilt in a worktree) and
+the new one were measured under the same conditions, alternating, three runs each; the table is
+the median (`scripts/lh-compare.sh`, mobile, devtools throttling).
+
+| Page | Build | Perf | LCP ms | TBT ms | CLS | FCP ms | Requests | KiB |
+|---|---|---|---|---|---|---|---|---|
+| home | before | 62 | 2167 | 3994 | 0.003 | 2167 | 46 | 1875 |
+| home | after | 74 | 1722 | 1005 | 0.001 | 1722 | 45 | 1877 |
+| place | before | 47 | 10247 | 924 | 0.053 | 1612 | 73 | 2598 |
+| place | after | 73 | 1633 | 965 | 0.024 | 1633 | 56 | 2249 |
+| discover | before | 40 | 11662 | 1388 | 0.082 | 1602 | 58 | 2345 |
+| discover | after | 65 | 1779 | 1454 | 0.028 | 1745 | 47 | 2252 |
+
+| Metric | Before | After |
+|---|---|---|
+| Largest paint, a shared place link, phone on slow 4G (`scripts/early-shot.mjs`) | 10.7 s | 1.2–1.5 s |
+| Largest paint, Discover link, same | 12.9 s | 1.4 s |
+| Largest paint, a town without a station, same | (waited for the stations) | 1.3 s |
+| Lighthouse accessibility / best practices / SEO (all six runs) | 100 / 78–100 / 100 | 100 / 100 / 100 |
+| axe-core, 120 captures | 2 rules, 238 nodes | **0 rules, 0 nodes** |
+| Console errors, 120 captures | 0 | 0 (one 404 found and fixed: a story photo renamed on Commons) |
+| Tap to drawn frame, phone, 4x CPU (`scripts/tap-paint.mjs`): another fact | 119–136 ms | 75–82 ms |
+| Same: open a story | 93–188 ms | 88–118 ms |
+| Tap to paint (`scripts/perf.mjs`, both builds the same day): type in search | 504 ms | 136 ms |
+| Same: surprise me | 376 ms | 88 ms |
+| Same: a place without a station | 216 ms | 56 ms |
+| Same: plan a trip | 160 ms | 96 ms |
+| Header at 320 px | the About button cut off | fits |
+| Views with an h1 | 1 of 9 | 9 of 9 |
+| Smallest tap target | 20 × 20 px (save route) | 44 px hit areas (36 px drawn) |
+| JS / CSS (gzip) | 100.5 / 12.4 kB | 101.9 / 12.9 kB |
+
+The 1.7 s "open a story" in the baseline was a measuring artefact: Event Timing reports an
+interaction when its frame is presented, and the tap before it ("another fact", tapped as the
+test scrolled the button into view) was being counted on the next step. Timed from the tap to
+the drawn frame, both are under 200 ms in both builds. `scripts/perf.mjs` now scrolls a target
+into view and lets it settle before tapping.
+
+### Top tasks, friction (before → after)
+| Task | Before | After |
+|---|---|---|
+| Where can I go in 4 h (phone) | 2–3 taps; ride-length selection invisible at night | 2–3 taps; selection visible in both themes |
+| A place: the next train (phone) | 1 tap + a drag: the train was under a 236 px photo | 1 tap: the ticket is in view with the sheet at rest |
+| A place from a shared link (phone, 4G) | 10.7 s behind a loading card | the place, its photo and the ride's length in ~1.5 s |
+| A hill town without a station | "nearest about 107 km" (which station?) | "nearest is Angamali, about 107 km by road" |
+| Shimla from Delhi (hills lens) | "Train to Kalka, then 2h 45m by road" | "…then the toy train, or 2h 45m by road" |
+| After finding the train | a source line | "Book on IRCTC ↗" and "Live status on NTES ↗" |
+| A broken link | a 5-second toast | a note on the page until the next pick |
+
+### Checked by hand (keyboard, dark mode, widths)
+- Keyboard: the landing walk (skip link → header → search → starts → hill towns → ideas) keeps a
+  visible ring throughout; a place's tabs move with ←/→/Home/End; Escape closes About and a train.
+- Day and night at 375, 768 and 1440 px: every view in `audit/after/`; no overflow at 320 px.
+- Each expert's last pass: no Punjabi left (a sweep of every template found only "Chalo" in the
+  question, and "parathas", "achaar", "chai" as everyday English); no new facts without a source;
+  the drawn-in previews use the app's own markup and classes.

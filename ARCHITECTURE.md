@@ -171,6 +171,12 @@ destinations from each of the 45 big cities (~3,000 pages). Each has its own tit
 canonical address, preview photo, JSON-LD, and a `<noscript>` article with the same facts as
 linked text. The app boots on each exactly as on `/`.
 
+Each page also has its view drawn into the panel (`src/ui/preview.ts`, plus Discover's and the
+stories' own templates): a place's photo, name and the ride's length, a station's first places, a
+town's ways in. They show at once, without waiting for the timetable (a small pill says it's
+coming), and the app takes over in place: `renderPanel` leaves a `data-drawn` panel alone until
+the address has been applied, then keeps its photo element, so there's no second, larger paint.
+
 ## Quality gates
 
 - `npm run typecheck`: strict TypeScript across the app, scripts and tests.

@@ -1,0 +1,16 @@
+action                     input->paint ms long tasks ms
+type in search                  136            209
+pick Bengaluru                  160             87
+tap a photo on the map           16              0
+open the next train             160             73
+back to the place               200            160
+close the place                 176            137
+filter: toy trains                0            947
+open a place without a station       56              0
+drag the map                     24              0
+open Discover                   152            261
+another fact                      0              0
+open a story                   2816              0
+surprise me                      88              0
+plan a trip                      96             64
+weather layer                    48            113

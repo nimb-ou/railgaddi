@@ -1,0 +1,351 @@
+{
+ "small": {
+  "home": [
+   "button#grip.grip \"Show more\" 96x28",
+   "a#brand.brand \"Railgaddiरेलगाड़ी, home\" 132x21",
+   "button#trip-btn.icon-btn \"Plan a trip with several sto\" 36x36",
+   "button#discover-btn.icon-btn \"Stories from the rails\" 36x36",
+   "button#saved-btn.icon-btn \"Saved\" 36x36",
+   "button#theme-btn.icon-btn \"Switch to night colours\" 36x36",
+   "button#info-btn.icon-btn \"About Railgaddi and its data\" 36x36",
+   "button#near-btn.field-btn \"Start from the station neare\" 38x38",
+   "button.here \"I'm right here: use where I \" 218x23",
+   "a.pill \"Bengaluru\" 122x40",
+   "a.pill \"Mumbai\" 110x40",
+   "a.pill \"Delhi\" 91x40",
+   "a.pill \"Kolkata\" 106x40",
+   "a.pill \"Chennai\" 109x40",
+   "a.pill \"Hyderabad\" 127x40",
+   "button.link-btn \"Already know where you're go\" 288x21",
+   "a \"Munnar\" 77x37",
+   "a \"Manali\" 71x37",
+   "a \"Kodaikanal\" 97x37",
+   "a \"Gangtok\" 82x37",
+   "a \"Leh\" 52x37",
+   "a \"Madikeri\" 83x37",
+   "a \"Mussoorie\" 93x37",
+   "a \"McLeod Ganj\" 110x37",
+   "a \"Kasol\" 63x37",
+   "a \"Tawang\" 78x37",
+   "a \"More stories →\" 91x23",
+   "button#weather-btn.map-btn \"Weather\" 106x38"
+  ],
+  "from": [
+   "button#grip.grip \"Show more\" 96x28",
+   "a#brand.brand \"Railgaddiरेलगाड़ी, home\" 132x21",
+   "button#trip-btn.icon-btn \"Plan a trip with several sto\" 36x36",
+   "button#discover-btn.icon-btn \"Stories from the rails\" 36x36",
+   "button#saved-btn.icon-btn \"Saved\" 36x36",
+   "button#theme-btn.icon-btn \"Switch to night colours\" 36x36",
+   "button#info-btn.icon-btn \"About Railgaddi and its data\" 36x36",
+   "button#swap-btn.field-btn \"Swap from and to\" 38x38",
+   "button \"2h\" 53x36",
+   "button \"4h\" 53x36",
+   "button \"8h\" 53x36",
+   "button \"12h\" 53x36",
+   "button \"A day\" 53x36",
+   "button \"Any\" 53x36",
+   "button \"Quick getaways\" 116x34",
+   "button \"Overnight\" 83x34",
+   "button \"Weekends\" 85x34",
+   "button \"Good in October\" 139x34",
+   "button \"Moods▾\" 77x34",
+   "button \"Surprise me\" 112x34",
+   "button.link-btn \"Show all 286\" 331x21",
+   "summary \"Fine-tune\" 75x21",
+   "select \"Which trains\" 284x37",
+   "select \"When you leave\" 147x37",
+   "select.sort \"Order\" 142x37",
+   "button \"Places with guides\" 162x34",
+   "button \"Every stop\" 162x34",
+   "button#weather-btn.map-btn \"Weather\" 106x38"
+  ],
+  "place": [
+   "button#grip.grip \"Show more\" 96x28",
+   "a#brand.brand \"Railgaddiरेलगाड़ी, home\" 132x21",
+   "button#trip-btn.icon-btn \"Plan a trip with several sto\" 36x36",
+   "button#discover-btn.icon-btn \"Stories from the rails\" 36x36",
+   "button#saved-btn.icon-btn \"Saved\" 36x36",
+   "button#theme-btn.icon-btn \"Switch to night colours\" 36x36",
+   "button#info-btn.icon-btn \"About Railgaddi and its data\" 36x36",
+   "button#swap-btn.field-btn \"Swap from and to\" 38x38",
+   "button.back \"← From Bengaluru\" 129x33",
+   "button.round \"Add Hampi to your bucket lis\" 36x36",
+   "button.round \"Share Hampi\" 36x36",
+   "button.tk-save \"Save this route\" 36x36",
+   "button.tk-change \"Change start\" 73x20",
+   "button#tab-sights \"What to see\" 105x37",
+   "button#tab-when \"When to go\" 103x37",
+   "button#tab-trains \"All 6 trains\" 96x37",
+   "button#tab-weather \"Weather\" 83x37",
+   "button.link-btn \"Show on the map\" 108x21",
+   "a \"Wikivoyage\" 60x20",
+   "a \"Wikidata\" 46x20",
+   "summary \"Photo credits (9)\" 331x18",
+   "a \"Vyacheslav Argenberg, CC BY \" 170x20",
+   "a \"Aravindreddy.d, CC BY-SA 3.0\" 150x20",
+   "a \"Unknown author, CC BY-SA 3.0\" 158x20",
+   "a \"Anoop K R, CC BY-SA 3.0\" 126x20",
+   "a \"YashiWong, CC BY-SA 3.0\" 131x20",
+   "a \"Dr Murali Mohan Gurram, CC B\" 199x20",
+   "a \"No machine-readable author p\" 305x38",
+   "a \"User:Indiancorrector, Public\" 183x20",
+   "a \"Dineshkannambadi, CC BY-SA 3\" 170x20",
+   "button#weather-btn.map-btn \"Weather\" 106x38"
+  ],
+  "train": [
+   "button#grip.grip \"Show more\" 96x28",
+   "a#brand.brand \"Railgaddiरेलगाड़ी, home\" 132x21",
+   "button#trip-btn.icon-btn \"Plan a trip with several sto\" 36x36",
+   "button#discover-btn.icon-btn \"Stories from the rails\" 36x36",
+   "button#saved-btn.icon-btn \"Saved\" 36x36",
+   "button#theme-btn.icon-btn \"Switch to night colours\" 36x36",
+   "button#info-btn.icon-btn \"About Railgaddi and its data\" 36x36",
+   "button#swap-btn.field-btn \"Swap from and to\" 38x38",
+   "button.back \"← Hampi\" 71x33",
+   "button.round \"Close\" 36x36",
+   "button \"7 earlier stops, before KSR \" 101x30",
+   "button \"7 later stops, after Hosapet\" 92x30",
+   "a.btn \"Book on IRCTC ↗\" 139x43",
+   "a.btn \"Live status on NTES ↗\" 169x43",
+   "a \"Report a mistake\" 94x21",
+   "button#weather-btn.map-btn \"Weather\" 106x38"
+  ],
+  "spot": [
+   "button#grip.grip \"Show more\" 96x28",
+   "a#brand.brand \"Railgaddiरेलगाड़ी, home\" 132x21",
+   "button#trip-btn.icon-btn \"Plan a trip with several sto\" 36x36",
+   "button#discover-btn.icon-btn \"Stories from the rails\" 36x36",
+   "button#saved-btn.icon-btn \"Saved\" 36x36",
+   "button#theme-btn.icon-btn \"Switch to night colours\" 36x36",
+   "button#info-btn.icon-btn \"About Railgaddi and its data\" 36x36",
+   "button#near-btn.field-btn \"Start from the station neare\" 38x38",
+   "button#swap-btn.field-btn \"Swap from and to\" 38x38",
+   "button.back \"← Home\" 67x33",
+   "button.round \"Add Munnar to your bucket li\" 36x36",
+   "button.round \"Share Munnar\" 36x36",
+   "a \"Open-Meteo\" 66x20",
+   "button.mo \"JJanuary: lovely, 22° by day\" 25x78",
+   "button.mo \"FFebruary: lovely, 25° by da\" 25x78",
+   "button.mo \"MMarch: lovely, 27° by day27\" 25x78",
+   "button.mo \"AApril: good, 26° by day26°\" 25x78",
+   "button.mo \"MMay: rainy, 23° by day23°\" 25x78",
+   "button.mo \"JJune: very wet, 20° by day2\" 25x78",
+   "button.mo \"JJuly: rainy, 19° by day19°\" 25x78",
+   "button.mo \"AAugust: rainy, 19° by day19\" 25x78",
+   "button.mo \"SSeptember: rainy, 20° by da\" 25x78",
+   "button.mo \"OOctober: very wet, 20° by d\" 25x78",
+   "button.mo \"NNovember: rainy, 20° by day\" 25x78",
+   "button.mo \"DDecember: lovely, 20° by da\" 25x78",
+   "input#gh-input \"Where do you start?\" 277x26",
+   "a.link-btn \"Trains to Aluva →\" 109x21",
+   "a.link-btn \"Trains to Kochi →\" 108x21",
+   "a.link-btn \"Trains to Kottayam →\" 134x21",
+   "a.link-btn \"Trains to Angamali →\" 132x21",
+   "button#weather-btn.map-btn \"Weather\" 106x38"
+  ],
+  "trip": [
+   "button#grip.grip \"Show more\" 96x28",
+   "a#brand.brand \"Railgaddiरेलगाड़ी, home\" 132x21",
+   "button#trip-btn.icon-btn \"Plan a trip with several sto\" 36x36",
+   "button#discover-btn.icon-btn \"Stories from the rails\" 36x36",
+   "button#saved-btn.icon-btn \"Saved\" 36x36",
+   "button#theme-btn.icon-btn \"Switch to night colours\" 36x36",
+   "button#info-btn.icon-btn \"About Railgaddi and its data\" 36x36",
+   "input#trip-date \"\" 155x42",
+   "button \"Move Bengaluru later\" 30x30",
+   "button \"Remove Bengaluru\" 30x30",
+   "summary \"5 other trains that day\" 262x20",
+   "button.alt \"07:03 · 17308 Basava Express\" 262x35",
+   "button.link-btn \"See the stops →\" 99x21",
+   "button \"Move Mysuru earlier\" 30x30",
+   "button \"Remove Mysuru\" 30x30",
+   "input#trip-input \"Add a stop\" 277x26",
+   "button.btn \"Save trip\" 112x43",
+   "button.btn \"Share\" 92x43",
+   "button.btn \"Start again\" 101x43",
+   "a \"NTES\" 31x23",
+   "button#weather-btn.map-btn \"Weather\" 106x38"
+  ],
+  "discover": [
+   "button#grip.grip \"Show more\" 96x28",
+   "a#brand.brand \"Railgaddiरेलगाड़ी, home\" 132x21",
+   "button#trip-btn.icon-btn \"Plan a trip with several sto\" 36x36",
+   "button#discover-btn.icon-btn \"Stories from the rails\" 36x36",
+   "button#saved-btn.icon-btn \"Saved\" 36x36",
+   "button#theme-btn.icon-btn \"Switch to night colours\" 36x36",
+   "button#info-btn.icon-btn \"About Railgaddi and its data\" 36x36",
+   "button.round \"Close\" 36x36",
+   "button \"All\" 46x37",
+   "button \"History\" 73x37",
+   "button \"Trains\" 66x37",
+   "button \"Track\" 62x37",
+   "button \"Stations\" 80x37",
+   "button \"Numbers\" 85x37",
+   "button \"Quirky\" 70x37",
+   "a.note-src \"Source: wikipedia.org ↗\" 122x20",
+   "button.link-btn \"Previous fact\" 69x21",
+   "button.link-btn \"Another fact\" 67x21",
+   "button#weather-btn.map-btn \"Weather\" 106x38"
+  ],
+  "story": [
+   "button#grip.grip \"Show more\" 96x28",
+   "a#brand.brand \"Railgaddiरेलगाड़ी, home\" 132x21",
+   "button#trip-btn.icon-btn \"Plan a trip with several sto\" 36x36",
+   "button#discover-btn.icon-btn \"Stories from the rails\" 36x36",
+   "button#saved-btn.icon-btn \"Saved\" 36x36",
+   "button#theme-btn.icon-btn \"Switch to night colours\" 36x36",
+   "button#info-btn.icon-btn \"About Railgaddi and its data\" 36x36",
+   "button.back \"← All the stories\" 116x33",
+   "button.round \"Close\" 36x36",
+   "a.note-src \"Source: wikipedia.org ↗\" 122x20",
+   "a.note-src \"Source: wikipedia.org ↗\" 122x20",
+   "a \"Konkan Railway\" 81x20",
+   "a \"Traveltwilight, CC BY-SA 4.0\" 144x20",
+   "button#weather-btn.map-btn \"Weather\" 106x38"
+  ],
+  "journey": [
+   "button#grip.grip \"Show more\" 96x28",
+   "a#brand.brand \"Railgaddiरेलगाड़ी, home\" 132x21",
+   "button#trip-btn.icon-btn \"Plan a trip with several sto\" 36x36",
+   "button#discover-btn.icon-btn \"Stories from the rails\" 36x36",
+   "button#saved-btn.icon-btn \"Saved\" 36x36",
+   "button#theme-btn.icon-btn \"Switch to night colours\" 36x36",
+   "button#info-btn.icon-btn \"About Railgaddi and its data\" 36x36",
+   "button#swap-btn.field-btn \"Swap from and to\" 38x38",
+   "button.back \"← From Bengaluru\" 129x33",
+   "button.round \"Add Amritsar to your bucket \" 36x36",
+   "button.round \"Share Amritsar\" 36x36",
+   "input#gh-input \"Where do you start?\" 277x26",
+   "button#weather-btn.map-btn \"Weather\" 106x38"
+  ]
+ },
+ "overflow": {
+  "home": {
+   "scrollW": 320,
+   "w": 320,
+   "bad": []
+  },
+  "from": {
+   "scrollW": 320,
+   "w": 320,
+   "bad": []
+  },
+  "place": {
+   "scrollW": 320,
+   "w": 320,
+   "bad": [
+    "button. right=339",
+    "button. right=430"
+   ]
+  },
+  "train": {
+   "scrollW": 320,
+   "w": 320,
+   "bad": []
+  },
+  "spot": {
+   "scrollW": 320,
+   "w": 320,
+   "bad": []
+  },
+  "trip": {
+   "scrollW": 320,
+   "w": 320,
+   "bad": []
+  },
+  "discover": {
+   "scrollW": 320,
+   "w": 320,
+   "bad": []
+  },
+  "story": {
+   "scrollW": 320,
+   "w": 320,
+   "bad": []
+  },
+  "journey": {
+   "scrollW": 320,
+   "w": 320,
+   "bad": [
+    "button. right=327"
+   ]
+  }
+ },
+ "headings": {
+  "home": [
+   "H1:Chalo! Where can a train take you?",
+   "H2:No station? No problem.",
+   "H2:First-class ideas"
+  ],
+  "from": [
+   "H1:From Bengaluru"
+  ],
+  "place": [
+   "H1:Hampi",
+   "H2:What to see"
+  ],
+  "train": [
+   "H1:16592 Hampi Express"
+  ],
+  "spot": [
+   "H1:Munnar",
+   "H2:Weather in Munnar",
+   "H2:When to go",
+   "H2:How to get here",
+   "H2:Or fly in"
+  ],
+  "trip": [
+   "H1:Plan a trip"
+  ],
+  "discover": [
+   "H1:Stories from the rails",
+   "H2:Did you know?",
+   "H2:Journeys worth the ticket",
+   "H2:By the numbers"
+  ],
+  "story": [
+   "H1:The Konkan Railway",
+   "H2:Ride it",
+   "H2:Did you know?"
+  ],
+  "journey": [
+   "H1:Amritsar",
+   "H2:With one change",
+   "H2:Or start somewhere else",
+   "H2:What to see"
+  ]
+ },
+ "keyboard": [
+  "a \"Skip to search\" ring=true",
+  "a#brand \"Railgaddiरेलगाड़ी, home\" ring=true",
+  "button#trip-btn \"Plan a trip with several stops\" ring=true",
+  "button#discover-btn \"Stories from the rails\" ring=true",
+  "button#saved-btn \"Saved\" ring=true",
+  "button#theme-btn \"Switch to night colours\" ring=true",
+  "button#info-btn \"About Railgaddi and its data\" ring=true",
+  "input#from-input \"Your station or city\" ring=false",
+  "button#near-btn \"Start from the station nearest\" ring=true",
+  "button \"I'm right here: use where I am\" ring=true",
+  "a \"Bengaluru\" ring=true",
+  "a \"Mumbai\" ring=true",
+  "a \"Delhi\" ring=true",
+  "a \"Kolkata\" ring=true",
+  "a \"Chennai\" ring=true",
+  "a \"Hyderabad\" ring=true",
+  "button \"Already know where you're goin\" ring=true",
+  "a \"Munnar\" ring=true",
+  "a \"Manali\" ring=true",
+  "a \"Kodaikanal\" ring=true",
+  "a \"Gangtok\" ring=true",
+  "a \"Leh\" ring=true",
+  "a \"Madikeri\" ring=true",
+  "a \"Mussoorie\" ring=true",
+  "a \"McLeod Ganj\" ring=true",
+  "a \"Kasol\" ring=true",
+  "a \"Tawang\" ring=true",
+  "a \"HampiBoulders, ruins, sunsets\" ring=true",
+  "a \"DarjeelingChai and the toy tra\" ring=true",
+  "a \"VaranasiThe ghats at dawn\" ring=true"
+ ]
+}

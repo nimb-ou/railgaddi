@@ -53,6 +53,9 @@ All colours are CSS variables in `src/ui/style.css`; the canvas map reads the sa
 Tiro Devanagari Hindi for names (places, trains, headings), Hind for reading, Rozha One for the
 big numbers (times, durations, kilometres), as a railway poster sets them. Noto Sans for Indian
 scripts on boards. No Gurmukhi in the interface's words (a Punjab station's own board may show it).
+Sizes come from one scale: 11 · 12 · 13 · 14 · 15 · 17 · 21 · 26 · 32 px (inputs 16, so phones
+don't zoom), nothing under 11. Corners: 4 · 8 · 12 · 18 · 24 px and pills. Every control a finger
+uses has at least 44 px to hit, whatever is drawn.
 
 ## Voice
 

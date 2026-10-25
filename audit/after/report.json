@@ -1,0 +1,494 @@
+{
+ "set": "after",
+ "base": "http://localhost:4173",
+ "when": "2026-10-25T08:36:25.887Z",
+ "views": {
+  "01-home-1440-day": {
+   "axe": [],
+   "errors": []
+  },
+  "01-home-768-day": {
+   "axe": [],
+   "errors": []
+  },
+  "01-home-375-day": {
+   "axe": [],
+   "errors": []
+  },
+  "02-search-1440-day": {
+   "axe": [],
+   "errors": []
+  },
+  "02-search-768-day": {
+   "axe": [],
+   "errors": []
+  },
+  "02-search-375-day": {
+   "axe": [],
+   "errors": []
+  },
+  "03-from-1440-day": {
+   "axe": [],
+   "errors": []
+  },
+  "03-from-768-day": {
+   "axe": [],
+   "errors": []
+  },
+  "03-from-375-day": {
+   "axe": [],
+   "errors": []
+  },
+  "04-from-4h-1440-day": {
+   "axe": [],
+   "errors": []
+  },
+  "04-from-4h-768-day": {
+   "axe": [],
+   "errors": []
+  },
+  "04-from-4h-375-day": {
+   "axe": [],
+   "errors": []
+  },
+  "05-moods-1440-day": {
+   "axe": [],
+   "errors": []
+  },
+  "05-moods-768-day": {
+   "axe": [],
+   "errors": []
+  },
+  "05-moods-375-day": {
+   "axe": [],
+   "errors": []
+  },
+  "06-place-1440-day": {
+   "axe": [],
+   "errors": []
+  },
+  "06-place-768-day": {
+   "axe": [],
+   "errors": []
+  },
+  "06-place-375-day": {
+   "axe": [],
+   "errors": []
+  },
+  "07-place-when-1440-day": {
+   "axe": [],
+   "errors": []
+  },
+  "07-place-when-768-day": {
+   "axe": [],
+   "errors": []
+  },
+  "07-place-when-375-day": {
+   "axe": [],
+   "errors": []
+  },
+  "08-place-trains-1440-day": {
+   "axe": [],
+   "errors": []
+  },
+  "08-place-trains-768-day": {
+   "axe": [],
+   "errors": []
+  },
+  "08-place-trains-375-day": {
+   "axe": [],
+   "errors": []
+  },
+  "09-train-1440-day": {
+   "axe": [],
+   "errors": []
+  },
+  "09-train-768-day": {
+   "axe": [],
+   "errors": []
+  },
+  "09-train-375-day": {
+   "axe": [],
+   "errors": []
+  },
+  "10-journey-1440-day": {
+   "axe": [],
+   "errors": []
+  },
+  "10-journey-768-day": {
+   "axe": [],
+   "errors": []
+  },
+  "10-journey-375-day": {
+   "axe": [],
+   "errors": []
+  },
+  "11-to-1440-day": {
+   "axe": [],
+   "errors": []
+  },
+  "11-to-768-day": {
+   "axe": [],
+   "errors": []
+  },
+  "11-to-375-day": {
+   "axe": [],
+   "errors": []
+  },
+  "12-spot-1440-day": {
+   "axe": [],
+   "errors": []
+  },
+  "12-spot-768-day": {
+   "axe": [],
+   "errors": []
+  },
+  "12-spot-375-day": {
+   "axe": [],
+   "errors": []
+  },
+  "13-weather-1440-day": {
+   "axe": [],
+   "errors": []
+  },
+  "13-weather-768-day": {
+   "axe": [],
+   "errors": []
+  },
+  "13-weather-375-day": {
+   "axe": [],
+   "errors": []
+  },
+  "14-trip-1440-day": {
+   "axe": [],
+   "errors": []
+  },
+  "14-trip-768-day": {
+   "axe": [],
+   "errors": []
+  },
+  "14-trip-375-day": {
+   "axe": [],
+   "errors": []
+  },
+  "15-discover-1440-day": {
+   "axe": [],
+   "errors": []
+  },
+  "15-discover-768-day": {
+   "axe": [],
+   "errors": []
+  },
+  "15-discover-375-day": {
+   "axe": [],
+   "errors": []
+  },
+  "16-story-1440-day": {
+   "axe": [],
+   "errors": []
+  },
+  "16-story-768-day": {
+   "axe": [],
+   "errors": []
+  },
+  "16-story-375-day": {
+   "axe": [],
+   "errors": []
+  },
+  "17-saved-1440-day": {
+   "axe": [],
+   "errors": []
+  },
+  "17-saved-768-day": {
+   "axe": [],
+   "errors": []
+  },
+  "17-saved-375-day": {
+   "axe": [],
+   "errors": []
+  },
+  "18-about-1440-day": {
+   "axe": [],
+   "errors": []
+  },
+  "18-about-768-day": {
+   "axe": [],
+   "errors": []
+  },
+  "18-about-375-day": {
+   "axe": [],
+   "errors": []
+  },
+  "19-missing-1440-day": {
+   "axe": [],
+   "errors": []
+  },
+  "19-missing-768-day": {
+   "axe": [],
+   "errors": []
+  },
+  "19-missing-375-day": {
+   "axe": [],
+   "errors": []
+  },
+  "20-404-1440-day": {
+   "axe": [],
+   "errors": []
+  },
+  "20-404-768-day": {
+   "axe": [],
+   "errors": []
+  },
+  "20-404-375-day": {
+   "axe": [],
+   "errors": []
+  },
+  "01-home-1440-night": {
+   "axe": [],
+   "errors": []
+  },
+  "01-home-768-night": {
+   "axe": [],
+   "errors": []
+  },
+  "01-home-375-night": {
+   "axe": [],
+   "errors": []
+  },
+  "02-search-1440-night": {
+   "axe": [],
+   "errors": []
+  },
+  "02-search-768-night": {
+   "axe": [],
+   "errors": []
+  },
+  "02-search-375-night": {
+   "axe": [],
+   "errors": []
+  },
+  "03-from-1440-night": {
+   "axe": [],
+   "errors": []
+  },
+  "03-from-768-night": {
+   "axe": [],
+   "errors": []
+  },
+  "03-from-375-night": {
+   "axe": [],
+   "errors": []
+  },
+  "04-from-4h-1440-night": {
+   "axe": [],
+   "errors": []
+  },
+  "04-from-4h-768-night": {
+   "axe": [],
+   "errors": []
+  },
+  "04-from-4h-375-night": {
+   "axe": [],
+   "errors": []
+  },
+  "05-moods-1440-night": {
+   "axe": [],
+   "errors": []
+  },
+  "05-moods-768-night": {
+   "axe": [],
+   "errors": []
+  },
+  "05-moods-375-night": {
+   "axe": [],
+   "errors": []
+  },
+  "06-place-1440-night": {
+   "axe": [],
+   "errors": []
+  },
+  "06-place-768-night": {
+   "axe": [],
+   "errors": []
+  },
+  "06-place-375-night": {
+   "axe": [],
+   "errors": []
+  },
+  "07-place-when-1440-night": {
+   "axe": [],
+   "errors": []
+  },
+  "07-place-when-768-night": {
+   "axe": [],
+   "errors": []
+  },
+  "07-place-when-375-night": {
+   "axe": [],
+   "errors": []
+  },
+  "08-place-trains-1440-night": {
+   "axe": [],
+   "errors": []
+  },
+  "08-place-trains-768-night": {
+   "axe": [],
+   "errors": []
+  },
+  "08-place-trains-375-night": {
+   "axe": [],
+   "errors": []
+  },
+  "09-train-1440-night": {
+   "axe": [],
+   "errors": []
+  },
+  "09-train-768-night": {
+   "axe": [],
+   "errors": []
+  },
+  "09-train-375-night": {
+   "axe": [],
+   "errors": []
+  },
+  "10-journey-1440-night": {
+   "axe": [],
+   "errors": []
+  },
+  "10-journey-768-night": {
+   "axe": [],
+   "errors": []
+  },
+  "10-journey-375-night": {
+   "axe": [],
+   "errors": []
+  },
+  "11-to-1440-night": {
+   "axe": [],
+   "errors": []
+  },
+  "11-to-768-night": {
+   "axe": [],
+   "errors": []
+  },
+  "11-to-375-night": {
+   "axe": [],
+   "errors": []
+  },
+  "12-spot-1440-night": {
+   "axe": [],
+   "errors": []
+  },
+  "12-spot-768-night": {
+   "axe": [],
+   "errors": []
+  },
+  "12-spot-375-night": {
+   "axe": [],
+   "errors": []
+  },
+  "13-weather-1440-night": {
+   "axe": [],
+   "errors": []
+  },
+  "13-weather-768-night": {
+   "axe": [],
+   "errors": []
+  },
+  "13-weather-375-night": {
+   "axe": [],
+   "errors": []
+  },
+  "14-trip-1440-night": {
+   "axe": [],
+   "errors": []
+  },
+  "14-trip-768-night": {
+   "axe": [],
+   "errors": []
+  },
+  "14-trip-375-night": {
+   "axe": [],
+   "errors": []
+  },
+  "15-discover-1440-night": {
+   "axe": [],
+   "errors": []
+  },
+  "15-discover-768-night": {
+   "axe": [],
+   "errors": []
+  },
+  "15-discover-375-night": {
+   "axe": [],
+   "errors": []
+  },
+  "16-story-1440-night": {
+   "axe": [],
+   "errors": []
+  },
+  "16-story-768-night": {
+   "axe": [],
+   "errors": []
+  },
+  "16-story-375-night": {
+   "axe": [],
+   "errors": []
+  },
+  "17-saved-1440-night": {
+   "axe": [],
+   "errors": []
+  },
+  "17-saved-768-night": {
+   "axe": [],
+   "errors": []
+  },
+  "17-saved-375-night": {
+   "axe": [],
+   "errors": []
+  },
+  "18-about-1440-night": {
+   "axe": [],
+   "errors": []
+  },
+  "18-about-768-night": {
+   "axe": [],
+   "errors": []
+  },
+  "18-about-375-night": {
+   "axe": [],
+   "errors": []
+  },
+  "19-missing-1440-night": {
+   "axe": [],
+   "errors": []
+  },
+  "19-missing-768-night": {
+   "axe": [],
+   "errors": []
+  },
+  "19-missing-375-night": {
+   "axe": [],
+   "errors": []
+  },
+  "20-404-1440-night": {
+   "axe": [],
+   "errors": []
+  },
+  "20-404-768-night": {
+   "axe": [],
+   "errors": []
+  },
+  "20-404-375-night": {
+   "axe": [],
+   "errors": []
+  }
+ },
+ "errors": [],
+ "axeTotals": {
+  "rules": {},
+  "nodes": 0,
+  "distinctRules": 0
+ },
+ "consoleErrors": []
+}
