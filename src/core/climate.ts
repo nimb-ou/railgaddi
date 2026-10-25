@@ -70,7 +70,7 @@ export function whenLine(w: string) {
   const wet = runs(w, (k) => k === "W");
   if (wet.length) parts.push(`${wet.map(spanWords).join(" and ")}: the monsoon pours.`);
   const hot = runs(w, (k) => k === "H");
-  if (hot.length) parts.push(`${hot.map(spanWords).join(" and ")}: garmi, very hot.`);
+  if (hot.length) parts.push(`${hot.map(spanWords).join(" and ")}: too hot for most, carry water.`);
   const cold = runs(w, (k) => k === "C");
   if (cold.length) parts.push(`${cold.map(spanWords).join(" and ")}: properly cold, pack the woollens.`);
   return parts.join(" ");

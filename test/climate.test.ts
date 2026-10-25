@@ -18,7 +18,7 @@ describe("when to go", () => {
     expect(spanWords([9, 2])).toBe("October to March");
     expect(spanWords([4, 4])).toBe("May");
     expect(whenLine(darjeeling)).toBe("Best from October to April. June to September: the monsoon pours.");
-    expect(whenLine(udaipur)).toBe("Best from September to March. May: garmi, very hot.");
+    expect(whenLine(udaipur)).toBe("Best from September to March. May: too hot for most, carry water.");
     expect(whenLine("BBBBBBBBBBBB")).toBe("Good all year round: go whenever you like.");
   });
 

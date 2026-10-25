@@ -345,7 +345,7 @@ export async function openPosterSheet(info: PosterInfo, toast: (s: string) => vo
         await navigator.share({ files: [file], title: `${info.title} by train`, text: `${info.title}: ${info.line} by train. ${info.url}` });
       }
     } catch (err) {
-      if ((err as DOMException)?.name !== "AbortError") toast("Couldn't do that here. Copy the address from the address bar.");
+      if ((err as DOMException)?.name !== "AbortError") toast("Couldn't share from here. Copy the link from the address bar instead.");
     }
   });
 }

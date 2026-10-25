@@ -98,3 +98,105 @@ Each expert audited independently (in parallel, without seeing the others' findi
 - [UX designer](findings/ux-designer.md)
 - [Full-stack engineer](findings/engineer.md)
 - [Railways and history expert](findings/railways-expert.md)
+
+How this round actually ran: the five experts were launched as parallel agents. The copywriter
+finished; the other four were stopped three times by the account's usage limit before writing
+anything, so their audits were then done by the lead, each from its own checklist and the same
+evidence (screenshots, axe, Lighthouse, and measurement scripts: `scripts/ux-check.mjs` for
+targets, overflow, headings and a keyboard walk, `scripts/inp-one.mjs` for one tap's timing,
+`scripts/prof-load.mjs` for a CPU profile). Each file says so at the top.
+
+Counts: copywriter 70 (CW), UI 12 (UI), UX 9 (UX), engineer 12 (ENG), railways 15 (RAIL).
+
+---
+
+## 1.3 Consensus
+
+### Flagged by more than one expert (boosted)
+| Merged item | Findings |
+|---|---|
+| A shared link waits 8–12 s behind a loading card | ENG-01, UX-01, UI-12 |
+| On a phone the place's photo hides the next train | UI-01, UX-02 |
+| Small tap targets (tk-save 20 px fails WCAG 2.5.8) | UI-04, UX-03, ENG-06 |
+| Header breaks at 320 px | UI-03, UX-04 |
+| Search boxes at 15 px zoom iOS | UI-10, UX-07 |
+| Toy-train towns described as "by road" only | UX-05, RAIL-11 |
+| Ooty vs Udhagamandalam | CW-61, UX-09, RAIL-15 |
+| Vivek Express launch year | CW-59, RAIL-01 |
+| Month buttons / folds named differently from what they show | CW-68, ENG-12 |
+
+### Conflicts, decided
+- **Rich photos vs speed:** keep the arch photos (they're the character), but smaller on phones,
+  sized by srcset, and preloaded on deep links. Speed comes from not waiting, not from removing.
+- **Flavour vs clarity:** the owner dropped Punjabi; at most one pan-Indian word a screen
+  ("Chalo", "parathas", "achaar"), never in a label or button. Clarity wins every tie.
+- **Gurmukhi in Amritsar's name line and poster (CW-65) vs the owner's rule:** the owner said
+  scripts are fine as decoration; it stays (dropped).
+- **More stories vs accuracy:** this round corrects the existing 13 stories and 62 facts; new
+  stories wait until each is sourced (next steps).
+- **Type and radius tokens vs regressions:** introduce the tokens and fold the half-pixel sizes
+  into the scale; no layout rewrites in the same pass.
+- **Splitting app.ts vs shipping:** a refactor with no user-visible gain; out of scope this round.
+
+### Design principles (the north star)
+1. **The answer first.** Each view leads with what you came for (the train, the way in), the
+   decoration after it.
+2. **One thing at a time,** deeper only when asked.
+3. **India's railway, honestly.** Real timetables, sourced facts, exact times; the jokes never
+   bend a fact.
+4. **Calm and quick.** Nothing waits that doesn't have to; motion only answers you.
+5. **Every finger, every eye.** 44 px targets, AA contrast, 320 px phones, keyboard and screen
+   readers.
+
+### Visual direction (within the owner's settled look)
+- **Type:** Tiro Devanagari Hindi (names), Hind (text), Rozha One (numbers). Scale: 11 · 12 · 13 ·
+  14 · 15 · 17 · 21 · 26 · 32 px; nothing under 11 px; inputs 16 px.
+- **Colour:** the existing day (ivory, indigo, madder, turmeric, peacock) and night palettes, with
+  `--go` darkened to #227a34 in the day and a `--rani-ink` #a8285a for rani text on tints.
+- **Spacing:** 4 · 8 · 12 · 16 · 20 · 24 px. **Radii:** 4 · 8 · 12 · 18 · 24 · pill.
+- **Shadows:** the two existing (`--shadow`, `--shadow-sm`).
+- **Motion:** 160 ms for hover and press, 340 ms for a view rising in, one easing
+  (cubic-bezier(0.22, 0.8, 0.24, 1)); none with reduced motion.
+- **Voice:** the copywriter's guide (findings/copywriter.md §2b): plain, warm, slightly quirky
+  English; say what it is before the joke; one name per thing; errors say what to do.
+
+### Scoring
+Impact, Effort and Confidence 1–5; **Priority = Impact × Confidence ÷ Effort.**
+
+## TODO (ranked)
+
+| # | Item | Findings | I | E | C | Priority | Status |
+|---|---|---|---|---|---|---|---|
+| 1 | Copy: no Punjabi, what it is first, exact facts, one name per thing, errors that help | CW-01..58, 61..70 (except 59, 60, 65) | 5 | 2 | 5 | 12.5 | done (8de3515) |
+| 2 | Correct the stories and facts | RAIL-01..09, 12..14, CW-59, CW-60 | 4 | 1 | 5 | 20 | todo |
+| 3 | Smaller arch on phones so the next train shows | UI-01, UX-02 | 4 | 1 | 4 | 16 | todo |
+| 4 | Netaji Express name for 12311/12312 | RAIL-10 | 3 | 1 | 5 | 15 | todo |
+| 5 | Header fits at 320 px | UI-03, UX-04 | 3 | 1 | 5 | 15 | todo |
+| 6 | Selected ride length visible at night | UI-02 | 3 | 1 | 5 | 15 | todo |
+| 7 | Inputs at 16 px (no iOS zoom) | UI-10, UX-07 | 3 | 1 | 5 | 15 | todo |
+| 8 | "Book on IRCTC" and "Live status on NTES" at the end of a train | UX-06 | 3 | 1 | 4 | 12 | todo |
+| 9 | Tap targets ≥ 44 px (≥ 24 px minimum) | UI-04, UX-03, ENG-06, UI-11 | 4 | 2 | 5 | 10 | todo |
+| 10 | Contrast: --go, rani text on tints | UI-05 | 2 | 1 | 5 | 10 | todo |
+| 11 | Inline the theme script (no render-blocking request) | ENG-03 | 2 | 1 | 4 | 8 | todo |
+| 12 | A 640 px photo size for covers | ENG-04 | 2 | 1 | 4 | 8 | todo |
+| 13 | Place tabs in one row | UI-08 | 2 | 1 | 4 | 8 | todo |
+| 14 | Arrow keys between place tabs | ENG-07 | 2 | 1 | 4 | 8 | todo |
+| 15 | Deep links draw the view at once | ENG-01, UX-01, UI-12 | 5 | 3 | 4 | 6.7 | todo |
+| 16 | Toy train named in the hills lens | UX-05, RAIL-11 | 3 | 2 | 4 | 6 | todo |
+| 17 | An h1 on every view | ENG-05 | 3 | 2 | 4 | 6 | todo |
+| 18 | The map in a landmark | ENG-08 | 1 | 1 | 5 | 5 | todo |
+| 19 | Dead code out | ENG-09 | 1 | 1 | 5 | 5 | todo |
+| 20 | Shorter long tasks after the timetable lands | ENG-02 | 3 | 2 | 3 | 4.5 | todo |
+| 21 | Ride caption not in error red | UI-09 | 1 | 1 | 4 | 4 | todo |
+| 22 | One height on a hill town's page | CW-56 (rest) | 1 | 1 | 4 | 4 | todo |
+| 23 | Ooty, not only Udhagamandalam | CW-61, UX-09, RAIL-15 | 2 | 2 | 3 | 3 | todo |
+| 24 | Type and radius tokens | UI-06, UI-07 | 2 | 3 | 4 | 2.7 | todo |
+| 25 | Re-measure the story tap | UX-08 | 1 | 1 | 5 | 5 | todo |
+
+### Dropped
+| Finding | Why |
+|---|---|
+| CW-65 (Gurmukhi on Amritsar's line and poster) | The owner allows scripts as decoration; station boards show the local script by design |
+| ENG-10 (Wikimedia's third-party cookie) | Set by upload.wikimedia.org on hotlinked photos; avoiding it means proxying every photo |
+| ENG-11 (split app.ts) | A large refactor with no user-visible gain; next round |
+| RAIL §2d new stories | Each needs its own sourcing first; listed as next steps |
