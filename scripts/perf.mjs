@@ -29,7 +29,7 @@ await page.evaluateOnNewDocument(() => {
 });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const results = [];
-async function step(label, fn, settle = 1500) {
+async function step(label, fn, settle = 2500) {
   await page.evaluate(() => {
     window.__ev = [];
     window.__long = [];
@@ -45,6 +45,11 @@ async function step(label, fn, settle = 1500) {
 const tapAt = async (sel) => {
   const el = await page.$(sel);
   if (!el) throw new Error(`no ${sel}`);
+  // scroll it into view and let that settle first, as a person does: otherwise the work the
+  // scroll sets off (photos loading below) lands in the tap's frame and on the next step's count
+  await el.evaluate((e) => e.scrollIntoView({ block: "center" }));
+  await wait(1200);
+  await page.evaluate(() => { window.__ev = []; window.__long = []; });
   await (desktop ? el.click() : el.tap());
 };
 

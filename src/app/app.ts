@@ -26,7 +26,7 @@ import { placeKey, routeKey, tripKey, type PlaceSave, type RouteSave, type TripS
 import { Saves } from "./saves";
 import discoverUrl from "../../data/discover.json?url";
 import { records, type Record as TimetableRecord } from "../core/numbers";
-import { discoverHtml, placeFactHtml, recordsHtml, storyHtml, type DiscoverData, type RideView, type Story } from "../ui/discover";
+import { discoverHtml, noteHtml, placeFactHtml, recordsHtml, storyHtml, type DiscoverData, type RideView, type Story } from "../ui/discover";
 import { SearchBox } from "../ui/search";
 import { filtersOf, go, href, parse, type Route } from "./router";
 
@@ -1110,6 +1110,19 @@ export class App {
     return (this.discoverData?.facts ?? []).filter((f) => f.stations?.some((c) => want.has(c))).slice(0, max);
   }
 
+  /** Discover's fact, changed in place: drawing the whole panel again re-decodes every story's photo. */
+  private swapFact(o: { fact: number; cat: string }) {
+    const d = this.discoverData;
+    const fig = this.panel.querySelector<HTMLElement>('section[aria-labelledby="facts-h"] .note');
+    if (!d || !fig) return this.renderPanel(false);
+    const facts = o.cat === "All" ? d.facts : d.facts.filter((f) => f.cat === o.cat);
+    const f = facts[((o.fact % facts.length) + facts.length) % facts.length];
+    // the figure stays (it's the live region that announces the new fact); its inside changes
+    const t = document.createElement("template");
+    t.innerHTML = noteHtml(f, d.facts.indexOf(f) + 1, d.facts.length, true);
+    fig.innerHTML = t.content.firstElementChild!.innerHTML;
+  }
+
   private placeFact(p: Place) {
     const f = this.factsAt(p.stations.map((s) => this.net.stations[s].code), 1)[0];
     return f ? placeFactHtml(f, this.discoverData!.facts.indexOf(f) + 1, this.discoverData!.facts.length) : "";
@@ -1879,7 +1892,7 @@ export class App {
         if (o?.kind === "discover") {
           o.fact += act === "fact-next" ? 1 : -1;
           this.factAt = o.fact;
-          this.renderPanel(false);
+          this.swapFact(o);
           this.panel.querySelector<HTMLElement>(`[data-act=${act}]`)?.focus({ preventScroll: true });
         }
         break;
@@ -1887,7 +1900,8 @@ export class App {
         if (o?.kind === "discover") {
           o.cat = el.dataset.cat ?? "All";
           o.fact = 0;
-          this.renderPanel(false);
+          for (const b of this.panel.querySelectorAll<HTMLElement>("[data-act=fact-cat]")) b.setAttribute("aria-pressed", String(b.dataset.cat === o.cat));
+          this.swapFact(o);
         }
         break;
       case "story":
