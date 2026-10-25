@@ -48,6 +48,12 @@ async function binary(plain: string, gz: string, priority: RequestPriority = "au
   return new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
 }
 
+/** Let the browser handle input and paint before carrying on. */
+function pause() {
+  const sch = (globalThis as { scheduler?: { yield?: () => Promise<void> } }).scheduler;
+  return sch?.yield ? sch.yield() : new Promise<void>((r) => setTimeout(r, 0));
+}
+
 async function boot() {
   applySavedTheme();
   // An address with trains in it needs the timetable straight away; the landing page asks for it
@@ -104,7 +110,9 @@ async function boot() {
   const ready = timetable.then(async ([buf, names]) => {
     await applyTimetableSoftly(net, meta, buf, names); // a slice at a time: typing stays quick
     map.refreshNetwork();
+    await pause(); // three big steps, three tasks: a tap in between isn't kept waiting
     app.timetableReady();
+    await pause();
   });
   // the landing page (and a place without a station, with nowhere to start from) needs only the
   // stations; anything with trains in it waits for the timetable

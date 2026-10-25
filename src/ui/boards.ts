@@ -8,9 +8,6 @@ export function flapHtml(text: string, _settle = false) {
   return `<span class="clock-time">${esc(text)}</span>`;
 }
 
-/** Nothing moves any more; kept so callers needn't change. */
-export function settleFlaps(_root: ParentNode) {}
-
 /** A train's heading: its number, its name, where it runs (and in Hindi, where known). */
 export function ledHtml(lead: string, name: string, route: string, routeHi = "", label = `Train ${lead}, ${name}, ${route}`) {
   return `<div class="tr-title" aria-label="${esc(label)}">

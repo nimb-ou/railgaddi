@@ -84,16 +84,16 @@ export function savedHtml(v: SavedView) {
     : `<p class="empty">No saved trips or routes. Save a route from a place (${BOOKMARK}), or a trip from the planner.</p>`;
   return `<div class="panel-scroll">
     <header class="list-head">
-      <h2 id="panel-title" tabindex="-1" class="saved-title">Saved</h2>
+      <h1 id="panel-title" tabindex="-1" class="saved-title">Saved</h1>
       <button class="round" type="button" data-act="close" aria-label="Close">${CLOSE}</button>
     </header>
     ${accountHtml(v)}
     <section aria-labelledby="bucket-h">
-      <div class="section-head"><h3 id="bucket-h">Bucket list</h3><span class="count">${v.places.length || ""}</span></div>
+      <div class="section-head"><h2 id="bucket-h">Bucket list</h2><span class="count">${v.places.length || ""}</span></div>
       ${places}
     </section>
     <section aria-labelledby="routes-h">
-      <div class="section-head"><h3 id="routes-h">Trips and routes</h3><span class="count">${v.routes.length || ""}</span></div>
+      <div class="section-head"><h2 id="routes-h">Trips and routes</h2><span class="count">${v.routes.length || ""}</span></div>
       ${routes}
     </section>
   </div>`;

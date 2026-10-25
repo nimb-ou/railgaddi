@@ -79,10 +79,13 @@ export function spotHtml(v: SpotView) {
   const cover = v.summary && v.summary !== "loading" && v.summary.photo
     ? `<figure class="pl-cover"><span class="arch shot" data-key="${esc(v.summary.photo)}"><img src="${esc(v.summary.photo)}" alt="" fetchpriority="high" decoding="async" crossorigin="anonymous" referrerpolicy="no-referrer" /></span></figure>`
     : `<figure class="pl-cover bare"><span class="arch" aria-hidden="true"><i class="ph">${esc(s.name.charAt(0))}</i></span></figure>`;
+  // one height on the page: the summary's own ("around 1,600 metres") when it gives one
+  const lead = v.summary && v.summary !== "loading" && v.summary.text ? firstSentences(v.summary.text, 2) : "";
+  const saysHeight = /\d[\d,.]*\s*(m|metres|meters)\b/.test(lead);
   const intro = v.summary === "loading"
     ? `<div class="skeleton"><span class="shimmer"></span></div>`
     : v.summary?.text
-      ? `<p class="intro">${esc(firstSentences(v.summary.text, 2))}</p>`
+      ? `<p class="intro">${esc(lead)}</p>`
       : "";
   const ways = v.ways.length
     ? waysHtml(v.ways, !!v.from)
@@ -99,20 +102,20 @@ export function spotHtml(v: SpotView) {
     </div>
     ${cover}
     <div class="pl-name">
-      <h2 class="name" id="panel-title" tabindex="-1">${esc(s.name)}</h2>
-      <p class="where">${esc(s.state)}${people}${v.height !== null && v.height >= 600 ? ` · ${v.height.toLocaleString("en-IN")} m up` : ""}</p>
+      <h1 class="name" id="panel-title" tabindex="-1">${esc(s.name)}</h1>
+      <p class="where">${esc(s.state)}${people}${v.height !== null && v.height >= 600 && !saysHeight ? ` · ${v.height.toLocaleString("en-IN")} m up` : ""}</p>
       <span class="spot-badge">${ICON.pin}${badge}</span>
     </div>
     ${intro}
     ${v.weather}
     ${v.when}
     <section aria-labelledby="ways-h">
-      <div class="section-head"><h3 id="ways-h">${v.from ? `Getting here from ${esc(v.from)}` : "How to get here"}</h3></div>
+      <div class="section-head"><h2 id="ways-h">${v.from ? `Getting here from ${esc(v.from)}` : "How to get here"}</h2></div>
       ${v.from ? `<p class="gh-lede">Quickest first: the train, then the road from the station. ${real ? "Road times by taxi or bus are estimates." : "Road distances and times are estimates."}</p>` : `<p class="gh-lede">No station here, but getting in is easy: take a train to one of these, then a taxi or bus. Tell us where you start and we'll show the whole way.</p>${v.fromChoices}`}
       ${ways}
     </section>
     ${v.airports.length ? `<section aria-labelledby="air-h">
-      <div class="section-head"><h3 id="air-h">Or fly in</h3></div>
+      <div class="section-head"><h2 id="air-h">Or fly in</h2></div>
       <ul class="air">${v.airports.map((a) => `<li><span>${esc(a.name)} (${esc(a.code)})</span><small>${a.km} km · ${a.mins > a.km * 3 + 30 ? "by boat and road" : `about ${fmtMins(a.mins)} by road`}</small></li>`).join("")}</ul>
     </section>` : ""}
     <footer class="credits-foot">

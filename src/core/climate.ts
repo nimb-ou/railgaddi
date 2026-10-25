@@ -5,7 +5,6 @@
 export type MonthKind = "B" | "G" | "R" | "M" | "H" | "W" | "C";
 
 export const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-export const MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export const KIND_WORDS: Record<MonthKind, string> = {
   B: "Lovely",
@@ -21,8 +20,9 @@ export const KIND_WORDS: Record<MonthKind, string> = {
 export const goodMonth = (w: string | undefined, month: number) => !!w && (w[month] === "B" || w[month] === "G" || w[month] === "R");
 
 /** This month, in India. */
+const IST_MONTH = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", month: "numeric" });
 export function monthNow(d = new Date()) {
-  return Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", month: "numeric" }).format(d)) - 1;
+  return Number(IST_MONTH.format(d)) - 1;
 }
 
 /** Moods, as the build writes them (a bit each); big cities come from the timetable's own list. */

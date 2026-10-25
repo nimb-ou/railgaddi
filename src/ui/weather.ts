@@ -29,7 +29,7 @@ export function weatherHtml(f: Forecast | "loading" | "error", where: string) {
   const now = describe(f.now.code, f.now.day);
   const today = f.days[0];
   return `<section class="wx" aria-labelledby="wx-h">
-    <h3 class="vh" id="wx-h">Weather in ${esc(where)}</h3>
+    <h2 class="vh" id="wx-h">Weather in ${esc(where)}</h2>
     <div class="wx-head">
       ${iconSvg(now.icon)}
       <span class="wx-temp">${deg(f.now.temp)}</span>

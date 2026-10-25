@@ -31,7 +31,8 @@ import { SearchBox } from "../ui/search";
 import { filtersOf, go, href, parse, type Route } from "./router";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
-const narrow = () => window.innerWidth <= 720;
+const PHONE = window.matchMedia("(max-width: 720px)");
+const narrow = () => PHONE.matches; // as the CSS decides it, without reading the layout
 const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const LAST = "railgaddi.last"; // the station you started from last time (on this device only)
 const journeyKey = (c: Connection) => c.legs.map((l) => l.train.no).join("-");
@@ -125,10 +126,10 @@ export class App {
       online: true,
       empty: "No station, town or famous place by that name. Try another spelling?",
     });
-    // typed before the timetable arrived: answer it now
+    // typed before the timetable arrived: answer it now (not the names the page arrived with)
     for (const id of ["from-input", "to-input"]) {
       const input = $<HTMLInputElement>(id);
-      if (input.value.trim()) input.dispatchEvent(new Event("input"));
+      if (input.value.trim() && input.value !== input.defaultValue) input.dispatchEvent(new Event("input"));
       input.addEventListener("focus", () => {
         input.select();
         if (narrow()) this.expandSheet(true);
@@ -203,6 +204,16 @@ export class App {
         else (this.origin ? this.toBox : this.fromBox).focus();
         return;
       }
+      // a place's tabs: the arrow keys move between them, as tabs do
+      const tab = (e.target as HTMLElement | null)?.closest<HTMLElement>('[role="tab"]');
+      if (tab && ["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) {
+        const tabs = [...tab.parentElement!.querySelectorAll<HTMLElement>('[role="tab"]')];
+        const i = tabs.indexOf(tab);
+        const next = e.key === "Home" ? 0 : e.key === "End" ? tabs.length - 1 : (i + (e.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+        e.preventDefault();
+        tabs[next].click();
+        return;
+      }
       if (e.key !== "Escape" || (document.activeElement as HTMLElement | null)?.matches("input")) return;
       if (this.open?.kind === "train" || this.open?.kind === "journey") this.back();
       else if (this.open) this.closePanel({ push: true });
@@ -263,6 +274,7 @@ export class App {
     if (!this.net.ready && (r.origin || (r.place && !this.spotOnly(r)) || r.trip || r.discover !== undefined)) {
       return this.whenReady(() => this.applyRoute(r, first));
     }
+    this.routed = true;
     // measure the panel (the sheet, on phones) before framing anything on the map: a shared link
     // to a place must show the place, not leave it under the sheet
     if (first) this.settle();
@@ -1405,12 +1417,14 @@ export class App {
   // ---------------------------------------------------------------- drawing the panel
 
   private renderPanel(fresh: boolean, scrollTo?: number) {
+    // a link's view drawn into the page at build time stays until the address has been applied
+    if (!this.routed && this.panel.hasAttribute("data-drawn")) return;
     const o = this.open;
     const scroller = () => this.panel.querySelector<HTMLElement>(".panel-scroll");
     const keep = fresh ? 0 : scroller()?.scrollTop ?? 0;
     // the same place drawn again (its guide arrived, something was saved): keep the photo that's
     // already showing, rather than loading and fading it in again
-    const shot = fresh ? null : this.panel.querySelector<HTMLElement>(".shot[data-key]");
+    const shot = fresh && !this.panel.hasAttribute("data-drawn") ? null : this.panel.querySelector<HTMLElement>(".shot[data-key]");
     const focused = !fresh && document.activeElement instanceof HTMLInputElement && this.panel.contains(document.activeElement) ? document.activeElement.id : "";
     // photos already on screen stay on screen when the panel is drawn again (no second fade-in)
     const shown = fresh ? null : new Set([...this.panel.querySelectorAll<HTMLImageElement>("img.in")].map((i) => i.src));
@@ -1581,6 +1595,7 @@ export class App {
     return landingView({ net: this.net, guides: this.guides, slugOf: (p) => this.slugs.of(p), spots: this.spots, titlePlace: this.titlePlace, link: href, last: this.lastOrigin(), fact: this.homeFact });
   }
   private homeFact: string | null = null;
+  private routed = false; // the page's address has been applied once
 
   /** The train that makes a place fit the lens: "22:30 → 06:10 · Udyan Express". */
   private lensNote(legs: Leg[]) {
@@ -1669,7 +1684,13 @@ export class App {
       }
       return best;
     };
-    const via = (b: { c: StationChoice }) => `Train to ${titleOf(b.c.place, null)}, then ${fmtMins(b.c.road.mins)} by road`;
+    // a hill town on a toy-train line from the station (Shimla from Kalka): the toy train is the way up
+    const toyLinks = (a: Place, z: Place) =>
+      a.stations.some((i) => this.net.trainsAt[i].some((t) => this.net.trains[t].type === "Toy" && z.stations.some((j) => this.net.trains[t].st.includes(j))));
+    const via = (b: { c: StationChoice }, to?: Place) =>
+      to && toyLinks(b.c.place, to)
+        ? `Train to ${titleOf(b.c.place, null)}, then the toy train, or ${fmtMins(b.c.road.mins)} by road`
+        : `Train to ${titleOf(b.c.place, null)}, then ${fmtMins(b.c.road.mins)} by road`;
     // hill towns with a station no direct train reaches from here (Shimla: only the toy train from Kalka)
     for (const [p, gv] of this.guides) {
       if (!((gv.entry.m ?? 0) & MOODS.hills.bit) || this.reach.has(p) || listed.has(gv.title) || !worthwhile(gv)) continue;
@@ -1682,7 +1703,7 @@ export class App {
       out.push({
         id: p.id, title: gv.title, state: p.state, mins: b.total, trains: new Set(b.legs.map((l) => l.train)).size,
         photo: gv.icon, guide: true, appeal: gv.entry.appeal + (ICONIC.includes(gv.title) ? 60 : 0),
-        href: href({ origin: this.slugs.of(this.origin!), place: this.slugs.of(p) }), note: via(b),
+        href: href({ origin: this.slugs.of(this.origin!), place: this.slugs.of(p) }), note: via(b, p),
       });
     }
     // and hill towns with no station at all, the ones with a travel guide of their own

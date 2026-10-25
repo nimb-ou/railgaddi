@@ -79,17 +79,3 @@ export function loadedImage(url: string, ready: () => void): HTMLImageElement | 
   images.set(url, img);
   return null;
 }
-
-/** Draw an image into a circle, cropped to cover it (like CSS object-fit: cover). */
-export function drawCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, cx: number, cy: number, r: number) {
-  const s = Math.max((2 * r) / img.naturalWidth, (2 * r) / img.naturalHeight);
-  const w = img.naturalWidth * s;
-  const h = img.naturalHeight * s;
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.clip();
-  ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(img, cx - w / 2, cy - h / 2, w, h);
-  ctx.restore();
-}

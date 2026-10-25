@@ -75,12 +75,12 @@ export function discoverHtml(d: DiscoverData, v: { fact: number; cat: string; re
   const n = d.facts.indexOf(f) + 1;
   return `<div class="panel-scroll discover">
     <header class="list-head">
-      <div class="masthead"><span class="eyebrow">Discover</span><h2 id="panel-title" tabindex="-1">Stories from the rails</h2></div>
+      <div class="masthead"><span class="eyebrow">Discover</span><h1 id="panel-title" tabindex="-1">Stories from the rails</h1></div>
       <button class="round" type="button" data-act="close" aria-label="Close">${CLOSE}</button>
     </header>
 
     <section aria-labelledby="facts-h">
-      <div class="section-head"><h3 id="facts-h">Did you know?</h3></div>
+      <div class="section-head"><h2 id="facts-h">Did you know?</h2></div>
       <div class="chips" role="group" aria-label="Kinds of fact">${["All", ...CATS]
         .map((c) => `<button type="button" data-act="fact-cat" data-cat="${c}" aria-pressed="${c === v.cat}">${c}</button>`)
         .join("")}</div>
@@ -88,7 +88,7 @@ export function discoverHtml(d: DiscoverData, v: { fact: number; cat: string; re
     </section>
 
     <section aria-labelledby="stories-h">
-      <div class="section-head"><h3 id="stories-h">Journeys worth the ticket</h3></div>
+      <div class="section-head"><h2 id="stories-h">Journeys worth the ticket</h2></div>
       <div class="story-grid">${d.stories
         .map(
           (s) => `<a class="story-card" href="${esc(v.storyHref(s))}" data-act="story" data-slug="${esc(s.slug)}">
@@ -102,7 +102,7 @@ export function discoverHtml(d: DiscoverData, v: { fact: number; cat: string; re
     </section>
 
     <section aria-labelledby="records-h">
-      <div class="section-head"><h3 id="records-h">By the numbers</h3><span class="count">from this timetable</span></div>
+      <div class="section-head"><h2 id="records-h">By the numbers</h2><span class="count">from this timetable</span></div>
       <ol class="records">${recordsHtml(v.records)}</ol>
     </section>
   </div>`;
@@ -118,7 +118,7 @@ function toldIn(f: Fact, body: string[]) {
 export function storyHtml(s: Story, rides: RideView[], facts: Fact[], allFacts: Fact[]) {
   facts = facts.filter((f) => !toldIn(f, s.body)).slice(0, 2);
   const cover = s.photo
-    ? `<figure class="story-cover"><div class="shot">${img(s.photo, `(max-width: 720px) 100vw, ${coverWidth(s.photo, 360, 210)}px`, 500, 1920, s.title, true)}</div></figure>`
+    ? `<figure class="story-cover"><div class="shot">${img(s.photo, `(max-width: 720px) 100vw, ${coverWidth(s.photo, 360, 210)}px`, 500, 1920, "", true)}</div></figure>`
     : "";
   return `<div class="panel-scroll story">
     <div class="top-bar">
@@ -128,12 +128,12 @@ export function storyHtml(s: Story, rides: RideView[], facts: Fact[], allFacts: 
     ${cover}
     <header class="story-head">
       <span class="sc-tags">${s.tags.map(esc).join(" · ")}</span>
-      <h2 id="panel-title" tabindex="-1">${esc(s.title)}</h2>
+      <h1 id="panel-title" tabindex="-1">${esc(s.title)}</h1>
       <p class="story-dek">${esc(s.dek)}</p>
     </header>
     <div class="story-body">${s.body.map((p) => `<p>${esc(p)}</p>`).join("")}</div>
     ${rides.length ? `<section aria-labelledby="ride-h">
-      <div class="section-head"><h3 id="ride-h">Ride it</h3></div>
+      <div class="section-head"><h2 id="ride-h">Ride it</h2></div>
       <div class="rides">${rides
         .map(
           (r) => `<a class="ride-ticket" href="${esc(r.href ?? "#")}" data-act="ride" data-i="${r.i}">
@@ -144,7 +144,7 @@ export function storyHtml(s: Story, rides: RideView[], facts: Fact[], allFacts: 
         )
         .join("")}</div>
     </section>` : ""}
-    ${facts.length ? `<section aria-labelledby="sf-h"><div class="section-head"><h3 id="sf-h">Did you know?</h3></div>${facts
+    ${facts.length ? `<section aria-labelledby="sf-h"><div class="section-head"><h2 id="sf-h">Did you know?</h2></div>${facts
       .map((f) => noteHtml(f, allFacts.indexOf(f) + 1, allFacts.length, false))
       .join("")}</section>` : ""}
     <footer class="credits-foot">

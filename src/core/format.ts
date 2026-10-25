@@ -20,9 +20,13 @@ export const fmtKm = (k: number) => Math.round(k).toLocaleString("en-IN");
 
 export const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString("en-IN")} ${n === 1 ? one : many}`;
 
+// made once: building an Intl.DateTimeFormat is slow, and these are asked for on every redraw
+const IST_TIME = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+const IST_WEEKDAY = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", weekday: "short" });
+
 /** Minutes since midnight in India, whatever the visitor's own time zone. */
 export function istNow(date = new Date()) {
-  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(date);
+  const parts = IST_TIME.formatToParts(date);
   const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0);
   return get("hour") * 60 + get("minute");
 }
@@ -32,7 +36,7 @@ const WEEKDAYS_FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "
 
 /** Minutes since Monday 00:00 in India: the "now" that running days are checked against. */
 export function istWeekMinute(date = new Date()) {
-  const wd = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", weekday: "short" }).format(date);
+  const wd = IST_WEEKDAY.format(date);
   return WEEKDAYS.indexOf(wd.slice(0, 3)) * 1440 + istNow(date);
 }
 

@@ -21,7 +21,7 @@ export function whenHtml(w: string, c: number[] | null, src: string, month: numb
     ? "Long-term averages from the IMD's station tables, via Wikivoyage."
     : `Estimated from NASA POWER's 20-year averages${elev !== undefined && elev >= 600 ? `, adjusted for ${esc(where)}'s height (${elev.toLocaleString("en-IN")} m)` : ""}.`;
   return `<section class="when" aria-labelledby="when-h">
-    <div class="section-head"><h3 id="when-h">When to go</h3><span class="count">the usual weather</span></div>
+    <div class="section-head"><h2 id="when-h">When to go</h2><span class="count">the usual weather</span></div>
     <p class="when-line">${esc(whenLine(w))}</p>
     <ol class="months" aria-label="Month by month">${[...w]
       .map((x, m) => {

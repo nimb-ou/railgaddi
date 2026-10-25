@@ -68,9 +68,9 @@ export function thumb(photo: Photo | null, title: string, guide: boolean) {
   return `<span class="arch sm" aria-hidden="true"><i class="ph">${esc(title.charAt(0))}</i></span>`;
 }
 
-/** The cover is a 200×236 arch; a wide photo is cropped to its middle. */
+/** The cover is a 200×236 arch (132×156 on phones); a wide photo is cropped to its middle. */
 function coverSizes(p: Photo) {
-  return `${coverWidth(p, 200, 236)}px`;
+  return `(max-width: 720px) ${coverWidth(p, 132, 156)}px, ${coverWidth(p, 200, 236)}px`;
 }
 
 /** A place's photo in the jharokha, or the arch alone with its initial. */
@@ -143,7 +143,7 @@ function getHereHtml(g: GetHere, title: string, afterChanges = false) {
       : `${g.blockedFrom ? "Good news: direct trains" : "Direct trains"} come here from ${plural(g.total, "place")}. Where are you starting from?`
     : "No direct train comes here in our timetable.";
   return `<section class="get-here" aria-labelledby="gh-h">
-    <div class="section-head"><h3 id="gh-h">${head}</h3></div>
+    <div class="section-head"><h2 id="gh-h">${head}</h2></div>
     <p class="gh-lede">${lede}</p>
     ${g.total ? `<div class="gh-search">
       <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" /><path d="M13 13l4.5 4.5" /></svg>
@@ -164,21 +164,28 @@ function getHereHtml(g: GetHere, title: string, afterChanges = false) {
   </section>`;
 }
 
+/** Where a place is (escaped HTML): its state, its station or stations, how high it is. */
+export function placeWhere(net: Network, place: Place, gv: GuideView | null) {
+  const codes = place.stations.map((s) => net.stations[s].code);
+  const state = `${esc(place.state || "")}${place.state ? " · " : ""}`;
+  const at = gv?.featured
+    ? `${state}nearest station <b>${esc(titleOf(place, null))}</b> (${esc(codes[0])})`
+    : codes.length === 1
+      ? `${state}${esc(net.stations[place.stations[0]].name)} (${esc(codes[0])})`
+      : `${state}${codes.length} stations (${esc(codes.slice(0, 4).join(", "))}${codes.length > 4 ? "…" : ""})`;
+  const up = gv?.entry.e !== undefined && gv.entry.e >= 600 ? ` · ${gv.entry.e.toLocaleString("en-IN")} m up` : "";
+  return at + up;
+}
+
 export function placeHtml(v: PlaceView) {
   const { net, place, gv, origin } = v;
   // the place's own photo; a Wikivoyage banner is a very wide strip and the arch's crop of it
   // would lose the subject, so it's the last resort
   const cover = gv?.icon ?? gv?.banner ?? null;
   const used: Photo[] = cover ? [cover] : [];
-  const codes = place.stations.map((s) => net.stations[s].code);
   const title = titleOf(place, gv);
-  const where = gv?.featured
-    ? `${esc(place.state || "")} · nearest station <b>${esc(titleOf(place, null))}</b> (${esc(codes[0])})`
-    : codes.length === 1
-      ? `${esc(place.state || "")}${place.state ? " · " : ""}${esc(net.stations[place.stations[0]].name)} (${esc(codes[0])})`
-      : `${esc(place.state || "")}${place.state ? " · " : ""}${codes.length} stations (${esc(codes.slice(0, 4).join(", "))}${codes.length > 4 ? "…" : ""})`;
+  const where = placeWhere(net, place, gv);
   const script = gv?.featured ? "" : scriptLine(place);
-  const up = gv?.entry.e !== undefined && gv.entry.e >= 600 ? ` · ${gv.entry.e.toLocaleString("en-IN")} m up` : "";
 
   // ---- the ride, on a ticket
   let ticket = "";
@@ -230,7 +237,7 @@ export function placeHtml(v: PlaceView) {
     const onMap = detail.sights.filter((s) => s.ll).length;
     if (withImg.length || rest.length) {
       sights = `<section aria-labelledby="sights-h">
-        <div class="section-head"><h3 id="sights-h">What to see</h3>${onMap >= 2 ? `<button class="link-btn" type="button" data-act="sights-map">Show on the map</button>` : ""}</div>
+        <div class="section-head"><h2 id="sights-h">What to see</h2>${onMap >= 2 ? `<button class="link-btn" type="button" data-act="sights-map">Show on the map</button>` : ""}</div>
         ${withImg.length ? `<div class="sight-grid">${withImg
           .map(({ s, i, ph }) => {
             used.push(ph!);
@@ -258,7 +265,7 @@ export function placeHtml(v: PlaceView) {
     const matching = legs.filter(v.passes);
     const shown = v.showAllTrains ? legs : (matching.length ? matching : legs).slice(0, 6);
     trains = `<section class="trains" aria-labelledby="trains-h">
-      <div class="section-head"><h3 id="trains-h">Every train from ${esc(titleOf(origin, null))}</h3><span class="count">soonest first</span></div>
+      <div class="section-head"><h2 id="trains-h">Every train from ${esc(titleOf(origin, null))}</h2><span class="count">soonest first</span></div>
       <div class="tt-head" aria-hidden="true"><span>Leaves</span><span>Train</span><span>Gets in</span></div>
       ${shown
         .map((l) => {
@@ -277,7 +284,7 @@ export function placeHtml(v: PlaceView) {
   }
   if (origin && v.newer.length) {
     trains += `<section class="newer" aria-labelledby="newer-h">
-      <div class="section-head"><h3 id="newer-h">Newer trains</h3></div>
+      <div class="section-head"><h2 id="newer-h">Newer trains</h2></div>
       <ul>${v.newer
         .map((n) => {
           const facts = [daysLabel(n.days) || (n.perWeek ? (n.perWeek === 7 ? "Daily" : `${n.perWeek} days a week`) : ""), n.minutes ? fmtMins(n.minutes) : "", n.km ? `${fmtKm(n.km)} km` : ""].filter(Boolean);
@@ -291,7 +298,7 @@ export function placeHtml(v: PlaceView) {
   }
 
   const nearby = v.nearby.length
-    ? `<section aria-labelledby="near-h"><div class="section-head"><h3 id="near-h">Close by</h3></div><div class="nearby">${v.nearby
+    ? `<section aria-labelledby="near-h"><div class="section-head"><h2 id="near-h">Close by</h2></div><div class="nearby">${v.nearby
         .map((n) => {
           const face = n.photo ? img(n.photo, "24px", 120, 120) : "<i></i>";
           return n.href
@@ -313,7 +320,7 @@ export function placeHtml(v: PlaceView) {
   const active = tabs.find(([k]) => k === v.tab) ?? tabs[0];
   const deep = tabs.length
     ? `<div class="pills" role="tablist" aria-label="More about ${esc(title)}">${tabs
-        .map(([k, label]) => `<button type="button" role="tab" data-act="tab" data-tab="${k}" id="tab-${k}" aria-controls="tab-body" aria-selected="${k === active[0]}">${label}</button>`)
+        .map(([k, label]) => `<button type="button" role="tab" data-act="tab" data-tab="${k}" id="tab-${k}" aria-controls="tab-body" aria-selected="${k === active[0]}" tabindex="${k === active[0] ? 0 : -1}">${label}</button>`)
         .join("")}</div>
       <div class="tab-body" id="tab-body" role="tabpanel" aria-labelledby="tab-${active[0]}">${active[2]}</div>`
     : "";
@@ -328,12 +335,12 @@ export function placeHtml(v: PlaceView) {
     ${archCover(cover, title)}
     <div class="pl-name">
       ${script ? `<span class="script">${esc(script)}</span>` : ""}
-      <h2 class="name" id="panel-title" tabindex="-1">${esc(title)}</h2>
-      <p class="where">${where}${up}</p>
+      <h1 class="name" id="panel-title" tabindex="-1">${esc(title)}</h1>
+      <p class="where">${where}</p>
     </div>
     ${ticket}
     ${v.roadWays.length ? `<section aria-labelledby="road-h">
-      <div class="section-head"><h3 id="road-h">No direct train from ${esc(titleOf(origin!, null))}</h3></div>
+      <div class="section-head"><h2 id="road-h">No direct train from ${esc(titleOf(origin!, null))}</h2></div>
       <p class="gh-lede">Don't worry: most people take a train to a main-line station near ${esc(title)}, then a taxi or bus. Quickest first; road times are estimates.</p>
       ${waysHtml(v.roadWays, true)}
     </section>` : ""}
@@ -487,7 +494,7 @@ export function trainHtml(net: Network, leg: Leg, _fromTitle: string, destTitle:
       <button class="round" type="button" data-act="close" aria-label="Close">${ICON.close}</button>
     </div>
     <header class="tr-head">
-      <h2 id="panel-title" class="vh" tabindex="-1">${esc(t.no)} ${esc(t.name)}</h2>
+      <h1 id="panel-title" class="vh" tabindex="-1">${esc(t.no)} ${esc(t.name)}</h1>
       ${ledHtml(t.no, t.name, `${origin.name} → ${terminus.name}`, hiRoute)}
       <p class="tr-kind"><span class="tag ${tagClass(t)}">${esc(t.typeLabel)}</span>${n - 2 > 0 ? `${plural(n - 2, "stop")} between ${esc(origin.name)} and ${esc(terminus.name)}` : ""}</p>
       <div class="tr-ride">
@@ -500,7 +507,11 @@ export function trainHtml(net: Network, leg: Leg, _fromTitle: string, destTitle:
     </header>
     <ol class="line" aria-label="Stops" tabindex="-1">${rows.join("")}</ol>
     ${t.approx.some((x) => x) ? `<p class="est-note">~ Estimated: a small stop the official timetable doesn't print, placed between its neighbours using the older timetable.</p>` : ""}
-    <p class="tr-src">Times from ${esc(t.source)}. Trains do run late: check live times on <a href="https://enquiry.indianrail.gov.in/mntes/" target="_blank" rel="noopener">NTES</a> before you travel. <a href="${esc(reportUrl(t))}" target="_blank" rel="noopener">Report a mistake</a></p>
+    <div class="tr-next">
+      <a class="btn primary" href="https://www.irctc.co.in/nget/train-search" target="_blank" rel="noopener">Book on IRCTC ↗</a>
+      <a class="btn" href="https://enquiry.indianrail.gov.in/mntes/" target="_blank" rel="noopener">Live status on NTES ↗</a>
+    </div>
+    <p class="tr-src">Times from ${esc(t.source)}. Trains do run late: check live times on NTES before you travel. Railgaddi doesn't sell tickets. <a href="${esc(reportUrl(t))}" target="_blank" rel="noopener">Report a mistake</a></p>
   </div>`;
 }
 
@@ -543,7 +554,7 @@ export function changesHtml(list: Connection[], fromTitle: string, title: string
     ? `A change can be quicker than the direct trains from ${esc(fromTitle)}:`
     : `No train runs straight from ${esc(fromTitle)} to ${esc(title)}. The quickest ways with one change of train:`;
   return `<section class="changes" aria-labelledby="ch-h">
-    <div class="section-head"><h3 id="ch-h">${direct ? "Quicker with a change" : "With one change"}</h3></div>
+    <div class="section-head"><h2 id="ch-h">${direct ? "Quicker with a change" : "With one change"}</h2></div>
     <p class="gh-lede">${lede}</p>
     <ol class="conn-list">${items}</ol>
     <p class="note">We only suggest changes with at least ${CHANGE_SAME_STATION} minutes between trains, or ${CHANGE_ACROSS_TOWN / 60} hours when the next train leaves from another station in the city. Long-distance trains often run late: allow more if you can, and book both trains.</p>
@@ -581,7 +592,7 @@ export function journeyHtml(net: Network, c: Connection, fromTitle: string, dest
       </span>
     </div>
     <header class="tr-head">
-      <h2 id="panel-title" class="vh" tabindex="-1">${esc(fromTitle)} to ${esc(destTitle)}, changing at ${esc(via)}</h2>
+      <h1 id="panel-title" class="vh" tabindex="-1">${esc(fromTitle)} to ${esc(destTitle)}, changing at ${esc(via)}</h1>
       ${ledHtml("", `${fromTitle} → ${destTitle}`, `1 change · via ${via}`, "", `${fromTitle} to ${destTitle}, one change at ${via}`)}
       <div class="tr-ride">
         <div><small>Departs ${esc(fromTitle)}</small>${flapHtml(fmtTime(a.dep), true)}</div>

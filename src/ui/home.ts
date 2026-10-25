@@ -184,7 +184,7 @@ export function exploreHtml(v: ExploreView) {
   const lensBtn = (l: Exclude<Lens, null>, label: string) => `<button type="button" data-act="lens" data-lens="${l}" aria-pressed="${lens === l}">${label}</button>`;
   return `<div class="panel-scroll"><div class="explore">
     <header class="ex-head">
-      <h2 id="panel-title" tabindex="-1">From ${esc(v.from)}</h2>
+      <h1 id="panel-title" tabindex="-1">From ${esc(v.from)}</h1>
       <p>${v.noneLeave ? "No trains leave from here in our timetable. Try a bigger station nearby?" : "Pick how long you'll ride, and watch the lines light up."}</p>
     </header>
     ${v.noneLeave ? "" : `<div class="ride">

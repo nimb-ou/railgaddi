@@ -122,7 +122,7 @@ export function tripHtml(v: TripView) {
       ? `<p class="trip-empty">Now add the first place you want to go.</p>`
       : "";
   return `<div class="panel-scroll"><div class="trip">
-    <h2 id="panel-title" tabindex="-1">Plan a trip</h2>
+    <h1 id="panel-title" tabindex="-1">Plan a trip</h1>
     <p class="lede">Stops in order, nights at each: we pick the train that runs that day.</p>
     <label class="trip-date">Leaving on <input type="date" id="trip-date" value="${esc(v.date)}" min="${esc(v.today)}" /></label>
     <ol class="stops">${stops}</ol>
