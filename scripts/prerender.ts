@@ -12,14 +12,17 @@ import { fileURLToPath } from "node:url";
 import { whenLine } from "../src/core/climate";
 import { daysLabel, fmtKm, fmtMins, fmtTime, plural, shiftDays } from "../src/core/format";
 import { decodeNetwork, onMainLine, type MetaFile, type Place, type TrainsFile } from "../src/core/network";
-import { buildGuideIndex, type ArticleDetail, type GuideView, type PlacesIndex } from "../src/core/places";
-import { rankPlaces } from "../src/core/rank";
+import { buildGuideIndex, worthwhile, type ArticleDetail, type GuideView, type PlacesIndex } from "../src/core/places";
+import { records } from "../src/core/numbers";
+import { rankPlaces, sameTown } from "../src/core/rank";
 import { buildSlugs, titleOf } from "../src/core/slugs";
 import { Spots, nearestAirports, nearestStations } from "../src/core/spots";
 import { arrivals, departures, newerBetween, type Leg } from "../src/core/trips";
 import { homeHtml, landingView } from "../src/ui/home";
 import { photoUrl } from "../src/ui/photos";
-import type { DiscoverData } from "../src/ui/discover";
+import { discoverHtml, storyHtml, type DiscoverData, type RideView } from "../src/ui/discover";
+import { placeWhere, scriptLine } from "../src/ui/panel";
+import { originPreview, placePreview, spotPreview } from "../src/ui/preview";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const DIST = join(ROOT, "dist");
@@ -95,6 +98,8 @@ interface Page {
   imageAlt?: string;
   body: string; // the <noscript> article
   jsonld?: object;
+  /** The view, drawn into the panel: it shows at once, and the app takes over in place. */
+  panel?: { html: string; view: string; from?: string; to?: string };
 }
 
 function render(pg: Page) {
@@ -106,8 +111,9 @@ function render(pg: Page) {
     pg.jsonld ? `<script type="application/ld+json">${JSON.stringify(pg.jsonld).replace(/</g, "\\u003c")}</script>` : "",
   ].join("\n    ");
   let html = shell
-    // a deep link waits for the timetable behind the loading screen; the landing page doesn't
-    .replace('<html lang="en" data-theme="day">', pg.path === "/" ? "$&" : '<html lang="en" data-theme="day" data-deep>')
+    // a deep link with nothing drawn waits for the timetable behind the loading screen; a page
+    // with its view drawn in (and the landing page) shows it at once
+    .replace('<html lang="en" data-theme="day">', pg.path === "/" || pg.panel ? "$&" : '<html lang="en" data-theme="day" data-deep>')
     .replace(/<title>[^<]*<\/title>/, `<title>${esc(pg.title)}</title>`)
     .replace(/(<meta name="description" content=")[^"]*/, `$1${esc(pg.description)}`)
     .replace(/(<meta property="og:title" content=")[^"]*/, `$1${esc(pg.title.replace(/ · Railgaddi$/, ""))}`)
@@ -117,7 +123,15 @@ function render(pg: Page) {
     .replace("</head>", `    ${head}\n  </head>`)
     .replace(/<noscript>[\s\S]*?<\/noscript>/, `<noscript><article class="static">${pg.body}${FOOT}</article></noscript>`);
   if (pg.path === "/") html = html.replace('<div class="side-body" id="panel"></div>', `<div class="side-body" id="panel" data-view="home" data-drawn>${landingPanel}</div>`);
-  if (pg.image && pg.imageAlt) {
+  if (pg.panel) {
+    const v = esc(pg.panel.view);
+    html = html
+      .replace('<div class="side-body" id="panel"></div>', `<div class="side-body" id="panel" data-view="${v}" data-drawn>${pg.panel.html}</div>`)
+      .replace('<body data-view="home">', `<body data-view="${v}">`);
+    if (pg.panel.from) html = html.replace('<input id="from-input" type="search"', `<input id="from-input" type="search" value="${esc(pg.panel.from)}"`);
+    if (pg.panel.to) html = html.replace('<input id="to-input" type="search"', `<input id="to-input" type="search" value="${esc(pg.panel.to)}"`);
+  }
+  if (pg.image && pg.imageAlt && !pg.panel) {
     // a link to a place loads with that place in the window: its photo, its name on a board
     const small = pg.image.replace(/\/\d+px-([^/]+)$/, "/500px-$1");
     html = html
@@ -184,9 +198,20 @@ for (const o of origins) {
     const href = hasPair(o, p) ? path(o, p) : placePages.has(p) ? path(undefined, p) : null;
     return `<li>${href ? link(href, name) : esc(name)}: ${fmtMins(d.fastest)}, ${plural(d.legs.length, "train")}</li>`;
   });
+  const home = guides.get(o)?.title;
+  const rows = new Map<string, { title: string; state: string; mins: number; trains: number; href: string; photo: GuideView["icon"]; guide: boolean; city: boolean }>();
+  for (const [p, d] of dests) {
+    const gv = guides.get(p);
+    if (!worthwhile(gv) || gv.title === home || sameTown(o, p, net)) continue;
+    const item = { title: titleOf(p, gv), state: p.state, mins: d.fastest, trains: new Set(d.legs.map((l) => l.train)).size, href: BASE + path(o, p), photo: gv.icon, guide: true, city: p.isCity };
+    const prev = rows.get(gv.title);
+    if (!prev || (item.city && !prev.city) || (item.city === prev.city && item.mins < prev.mins)) rows.set(gv.title, item);
+  }
+  const listed = [...rows.values()].sort((a, b) => a.mins - b.mins);
   render({
     path: path(o),
     title: `Trains from ${from}: ${plural(dests.length, "station")} without changing · Railgaddi`,
+    panel: { html: originPreview({ from, places: listed.length, items: listed.slice(0, 6) }), view: "explore", from },
     description: clip(
       `${plural(dests.length, "station")} you can reach from ${from} by train without changing${famous.length ? `, including ${famous.join(", ")}` : ""}. Photos, what to see, and every direct train.`,
     ),
@@ -217,6 +242,11 @@ for (const p of placePages) {
     ),
     image: cover(gv),
     imageAlt: name,
+    panel: {
+      html: placePreview({ title: name, cover: gv.icon ?? gv.banner ?? null, script: gv.featured ? "" : scriptLine(p), where: placeWhere(net, p, gv), intro, back: { href: `${BASE}/`, label: "Home" } }),
+      view: "place",
+      to: name,
+    },
     body: `<h1>${esc(name)}</h1><p>${esc(p.state)}${gv.featured ? ` · nearest station ${esc(titleOf(p, null))}` : ""}</p>${intro ? `<p>${esc(intro)}</p>` : ""}${whenList(gv)}${sightsList(d)}
       ${fromCities.length ? `<h2>Direct trains from</h2><ul>${fromCities.map(([o, dd]) => `<li>${hasPair(o, p) ? link(path(o, p), titleOf(o, null)) : link(path(o), titleOf(o, null))}: ${fmtMins(dd.fastest)}, ${plural(dd.legs.length, "train")}</li>`).join("")}</ul>` : ""}`,
     jsonld: {
@@ -249,6 +279,20 @@ for (const [o, list] of pairs) {
       ),
       image: cover(gv),
       imageAlt: name,
+      panel: {
+        html: placePreview({
+          title: name,
+          cover: gv ? gv.icon ?? gv.banner ?? null : null,
+          script: gv?.featured ? "" : scriptLine(p),
+          where: placeWhere(net, p, gv ?? null),
+          intro: d?.x ?? "",
+          back: { href: BASE + path(o), label: `From ${from}` },
+          ride: { from, fastest: dest.fastest, trains: new Set(dest.legs.map((l) => l.train)).size, km },
+        }),
+        view: "place",
+        from,
+        to: name,
+      },
       body: `<h1>${esc(name)} by train from ${esc(from)}</h1>
         <p>${plural(dest.legs.length, "direct train")} · fastest ${fmtMins(dest.fastest)} · ${fmtKm(km)} km</p>
         <table><thead><tr><th>No.</th><th>Train</th><th>Leaves ${esc(from)}</th><th>Takes</th><th>Runs</th></tr></thead><tbody>${trainRows(dest.legs)}</tbody></table>
@@ -264,8 +308,10 @@ for (const [o, list] of pairs) {
 // ---------------------------------------------------------------- Discover: journeys and facts
 const discover = JSON.parse(read("discover.json").toString()) as DiscoverData;
 const codePlace = new Map(net.stations.map((st) => [st.code, net.placeOf[st.i]]));
+const storyHref = (st: { slug: string }) => `${BASE}/discover/${st.slug}/`;
 render({
   path: "/discover/",
+  panel: { html: discoverHtml(discover, { fact: 0, cat: "All", records: records(net), storyHref }), view: "discover" },
   title: "Stories from the rails: journeys and facts from India's railways · Railgaddi",
   description: clip(`${discover.stories.length} railway journeys worth the ticket, from the Konkan coast to the Chenab bridge, and ${discover.facts.length} facts about India's trains, track and stations.`),
   body: `<h1>Stories from the rails</h1>
@@ -280,8 +326,17 @@ for (const st of discover.stories) {
     const b = codePlace.get(r.to);
     return a && b ? [`<li>${link(path(a, b), r.label)}</li>`] : [];
   });
+  const views: RideView[] = st.rides.flatMap((r, i) => {
+    const a = codePlace.get(r.from);
+    const b = codePlace.get(r.to);
+    const d = a && b ? departures(net, a).get(b) : undefined;
+    return a && b ? [{ label: r.label, href: BASE + path(a, b), note: d ? `${fmtMins(d.fastest)} · ${plural(new Set(d.legs.map((l) => l.train)).size, "train")}` : "", i }] : [];
+  });
+  const codes = new Set(st.rides.flatMap((r) => [r.from, r.to]));
+  const facts = discover.facts.filter((f) => f.stations?.some((c) => codes.has(c))).slice(0, 6);
   render({
     path: `/discover/${st.slug}/`,
+    panel: { html: storyHtml(st, views, facts, discover.facts), view: "story" },
     title: `${st.title} · Railgaddi`,
     description: clip(`${st.dek} ${st.body[0]}`),
     image: st.photo ? photoUrl(st.photo, 1280) : null,
@@ -302,8 +357,20 @@ for (const s of spots.list.filter((x) => x.pop >= 20000 || x.pop === 0)) {
   if (!ways.length) continue;
   const air = nearestAirports(spots.airports, s, 1)[0];
   const best = ways[0];
+  const near = ways.reduce((x, y) => (y.road.km < x.road.km ? y : x));
   render({
     path: `/to/${s.id}/`,
+    panel: {
+      html: spotPreview({
+        name: s.name,
+        state: s.state,
+        home: `${BASE}/`,
+        badge: s.local ? `Only local trains stop at ${s.local}` : `No railway station · nearest is ${titleOf(near.place, null)}, about ${near.road.km} km by road`,
+        ways: ways.map((w) => ({ name: titleOf(w.place, null), href: BASE + path(undefined, w.place), km: w.road.km, mins: w.road.mins })),
+      }),
+      view: "spot",
+      to: s.name,
+    },
     title: `${s.name} by train: the nearest stations · Railgaddi`,
     description: clip(`${s.name}, ${s.state}, has ${s.local ? "only a local station" : "no railway station"}. Quickest: a train to ${titleOf(best.place, null)}, then about ${fmtMins(best.road.mins)} by road.${ways.length > 1 ? ` Also near: ${ways.slice(1, 3).map((w) => titleOf(w.place, null)).join(", ")}.` : ""} Plus the week's weather.`),
     body: `<h1>${esc(s.name)} by train</h1><p>${esc(s.name)} (${esc(s.state)}) has ${s.local ? `only a local station (${esc(s.local)})` : "no railway station of its own"}. The stations to take a train to, and the road from each${best.road.real ? "" : " (estimated)"}:</p>
