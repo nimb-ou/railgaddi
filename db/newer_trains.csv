@@ -14,6 +14,7 @@ numbers,name,type,from,to,days,per_week,minutes,km,stops,src
 13037/13038,Kumbh Express,,HWH,DDN,,5,1750,1589,25,wikipedia:Kumbh Express
 13041/13042,Himgiri Superfast Express,,HWH,JAT,,3,2205,2023,30,wikipedia:Himgiri Superfast Express
 13047/13048,Vibhuti Express,,HWH,PRRB,Daily,7,955,885,32,wikipedia:Vibhuti Express
+13051/13052,Netaji Express,,HWH,KLK,Daily,7,1750,1715,38,wikipedia:Netaji Express
 13065/13066,Howrah–Anand Vihar Terminal Amrit Bharat Express,AB,HWH,ANVT,,1,1660,1455,27,wikipedia:Howrah–Anand Vihar Terminal Amrit Bharat Express
 13227/13228,Saharsa–Rajendra Nagar Terminal Intercity Express,,SHC,RJQ,Daily,7,,212,15,wikipedia:Saharsa–Rajendra Nagar Terminal Intercity Express
 13353/13354,Rajgir–Patna Intercity Express,,RGD,PNBE,Daily,7,235,99,13,wikipedia:Rajgir–Patna Intercity Express
@@ -63,6 +64,7 @@ numbers,name,type,from,to,days,per_week,minutes,km,stops,src
 17065/17066,Charlapalli–Shalimar Amrit Bharat Express,AB,CHZ,SHM,,1,1685,1546,24,wikipedia:Charlapalli–Shalimar Amrit Bharat Express
 17067/17068,Charlapalli–Bhubaneswar New Express,,CHZ,BBSN,,1,1385,1093,3,wikipedia:Charlapalli–Bhubaneswar New Express
 17069/17070,Hyderabad–Kanniyakumari Express,,HYB,CAPE,,1,2025,1582,36,wikipedia:Hyderabad–Kanniyakumari Express
+17261/17262,Guntur–Tirupati Express,,GNT,TPTY,Daily,7,,555,,wikipedia:Guntur–Tirupati Express
 17289/17290,Kakinada Town–Mysuru Express,,CCT,MYS,,1,1860,1393,33,wikipedia:Kakinada Town–Mysuru Express
 17333/17334,Miraj Junction - Castlerock Express,,MRJ,CLR,Daily,7,149,137,21,wikipedia:Miraj Junction - Castlerock Express
 17425/17426,Tirupati–Sainagar Shirdi Weekly Express,,TPTY,SNSI,,1,1845,1441,31,wikipedia:Tirupati–Sainagar Shirdi Weekly Express (via Guntur)
@@ -92,6 +94,7 @@ numbers,name,type,from,to,days,per_week,minutes,km,stops,src
 19333/19334,Indore–Bikaner Mahamana Express,,INDB,BKN,,1,1170,962,17,wikipedia:Indore–Bikaner Mahamana Express
 19335/19336,Gandhidham–Indore Weekly Express,,GIMB,INDB,,1,990,806,9,wikipedia:Gandhidham–Indore Weekly Express
 19423/19424,Ahmedabad–Bhagalpur Amrit Bharat Express,AB,ADI,BGP,,1,2170,1981,29,wikipedia:Ahmedabad–Bhagalpur Amrit Bharat Express
+19425/19426,Mumbai Central–Nandurbar Express,,BVI,NDB,Daily,7,643,383,42,wikipedia:Mumbai Central–Nandurbar Express
 19435,Ahmedabad–Asansol Weekly Express,,ADI,ASN,,1,2410,2326,28,wikipedia:Ahmedabad–Asansol Weekly Express
 19483/19484,Ahmedabad–Saharsa Express,,ADI,SHC,,6,,2168,29,wikipedia:Ahmedabad–Saharsa Express
 19525/19526,Hapa–Naharlagun Weekly Express,,HAPA,NHLN,,1,3800,3187,49,wikipedia:Hapa–Naharlagun Weekly Express
@@ -122,9 +125,12 @@ numbers,name,type,from,to,days,per_week,minutes,km,stops,src
 22701/22702,Visakhapatnam–Guntur Uday Express,,VSKP,GNT,,5,460,384,8,wikipedia:Visakhapatnam–Guntur Uday Express
 25909/25910,Jivachh Link Express,,DBG,NTSK,Daily,7,2035,1434,43,wikipedia:Jivachh Link Express
 26506/26505,Banaras–Khajuraho Vande Bharat Express,VB,BSBS,KURJ,"Mon,Tue,Wed,Fri,Sat,Sun",6,470,465,5,wikipedia:Banaras–Khajuraho Vande Bharat Express
+26657/26658,Mangaluru Central–Madgaon Vande Bharat Express,VB,MAQ,MAO,"Mon,Tue,Wed,Fri,Sat,Sun",6,275,319,2,wikipedia:Mangaluru Central–Madgaon Vande Bharat Express
+26659/26660,Mangaluru Central–Thiruvananthapuram Vande Bharat Express,VB,MAQ,TVC,"Mon,Tue,Thu,Fri,Sat,Sun",6,520,620,9,wikipedia:Mangaluru Central–Thiruvananthapuram Vande Bharat Express
 26903/26904,Surat – Udaipur City Vande Bharat Express,VB,ST,UDZ,"Mon,Wed,Thu,Fri,Sat,Sun",6,450,530,9,wikipedia:Surat – Udaipur City Vande Bharat Express
+27421/27422,Varanasi–New Delhi Vande Bharat Sleeper Express,VB,BSB,NDLS,,6,560,759,6,wikipedia:Varanasi–New Delhi Vande Bharat Sleeper Express
 27575/27576,Kamakhya–Howrah Vande Bharat Sleeper Express,VB,HWH,KYQ,,6,840,968,13,wikipedia:Kamakhya–Howrah Vande Bharat Sleeper Express
-27651/27652,Mumbai CSMT–KSR Bengaluru Vande Bharat Sleeper Express,VB,CSMT,SBC,,6,980,1092,7,wikipedia:Mumbai CSMT–KSR Bengaluru Vande Bharat Sleeper Express
+27651/27652,Mumbai CSMT–SMVT Bengaluru Vande Bharat Sleeper Express,VB,CSMT,SMVB,,6,950,1113,8,wikipedia:Mumbai CSMT–SMVT Bengaluru Vande Bharat Sleeper Express
 28011/28012,Visakhapatnam–Hazur Sahib Nanded Superfast Express,,NED,VSKP,,3,1020,861,11,wikipedia:Visakhapatnam–Hazur Sahib Nanded Superfast Express
 37211/37291,Bandel–Howrah Local,,BDC,HWH,,7,63,39,17,wikipedia:Bandel–Howrah Local
 52121/52122,Pachora–Jamner Passenger,,PC,JMNR,Daily,7,125,56,7,wikipedia:Pachora–Jamner Passenger
